@@ -1,0 +1,8 @@
+obsidian_scripts/backup/
+logs/
+__pycache__/
+.env
+.config.cfg
+json/
+*.json
+obsidian_scripts/handlers/utils/note_paths.json.lock

@@ -1,0 +1,9 @@
+*/Archives/*
+*/Temp/*
+*/.*/
+*/gpt_*/*
+*/imports/*
+*/templates/*
+*/ZMake_Header/*
+*/ZMake_Synthese/*
+*/uncategorized/*
