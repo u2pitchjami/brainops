@@ -16,7 +16,7 @@ for file in $IMPORT_DIR/recap_*.csv; do
 
         if [ $AGE -le $THRESHOLD_TIME ]; then
             FILES_FOUND=$((FILES_FOUND + 1))
-            echo "$DATE [INFO] Ajout de $file dans le process d'import..." >> $LOG_FILE
+            echo "$DATE_LOGS [INFO] Ajout de $file dans le process d'import..." >> $LOG_FILE
             
             # Ajouter l'import du fichier à la requête SQL globale
             SQL_COMMAND+="LOAD DATA INFILE '/mariadb-import/$(basename "$file")' INTO TABLE recap_staging
@@ -30,14 +30,17 @@ for file in $IMPORT_DIR/recap_*.csv; do
             FILES_TO_MOVE+=("$file")
             
         else
-            echo "$DATE [WARNING] Fichier $file trop vieux (+10 min), ignoré." >> $LOG_FILE
+            echo "$DATE_LOGS [WARNING] Fichier $file trop vieux (+10 min), ignoré." >> $LOG_FILE
         fi
     fi
 done
 
 # Si au moins un fichier a été ajouté, exécuter le SQL complet
 if [ $FILES_FOUND -ge 1 ]; then
-    echo "$DATE [INFO] Importation de $FILES_FOUND fichiers en une seule exécution..." >> $LOG_FILE
+    echo "$DATE_LOGS [INFO] Importation de $FILES_FOUND fichiers en une seule exécution..." >> $LOG_FILE
+
+    # 🔥 Récupérer le nombre de lignes avant l'import
+    NB_LIGNES_AVANT=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM recap;")
 
     mysql central_db -e "
         CREATE TEMPORARY TABLE recap_temp LIKE recap;
@@ -46,12 +49,22 @@ if [ $FILES_FOUND -ge 1 ]; then
         $SQL_COMMAND
         SOURCE $PROCESS_RECAP;
     "
-     # Déplacer les fichiers SEULEMENT après l'import MySQL
+    # 🔥 Récupérer le nombre de lignes après l'import
+    NB_LIGNES_APRES=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM recap;")
+
+    # 🔥 Calculer le nombre de nouvelles lignes insérées
+    NB_LIGNES=$((NB_LIGNES_APRES - NB_LIGNES_AVANT))
+    echo "${DATE_LOGS} - [INFO] Nombre de lignes ajoutées: $NB_LIGNES" | tee -a "$LOG_FILE"
+    # Déplacer les fichiers SEULEMENT après l'import MySQL
+    if [[ ! -d ${IMPORT_DIR}/${DATE} ]]; then
+        mkdir ${IMPORT_DIR}/${DATE}
+    fi
     for file in "${FILES_TO_MOVE[@]}"; do
-        mv "$file" "$file.processed"
-        echo "$DATE [INFO] Fichier $file déplacé après traitement." >> $LOG_FILE
+        name=$(echo "$file" | rev | cut -d "/" -f1 | rev)
+        mv "$file" "${IMPORT_DIR}/${DATE}/$name.processed"
+        echo "$DATE_LOGS [INFO] Fichier $file déplacé après traitement." >> $LOG_FILE
     done
     
 else
-    echo "$DATE [INFO] Aucun fichier récent, report de l'import." >> $LOG_FILE
+    echo "$DATE_LOGS [INFO] Aucun fichier récent, report de l'import." >> $LOG_FILE
 fi

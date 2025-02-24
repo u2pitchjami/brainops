@@ -19,13 +19,13 @@ def convert_utc_to_local(utc_time_str):
         else:
             utc_time = datetime.strptime(utc_time_str, "%Y-%m-%dT%H:%M:%S")
 
-        logging.info(f"🔍 Tentative de conversion : {utc_time_str}")
+        logger.info(f"🔍 Tentative de conversion : {utc_time_str}")
         utc_time = utc_time.replace(tzinfo=timezone.utc)
         local_time = utc_time.astimezone(pytz.timezone("Europe/Paris"))
         return local_time.strftime("%Y-%m-%d %H:%M:%S")  # 🔥 Retourne une string bien formatée
 
     except ValueError as e:
-        logging.error(f"❌ Erreur de conversion du timestamp : {utc_time_str} → {e}")
+        logger.error(f"❌ Erreur de conversion du timestamp : {utc_time_str} → {e}")
         return None
 
 def get_last_recorded_date():
@@ -41,7 +41,7 @@ def get_last_recorded_date():
         conn.close()
         return result["date"] if result else None
     except mysql.connector.Error as err:
-        logging.error(f"Erreur récupération dernière date en base: {err}")
+        logger.error(f"Erreur récupération dernière date en base: {err}")
         return None
 
 def get_days_to_update(last_sync_time):
@@ -71,9 +71,9 @@ def fetch_summary(client, date_to_check=None):
     today = datetime.now().strftime("%Y-%m-%d")
     try:
         data = client.get_user_summary(date_to_check)
-        logging.info(f"🕒 Données brutes lastSyncTimestampGMT : {data.get('lastSyncTimestampGMT')}")
+        logger.info(f"🕒 Données brutes lastSyncTimestampGMT : {data.get('lastSyncTimestampGMT')}")
         raw_last_sync = data.get("lastSyncTimestampGMT", None)
-        logging.info(f"🔍 lastSyncTimestampGMT brut avant conversion : {raw_last_sync}")
+        logger.info(f"🔍 lastSyncTimestampGMT brut avant conversion : {raw_last_sync}")
 
         if raw_last_sync is not None:
             last_sync = convert_utc_to_local(raw_last_sync)
@@ -81,7 +81,7 @@ def fetch_summary(client, date_to_check=None):
             last_sync = None
             
         if last_sync is None and date_to_check == today:
-            logging.warning(f"⚠️ Aucune synchro détectée pour aujourd'hui ({date_to_check}), on attend.")
+            logger.warning(f"⚠️ Aucune synchro détectée pour aujourd'hui ({date_to_check}), on attend.")
             return None  # On stoppe uniquement si c'est aujourd'hui
 
         weight_data = client.get_daily_weigh_ins(date_to_check)
@@ -109,7 +109,7 @@ def fetch_summary(client, date_to_check=None):
             "last_updated": last_updated
         }
     except Exception as e:
-        logging.error(f"Erreur récupération summary: {e}")
+        logger.error(f"Erreur récupération summary: {e}")
         return None
 
 
@@ -125,7 +125,7 @@ def fetch_average_heart_rate(date_to_check=None):
         if date_to_check is None:
             date_to_check = datetime.now().strftime("%Y-%m-%d")
         
-        logging.info(f"🔍 Recherche FC moyenne pour {date_to_check}")  # Debug
+        logger.info(f"🔍 Recherche FC moyenne pour {date_to_check}")  # Debug
 
         cursor.execute(query, (date_to_check,))
         result = cursor.fetchone()
@@ -133,13 +133,13 @@ def fetch_average_heart_rate(date_to_check=None):
         if result and result[0] is not None:
             avg_hr = round(result[0])
         else:
-            logging.warning(f"⚠️ Aucune donnée de fréquence cardiaque trouvée pour {date_to_check}")
+            logger.warning(f"⚠️ Aucune donnée de fréquence cardiaque trouvée pour {date_to_check}")
             avg_hr = None  # Évite une erreur si pas de données
 
         conn.close()
         return avg_hr
     except mysql.connector.Error as err:
-        logging.error(f"Erreur récupération FC moyenne: {err}")
+        logger.error(f"Erreur récupération FC moyenne: {err}")
         return None
 
 
@@ -182,8 +182,8 @@ def update_summary_db(summary_data):
                                summary_data["last_sync"], summary_data["last_updated"]))
         conn.commit()
         cursor.close()
-        logging.info(f"✅ Données summary mises à jour pour {summary_data['date']}")
+        logger.info(f"✅ Données summary mises à jour pour {summary_data['date']}")
     except mysql.connector.Error as err:
-        logging.error(f"Erreur mise à jour summary: {err}")
+        logger.error(f"Erreur mise à jour summary: {err}")
     finally:
         conn.close()

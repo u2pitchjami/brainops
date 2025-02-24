@@ -1,19 +1,18 @@
 import os
-import logging
 import json
 import subprocess
 import mysql.connector
 from datetime import datetime
 import pytz
 from dotenv import load_dotenv
-from logger_setup import setup_logger
 
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-
+from logger_setup import setup_logger
+import logging
 PARIS_TZ = pytz.timezone('Europe/Paris')
 
 setup_logger("imports_vm", logging.INFO)
@@ -51,7 +50,7 @@ def get_recent_file_changes():
 
         return recent_files
     except Exception as e:
-        logging.error(f"❌ Erreur récupération fichiers modifiés : {e}")
+        logger.error(f"❌ Erreur récupération fichiers modifiés : {e}")
         return []
 
 def get_active_processes():
@@ -72,7 +71,7 @@ def get_active_processes():
 
         return processes
     except Exception as e:
-        logging.error(f"❌ Erreur récupération processus interactifs : {e}")
+        logger.error(f"❌ Erreur récupération processus interactifs : {e}")
         return []
 
 def track_persistent_processes(process_list):
@@ -106,7 +105,7 @@ def track_persistent_processes(process_list):
 
         return persistent_processes
     except Exception as e:
-        logging.error(f"❌ Erreur suivi processus persistants : {e}")
+        logger.error(f"❌ Erreur suivi processus persistants : {e}")
         return []
 
 def save_json(data):
@@ -131,7 +130,7 @@ def save_json(data):
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(existing_data, f, indent=4)
 
-    logging.info(f"✅ Données ajoutées dans {json_file}")
+    logger.info(f"✅ Données ajoutées dans {json_file}")
 
 def insert_data_into_db(data):
     """Insère les données dans MariaDB en évitant les doublons intelligemment."""
@@ -174,10 +173,10 @@ def insert_data_into_db(data):
         conn.commit()
         cursor.close()
         conn.close()
-        logging.info("✅ Import en base terminé sans doublons.")
+        logger.info("✅ Import en base terminé sans doublons.")
 
     except Exception as e:
-        logging.error(f"❌ Erreur lors de l'insertion en base MariaDB : {e}")
+        logger.error(f"❌ Erreur lors de l'insertion en base MariaDB : {e}")
 
 def cleanup_old_json():
     """Supprime les fichiers JSON de plus de 15 jours."""
@@ -189,14 +188,14 @@ def cleanup_old_json():
                 file_time = os.path.getmtime(file_path)
                 if file_time < threshold:
                     os.remove(file_path)
-                    logging.info(f"🗑️ Fichier supprimé : {filename}")
+                    logger.info(f"🗑️ Fichier supprimé : {filename}")
     except Exception as e:
-        logging.error(f"❌ Erreur lors du nettoyage des anciens JSON : {e}")
+        logger.error(f"❌ Erreur lors du nettoyage des anciens JSON : {e}")
 
 
 # Exécution principale
 if __name__ == "__main__":
-    logging.info("🚀 Début du suivi des processus et fichiers")
+    logger.info("🚀 Début du suivi des processus et fichiers")
 
     active_processes = get_active_processes()
     persistent_processes = track_persistent_processes(active_processes)
@@ -214,7 +213,7 @@ if __name__ == "__main__":
         insert_data_into_db(context)  # Envoi direct à MariaDB
         cleanup_old_json()
     else:
-        logging.info("⚠️ Aucune activité détectée.")
+        logger.info("⚠️ Aucune activité détectée.")
 
-    logging.info("✅ Fin du script.")
+    logger.info("✅ Fin du script.")
 

@@ -12,7 +12,7 @@ def find_env_file():
     """
     caller_script = inspect.stack()[2].filename  # Récupère le chemin du script qui appelle setup_logger()
     script_dir = os.path.dirname(os.path.abspath(caller_script))
-
+    
     while script_dir != "/":
         env_path = os.path.join(script_dir, ".env")
         if os.path.exists(env_path):

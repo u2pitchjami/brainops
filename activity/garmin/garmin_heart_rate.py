@@ -39,12 +39,12 @@ def get_garmin_heart_rate(client, date_to_check=None):
                 heart_rate_dict[rounded_time].append(heart_rate)
                   
     except Exception as e:
-        logging.error(f"Erreur récupération heart_rate: {e}")
+        logger.error(f"Erreur récupération heart_rate: {e}")
         return None
     
     # 🔥 Si le dictionnaire est vide, on ne tente pas d'insérer en base
     if not heart_rate_dict:
-        logging.warning(f"⚠️ Aucune donnée de fréquence cardiaque disponible pour {date_to_check}.")
+        logger.warning(f"⚠️ Aucune donnée de fréquence cardiaque disponible pour {date_to_check}.")
         return
     
      # Connexion à la base de données
@@ -67,9 +67,9 @@ def get_garmin_heart_rate(client, date_to_check=None):
             cursor.execute(insert_query, (date_to_check, time_slot, avg_hr))
 
         conn.commit()
-        logging.info("✅ Données FC moyennées sur 10 min insérées en base !")
+        logger.info("✅ Données FC moyennées sur 10 min insérées en base !")
 
     except mysql.connector.Error as err:
-        logging.error(f"Erreur insertion en base: {err}")
+        logger.error(f"Erreur insertion en base: {err}")
     finally:
         conn.close()

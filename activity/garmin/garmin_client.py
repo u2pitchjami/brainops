@@ -22,7 +22,7 @@ def connect_db():
         conn = mysql.connector.connect(**DB_CONFIG)
         return conn
     except mysql.connector.Error as err:
-        logging.error(f"Erreur connexion DB: {err}")
+        logger.error(f"Erreur connexion DB: {err}")
         return None
 
 def get_garmin_client():
@@ -34,5 +34,5 @@ def get_garmin_client():
         client.login()
         return client
     except Exception as e:
-        logging.error(f"Erreur connexion Garmin: {e}")
+        logger.error(f"Erreur connexion Garmin: {e}")
         return None

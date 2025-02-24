@@ -18,23 +18,23 @@ logger = logging.getLogger("garmin_import")
 def main():
     client = get_garmin_client()
     if not client:
-        logging.error("❌ Impossible de se connecter à Garmin, arrêt du script.")
+        logger.error("❌ Impossible de se connecter à Garmin, arrêt du script.")
         return
 
-    logging.info("✅ Connexion réussie à Garmin Connect !")
+    logger.info("✅ Connexion réussie à Garmin Connect !")
     
     date_today = datetime.now().strftime("%Y-%m-%d")
     hr_today = get_garmin_heart_rate(client)
     summary_today = fetch_summary(client)
     
     if not summary_today or not summary_today["last_sync"]:
-        logging.warning(f"⏳ Aucune synchro détectée pour aujourd'hui ({date_today}), on attend.")
+        logger.warning(f"⏳ Aucune synchro détectée pour aujourd'hui ({date_today}), on attend.")
         return
 
     last_sync_time = datetime.strptime(summary_today["last_sync"], "%Y-%m-%d %H:%M:%S")
     days_to_update = get_days_to_update(last_sync_time)
 
-    logging.info(f"📆 Jours à mettre à jour : {days_to_update}")
+    logger.info(f"📆 Jours à mettre à jour : {days_to_update}")
 
     for date_to_update in days_to_update:
         if date_to_update == date_today:
@@ -45,9 +45,9 @@ def main():
 
         if summary:
             update_summary_db(summary)
-            logging.info(f"✅ Données mises à jour pour {date_to_update}")
+            logger.info(f"✅ Données mises à jour pour {date_to_update}")
 
-    logging.info("🎉 Mise à jour complète terminée.")
+    logger.info("🎉 Mise à jour complète terminée.")
 
 
 if __name__ == "__main__":
