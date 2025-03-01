@@ -6,3 +6,4 @@ __pycache__/
 json/
 *.json
 obsidian_scripts/handlers/utils/note_paths.json.lock
+activity/machines/extract_2_centraldb/config.env

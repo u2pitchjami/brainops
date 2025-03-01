@@ -1,10 +1,9 @@
 #!/bin/bash
-
-# ⚙️ CONFIGURATION
+# ⚙️ Configuration
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 source ${SCRIPT_DIR}/.config.cfg  # Contient LISTENBRAINZ_USER
 
-# 🔥 Récupérer les morceaux depuis l'API ListenBrainz
+# 🔥 Récupération des morceaux depuis l'API ListenBrainz
 echo "${DATE_LOGS} - [INFO] Récupération des morceaux ListenBrainz..." | tee -a $LOG_FILE
 response=$(curl -s "https://api.listenbrainz.org/1/user/${LISTENBRAINZ_USER}/listens?count=50")
 
@@ -14,7 +13,7 @@ if [ -z "$response" ]; then
     exit 1
 fi
 
-# 📜 Parser le JSON et récupérer les MBID
+
 echo "$response" | jq -r '.payload.listens[] | 
     [.track_metadata.artist_name, 
      .track_metadata.mbid_mapping.artist_mbids[0], 
@@ -22,56 +21,45 @@ echo "$response" | jq -r '.payload.listens[] |
      .track_metadata.release_name, 
      .track_metadata.mbid_mapping.release_mbid, 
      .track_metadata.mbid_mapping.recording_mbid, 
-     .listened_at] | @csv' > $SQL_FILE
+     .track_metadata.additional_info.music_service_name, 
+     .track_metadata.additional_info.submission_client, 
+     .listened_at] | @csv' > "$SQL_FILE"
 
-# ⚠️ Vérification si le fichier CSV contient des données
-if [ ! -s $SQL_FILE ]; then
-    echo "${DATE_LOGS} - [INFO] Aucun morceau valide à importer !" | tee -a $LOG_FILE
-    exit 0
-fi
-
-# 🔥 Récupérer le nombre de lignes avant l'import
-NB_LIGNES_AVANT=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM listenbrainz_tracks;")
-
-# 📥 Import dans MySQL
-echo "${DATE_LOGS} - [INFO] Importation en cours dans MySQL..." | tee -a $LOG_FILE
+# 🔥 Import du fichier CSV dans la base (sans scrobble_type)
 mysql central_db -e "
-    
     LOAD DATA INFILE '$DB_FILE'
     IGNORE INTO TABLE listenbrainz_tracks
     FIELDS TERMINATED BY ',' ENCLOSED BY '\"'
     LINES TERMINATED BY '\n'
-    (artist, artist_mbid, title, album, album_mbid, track_mbid, @played_at)
-    SET played_at = FROM_UNIXTIME(@played_at);
+    (artist, artist_mbid, title, album, album_mbid, track_mbid, service, client, @played_at)
+    SET played_at = FROM_UNIXTIME(@played_at), scrobble_type = 'unknown';
+"
+
+# 🔄 Mise à jour des types de scrobble directement en SQL
+mysql central_db -e "
+    UPDATE listenbrainz_tracks
+    SET scrobble_type = 'music'
+    WHERE (artist_mbid <> '')
+    AND DATE(played_at) = CURDATE();
+
+    UPDATE listenbrainz_tracks
+    SET scrobble_type = 'video'
+    WHERE client = 'Web Scrobbler' AND service = 'YouTube'
+    AND DATE(played_at) = CURDATE();
+
+    UPDATE listenbrainz_tracks
+    SET scrobble_type = 'podcast'
+    WHERE (client = 'Web Scrobbler' AND service = 'Radio France') 
+    OR (client = 'Pano Scrobbler' AND artist_mbid = '' AND album <> '')
+    AND DATE(played_at) = CURDATE();
     
 "
 
-# 🔥 Récupérer le nombre de lignes après l'import
-NB_LIGNES_APRES=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM listenbrainz_tracks;")
+# 🔄 Vérification après import
+NB_LIGNES=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM listenbrainz_tracks WHERE DATE(played_at) = CURDATE();")
+echo "${DATE_LOGS} - [INFO] Nombre de scrobbles importés aujourd'hui: $NB_LIGNES" | tee -a "$LOG_FILE"
 
-# 🔥 Calculer le nombre de nouvelles lignes insérées
-NB_LIGNES=$((NB_LIGNES_APRES - NB_LIGNES_AVANT))
+# 🛠 Nettoyage
+mv "$SQL_FILE" "$SQL_FILE_PROCESSED"
 
-echo "${DATE_LOGS} - [INFO] Lignes avant import: $NB_LIGNES_AVANT, après import: $NB_LIGNES_APRES, nouvelles lignes ajoutées: $NB_LIGNES" | tee -a "$LOG_FILE"
-
-if [[ $NB_LIGNES -ne "0" ]]; then
-    extract=$(mysql central_db -e "
-        SELECT artist, title, played_at
-        FROM listenbrainz_tracks
-        ORDER BY played_at DESC
-        LIMIT $NB_LIGNES;
-    ")
-
-    while IFS=$'\t' read -r artist title played_at; do
-        echo "${DATE_LOGS} - [INFO] Artist: ${artist}, Title: ${title}, Played At: ${played_at}" | tee -a "$LOG_FILE"
-    done <<< "$extract"
-
-    echo "${DATE_LOGS} - [SUCCESS] Import terminé !" | tee -a $LOG_FILE
-fi
- if [[ ! -d ${IMPORT_DIR}/${DATE} ]]; then
-        mkdir ${IMPORT_DIR}/${DATE}
-    fi
-
-mv $SQL_FILE $SQL_FILE_PROCESSED # Nettoyage du fichier temporaire
-
-
+echo "${DATE_LOGS} - [SUCCESS] Import et mise à jour des types terminés !" | tee -a $LOG_FILE
