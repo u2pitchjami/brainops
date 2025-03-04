@@ -9,7 +9,7 @@ import os
 from logger_setup import setup_logger
 import logging
 import time
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 print(f"🔎 {__name__} → Niveau du logger: {logger.level}")
 print(f"🔍 Vérif logger {__name__} → Handlers: {logger.handlers}, Level: {logger.level}")

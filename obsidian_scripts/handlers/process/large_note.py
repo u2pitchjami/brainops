@@ -6,7 +6,7 @@ from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
 
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
 def determine_max_words(filepath):
@@ -38,7 +38,7 @@ def split_large_note(content, max_words=1000):
     return blocks
 
 def process_large_note(content, filepath, entry_type):
-    logger.debug(f"[DEBUG] entrée process_large_note")
+    logger.info(f"[DEBUG] entrée process_large_note")
     """
     Traite une note volumineuse en la découpant et en envoyant les blocs au modèle.
     """
@@ -50,13 +50,14 @@ def process_large_note(content, filepath, entry_type):
     
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
-        blocks = split_large_note_by_titles(content)
+        #blocks = split_large_note_by_titles(content)
+        blocks = split_large_note_by_titles_and_words(content, word_limit=1000)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
         base_folder = os.path.dirname(filepath)
 
-        
+        logfile = "/home/pipo/bin/mon_log.txt"
                     
         processed_blocks = []
         for i, block in enumerate(blocks):
@@ -65,10 +66,16 @@ def process_large_note(content, filepath, entry_type):
             logger.debug(f"[DEBUG] process_large_note : prompt {entry_type}")
             prompt = PROMPTS[entry_type].format(content=block) 
             logger.debug(f"[DEBUG] process_large_note : {prompt[:50]}")
-            
+            with open(logfile, "a", encoding="utf-8") as f:
+                f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
             logger.debug(f"[DEBUG] process_large_note : envoie vers ollama")    
             response = ollama_generate(prompt)
             logger.debug(f"[DEBUG] process_large_note : reponse {response[:50]}")
+            
+                    
+
+            with open(logfile, "a", encoding="utf-8") as f:
+                f.write(response + "\n\n")  # On ajoute une nouvelle ligne
             
             logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
             processed_blocks.append(response.strip())
@@ -142,6 +149,62 @@ def split_large_note_by_titles(content):
         if intro:
             blocks.append(f"## **Introduction**\n\n{intro}")
     
+    return blocks
+
+def split_large_note_by_titles_and_words(content, word_limit=1000):
+    """
+    Découpe une note en blocs basés sur les titres (#, ##, ###),
+    et regroupe les sections en paquets de 1000 mots maximum.
+    Chaque groupe conserve les titres et leurs contenus sans rupture.
+    """
+    # Expression régulière pour détecter les titres
+    title_pattern = r'(?m)^(\#{1,3})\s+.*$'
+    
+    # Trouver toutes les correspondances (positions et contenu)
+    matches = list(re.finditer(title_pattern, content))
+    logger.debug(f"[DEBUG] Titres trouvés : {[match.group() for match in matches]}")
+
+    blocks = []
+    temp_block = []
+    word_count = 0
+
+    def add_block():
+        """Ajoute le bloc actuel à la liste des résultats."""
+        if temp_block:
+            blocks.append("\n\n".join(temp_block))
+            temp_block.clear()
+
+    # Gestion de l'introduction avant le premier titre
+    last_pos = 0
+    if matches and matches[0].start() > 0:
+        intro = content[:matches[0].start()].strip()
+        logger.debug(f"[DEBUG] Introduction détectée : {intro[:50]}")
+        if intro:
+            temp_block.append(f"## **Introduction**\n\n{intro}")
+            word_count += len(intro.split())
+
+    # Découpage basé sur les titres
+    for i, match in enumerate(matches):
+        title = match.group().strip()  # Le titre complet (ex. : "# Section")
+        start_pos = match.end()  # Fin du titre
+        end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+
+        # Extraire le contenu de la section
+        section_content = content[start_pos:end_pos].strip()
+        section_word_count = len(section_content.split())
+
+        # Vérifier si l'ajout dépasse la limite de mots
+        if word_count + section_word_count > word_limit:
+            add_block()  # On sauvegarde le bloc actuel
+            word_count = 0  # On reset le compteur de mots
+
+        # Ajouter le titre et son contenu au bloc courant
+        temp_block.append(f"{title}\n{section_content}")
+        word_count += section_word_count
+
+    # Ajouter le dernier bloc restant
+    add_block()
+
     return blocks
 
 def ensure_titles_in_blocks(blocks, default_title="# Introduction"):

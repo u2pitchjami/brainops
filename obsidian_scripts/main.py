@@ -19,7 +19,7 @@ from handlers.utils.backup_note_paths import backup_note_paths
 from logger_setup import setup_logger
 from handlers.start.watcher import start_watcher
 
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
 print("✅ setup_logger a été exécuté !") 

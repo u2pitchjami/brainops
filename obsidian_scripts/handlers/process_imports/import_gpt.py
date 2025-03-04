@@ -25,17 +25,17 @@ def process_clean_gpt(filepath):
         
     logger.debug(f"[DEBUG] process_clean_gpt : envoie vers clean content {filepath}")
     content = clean_content(content, filepath)
-    entry_type = "gpt_reformulation"
-    logger.debug(f"[DEBUG] process_clean_gpt : prompt {entry_type}")
-    prompt = PROMPTS[entry_type].format(content=content) 
-    logger.debug(f"[DEBUG] process_clean_gpt : {prompt[:50]}")
+    # entry_type = "gpt_reformulation"
+    # logger.debug(f"[DEBUG] process_clean_gpt : prompt {entry_type}")
+    # prompt = PROMPTS[entry_type].format(content=content) 
+    # logger.debug(f"[DEBUG] process_clean_gpt : {prompt[:50]}")
 
-    logger.debug(f"[DEBUG] process_clean_gpt : envoie vers ollama")    
-    response = ollama_generate(prompt)
-    logger.debug(f"[DEBUG] process_clean_gpt : reponse {response[:50]}")
+    # logger.debug(f"[DEBUG] process_clean_gpt : envoie vers ollama")    
+    # response = ollama_generate(prompt)
+    # logger.debug(f"[DEBUG] process_clean_gpt : reponse {response[:50]}")
     
     with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(response)
+            file.write(content)
         
 def process_import_gpt(filepath):
     """
@@ -145,11 +145,14 @@ def split_gpt_conversation(content):
     return results
 
 def process_class_gpt(filepath, category, subcategory):
-    logger.debug(f"[DEBUG] démarrage du process_clean_gpt pour : {filepath}")
+    logger.info(f"[DEBUG] démarrage du process_clean_gpt pour : {filepath}")
     
     content = read_note_content(filepath)
-    base_folder = os.path.dirname(filepath)    
-    category, subcategory = categ_extract(base_folder)    
+    cleaned_content = clean_content(content, filepath)
+    content = cleaned_content    
+    process_large_note(content, filepath, "gpt_reformulation")
+    content = read_note_content(filepath)
+    process_large_note(content, filepath, "test_gpt")
     process_and_update_file(filepath)
     content = read_note_content(filepath)
     logger.debug(f"[DEBUG] content : {content}")

@@ -12,7 +12,7 @@ from logger_setup import setup_logger
 import logging
 from pathlib import Path
 import fnmatch
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
 def process_single_note(filepath, dest_path=None):
@@ -109,10 +109,14 @@ def process_single_note(filepath, dest_path=None):
                 process_clean_gpt(filepath)
                 new_path = process_get_note_type(filepath)
                 base_folder = os.path.dirname(new_path)
+                logger.info(f"[INFO] base_folder : {base_folder}")
                 filepath = new_path
+                print ("filepath:", filepath)
                 new_path = rename_file(filepath)
                 logger.info(f"[INFO] Note renommée : {filepath} --> {new_path}")
                 filepath = new_path
+                base_folder = os.path.dirname(new_path)
+                logger.info(f"[INFO] base_folder : {base_folder}")
                 category, subcategory = categ_extract(base_folder)
                 process_class_gpt(filepath, category, subcategory)
                 logger.info(f"[INFO] Import terminé pour : {filepath}")

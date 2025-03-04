@@ -45,12 +45,12 @@ def process_note_event(event):
                 logger.error(f"[ERREUR] Titre introuvable pour le fichier : {filepath}")
                 return
             
-            if "Z_technical" in relative_path:
-                # Vérification des doublons avant ajout
-                if check_duplicate(note_title, filepath):
-                    logger.warning(f"[DOUBLON] Note similaire déjà existante : {note_title}")
-                    return  # On arrête le traitement si doublon
-                logger.debug(f"[DEBUG] sortie check_duplicate")
+            # if "Z_technical" in relative_path:
+            #     # Vérification des doublons avant ajout
+            #     if check_duplicate(note_title, filepath):
+            #         logger.warning(f"[DOUBLON] Note similaire déjà existante : {note_title}")
+            #         return  # On arrête le traitement si doublon
+            #     logger.debug(f"[DEBUG] sortie check_duplicate")
             
             # Extraction des métadonnées depuis l'entête YAML
             

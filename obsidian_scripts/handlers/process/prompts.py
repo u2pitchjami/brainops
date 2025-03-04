@@ -1,4 +1,37 @@
 PROMPTS = {
+    "test_gpt": """
+         
+        
+    Contexte :
+Tu es un assistant expert en synthèse et analyse de conversations entre un utilisateur et un modèle conversationnel de type GPT.
+Ton objectif est d'extraire l'essentiel des échanges tout en structurant le contenu sous forme de notes hiérarchisées.
+
+Analysez attentivement la conversation suivante entre un utilisateur et un agent IA.
+Votre tâche est de produire un résumé concis et structuré qui capture l'essence de l'échange.
+Suivez ces directives :
+
+1. Identifiez et résumez le sujet principal et l'objectif de la conversation.
+
+2. Extrayez les points clés et les informations essentielles, en les organisant de manière logique.
+
+3. Mettez en évidence les étapes importantes du processus ou de la résolution du problème.
+
+4. Soulignez les difficultés ou obstacles rencontrés et comment ils ont été surmontés.
+
+5. Identifiez les décisions cruciales ou les moments de percée dans la conversation.
+
+6. Ignorez les éléments suivants :
+   - Les échanges de politesse ou la conversation générale
+   - Les propositions erronées ou corrigées par la suite
+   - Les informations redondantes ou répétitives
+   - Les digressions non pertinentes pour le sujet principal
+
+7. Utilisez un format clair avec des puces ou des sous-titres pour une lecture facile.
+
+voici le texte:
+        {content}
+      
+            """,
     "reformulation": """
     You are an intelligent and structured note organizer assistant specialized in processing and improving text.
 Follow the specific instructions below:
@@ -288,36 +321,19 @@ Your task is to help me categorize and prioritize these items, suggesting an ord
     Generate only the filename, without any additional text or comments.
           """,
     "gpt_reformulation": """
-    You are an intelligent note-organizing assistant.
-    Reformule cette conversation GPT en un texte structuré et fluide.
-    Utilise des titres et des sous-titres pour organiser les idées principales, et rédige des paragraphes clairs et bien construits.
-    Assure-toi que le texte final soit lisible, informatif et adapté à une présentation ou un article.
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
+    Vous êtes un assistant organisateur de notes intelligent et structuré, spécialisé dans le traitement et l'amélioration de texte.
+Suivez les instructions spécifiques ci-dessous :
 
-      **Exemple d'entrée (conversation GPT) :**
-
-        Utilisateur : Salut, je veux apprendre Python, tu as des conseils ?
-        GPT : Bien sûr ! Commence par des bases comme les variables, boucles, et conditions. Tu peux aussi essayer des exercices pratiques.
-        Utilisateur : Ok, et tu connais des ressources ?
-        GPT : Oui, je te recommande le site "Apprendre Python" ou les tutoriels sur Real Python. Ils sont très bien pour débuter.
-        Utilisateur : Super, merci ! Je vais m'y mettre.
-      
-      **Exemple de sortie (texte structuré) :**
-
-        Apprendre Python : Par où commencer ?
-        Les bases pour bien débuter
-        Python est un langage idéal pour les débutants. Pour commencer, familiarisez-vous avec des concepts fondamentaux comme les variables, les boucles, et les conditions. Ces notions sont essentielles pour comprendre les bases de la programmation.
-
-        Ressources recommandées
-        Pour apprendre Python, plusieurs ressources de qualité sont disponibles. Voici deux suggestions :
-
-        Site "Apprendre Python" : Un site francophone avec des cours clairs et progressifs.
-        Real Python : Une plateforme en anglais offrant des tutoriels détaillés.
-        Passer à la pratique
-        N’hésitez pas à vous lancer dans des exercices pratiques dès le début. Cela vous permettra de consolider vos acquis tout en vous amusant.
+1. Extraire les idées clés, réécrire le contenu pour améliorer la clarté, la concision et le flux logique tout en préservant le sens d'origine.
+2. Simplifier le langage complexe, éliminer le jargon inutile et garantir que le contenu est accessible à un public général.
+3. Utiliser un ton professionnel mais accessible.
+4. Supprimez les redondances et les détails inutiles.
+5. Suppromez Les échanges de politesse ou la conversation générale.
+6. Éliminez les sauts de ligne inutiles.
+7. Supprimez les publicités et le contenu promotionnel.
         
-    Here is the text :
-            {content}
+    Voici le texte à traiter :
+      {content}
   """
    
    
