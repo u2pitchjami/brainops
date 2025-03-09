@@ -1,5 +1,5 @@
 import os
-from handlers.process_imports.import_gpt import process_import_gpt, process_clean_gpt, process_class_gpt
+from handlers.process_imports.import_gpt import process_import_gpt, process_clean_gpt, process_class_gpt, process_class_gpt_test
 from handlers.process_imports.import_normal import import_normal
 from handlers.process_imports.import_syntheses import process_import_syntheses
 from handlers.process.get_type import process_get_note_type
@@ -12,7 +12,7 @@ from logger_setup import setup_logger
 import logging
 from pathlib import Path
 import fnmatch
-setup_logger("obsidian_notes", logging.DEBUG)
+setup_logger("obsidian_notes", logging.INFO)
 logger = logging.getLogger("obsidian_notes")
 
 def process_single_note(filepath, dest_path=None):
@@ -124,7 +124,15 @@ def process_single_note(filepath, dest_path=None):
             except Exception as e:
                 logger.error(f"[ERREUR] Anomalie l'import gpt : {e}")
                 return
-        
+        elif "Z_technical/test_gpt" in base_folder:
+            logger.info(f"[INFO] Import issu d'une conversation GPT TEST : {filepath}")
+            try:
+                process_class_gpt_test(filepath)
+                logger.info(f"[INFO] Import terminé pour : {filepath}")
+                return
+            except Exception as e:
+                logger.error(f"[ERREUR] Anomalie l'import gpt : {e}")
+                return
 
         else:
             # Traitement pour les autres cas

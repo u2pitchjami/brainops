@@ -1,4 +1,5 @@
 from handlers.process.large_note import process_large_note
+from handlers.process.large_note_gpt import process_large_note_gpt_test
 from handlers.process.ollama import ollama_generate
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
@@ -9,11 +10,12 @@ from datetime import datetime
 from logger_setup import setup_logger
 import logging
 import re
+import shutil
 import os
 from pathlib import Path
 from handlers.process_imports.import_syntheses import process_import_syntheses
 
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
 def process_clean_gpt(filepath):
@@ -151,13 +153,47 @@ def process_class_gpt(filepath, category, subcategory):
     cleaned_content = clean_content(content, filepath)
     content = cleaned_content    
     process_large_note(content, filepath, "gpt_reformulation")
-    content = read_note_content(filepath)
-    process_large_note(content, filepath, "test_gpt")
+   
+    content = cleaned_content    
+    
+    process_large_note(content, filepath, "gpt_reformulation")
+    #content = read_note_content(filepath)
+   # process_large_note(content, filepath, "test_gpt")
     process_and_update_file(filepath)
     content = read_note_content(filepath)
     logger.debug(f"[DEBUG] content : {content}")
     
     
     make_properties(content, filepath, category, subcategory, status = "archive")
-    process_import_syntheses(filepath, category, subcategory)
+    #process_import_syntheses(filepath, category, subcategory)
+    return
+
+def process_class_gpt_test(filepath):
+    logger.info(f"[DEBUG] démarrage du process_clean_gpt test pour : {filepath}")
+    destination_path = "/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/"
+    filename = os.path.basename(filepath)  # Extrait "fichier.txt"
+    logger.debug(f"[DEBUG] filename : {filename}")
+    models = ["llama-summary-gguf:latest", "qwen2.5:14b", "nomic-embed-text:latest", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
+    
+    for model in models:
+        logger.debug(f"[DEBUG] model : {model}")
+        safe_model_name = re.sub(r'[\/:*?"<>|]', '_', model)
+        new_filename = f"{os.path.splitext(filename)[0]}_{safe_model_name}{os.path.splitext(filename)[1]}"  # Ajoute model_llama avant l'extension
+        destination_file = os.path.join(destination_path, new_filename)
+        new_file_path = shutil.copy(filepath, destination_file)
+        logger.debug(f"[DEBUG] new_file_path : {new_file_path}")
+        content = read_note_content(new_file_path)
+        cleaned_content = clean_content(content, new_file_path)
+        content = cleaned_content
+        process_large_note_gpt_test(content, new_file_path, model)
+        destination_path1 = "/mnt/user/Documents/Obsidian/Agora/01/"
+        shutil.copy(new_file_path, destination_path1)
+        print(f"Fichier copié avec succès : {destination_path1}")
+        content = cleaned_content    
+        destination_path2 = "/mnt/user/Documents/Obsidian/Agora/02/"
+        shutil.copy(new_file_path, destination_path2)
+        print(f"Fichier copié avec succès : {destination_path2}")
+        process_large_note_gpt_test(content, new_file_path, model)
+        
+    
     return

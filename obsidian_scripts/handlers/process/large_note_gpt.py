@@ -1,12 +1,13 @@
 import os
 import re
+import requests
+import json
 from handlers.utils.extract_yaml_header import extract_yaml_header
-from handlers.process.ollama import ollama_generate
 from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
 
-setup_logger("obsidian_notes", logging.INFO)
+setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
 def determine_max_words(filepath):
@@ -37,7 +38,7 @@ def split_large_note(content, max_words=1000):
 
     return blocks
 
-def process_large_note(content, filepath, entry_type):
+def process_large_note_gpt_test(content, filepath, model):
     logger.info(f"[DEBUG] entrée process_large_note")
     """
     Traite une note volumineuse en la découpant et en envoyant les blocs au modèle.
@@ -51,37 +52,62 @@ def process_large_note(content, filepath, entry_type):
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
         #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles_and_words(content, word_limit=1000)
+        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=500)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
         base_folder = os.path.dirname(filepath)
 
-        logfile = "/home/pipo/bin/mon_log.txt"
+        #logfile = "/home/pipo/bin/mon_log.txt"
                     
         processed_blocks = []
+        previous_response = ""  # Stocke la réponse du bloc précédent
+
         for i, block in enumerate(blocks):
             print(f"[INFO] Traitement du bloc {i + 1}/{len(blocks)}...")
             logger.debug(f"[DEBUG] process_large_note : Traitement du bloc {i + 1}/{len(blocks)}")
-            logger.debug(f"[DEBUG] process_large_note : prompt {entry_type}")
-            prompt = PROMPTS[entry_type].format(content=block) 
-            logger.debug(f"[DEBUG] process_large_note : {prompt[:50]}")
-            with open(logfile, "a", encoding="utf-8") as f:
-                f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
-            logger.debug(f"[DEBUG] process_large_note : envoie vers ollama")    
-            response = ollama_generate(prompt)
-            logger.debug(f"[DEBUG] process_large_note : reponse {response[:50]}")
+            
+            # Définir quel prompt utiliser
+            if i == 0:
+                prompt_template = PROMPTS["first_block"]  # Premier bloc
+            elif i == len(blocks) - 1:
+                prompt_template = PROMPTS["last_block"]  # Dernier bloc
+            else:
+                prompt_template = PROMPTS["middle_block"]  # Blocs intermédiaires
+
+            # Construire le prompt avec le bloc actuel et le contexte du bloc précédent
+            prompt = prompt_template.format(
+                content=block,
+                previous_response=previous_response  # Injection de la réponse précédente
+            )
+
+            logger.debug(f"[DEBUG] process_large_note : {prompt[:500]}")
+            
+            #with open(logfile, "a", encoding="utf-8") as f:
+           #    f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
+            
+            logger.debug(f"[DEBUG] process_large_note : envoi vers ollama")    
+            response = ollama_generate_gpt_test(prompt, model)
+
+            logger.debug(f"[DEBUG] process_large_note : réponse {response[:500]}")
+
+            # Ajouter le bloc traité à la liste
+            processed_blocks.append(response)
+
+            # Mettre à jour la réponse précédente pour le prochain bloc
+            previous_response = response
+
             
                     
 
-            with open(logfile, "a", encoding="utf-8") as f:
-                f.write(response + "\n\n")  # On ajoute une nouvelle ligne
+            #with open(logfile, "a", encoding="utf-8") as f:
+             #   f.write(response + "\n\n")  # On ajoute une nouvelle ligne
             
             logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
             processed_blocks.append(response.strip())
 
         # Vérifie et corrige les titres après traitement
-        final_blocks = ensure_titles_in_blocks(processed_blocks)
+        final_blocks = ensure_titles_in_blocks_gpt_test(processed_blocks)
                 
         
 
@@ -151,7 +177,7 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words(content, word_limit=1000):
+def split_large_note_by_titles_and_words_gpt_test(content, word_limit=500):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
@@ -207,7 +233,7 @@ def split_large_note_by_titles_and_words(content, word_limit=1000):
 
     return blocks
 
-def ensure_titles_in_blocks(blocks, default_title="# Introduction"):
+def ensure_titles_in_blocks_gpt_test(blocks, default_title="# Introduction"):
     """
     Vérifie que chaque bloc commence par un titre Markdown valide.
     Ajoute un titre par défaut si nécessaire.
@@ -226,7 +252,7 @@ def ensure_titles_in_blocks(blocks, default_title="# Introduction"):
     
     return processed_blocks
 
-def ensure_titles_in_initial_content(blocks, default_title="# Introduction"):
+def ensure_titles_in_initial_content_gpt_test(blocks, default_title="# Introduction"):
     """
     Vérifie que le contenu initial commence par un titre Markdown valide.
     Ajoute un titre par défaut si nécessaire.
@@ -244,3 +270,27 @@ def ensure_titles_in_initial_content(blocks, default_title="# Introduction"):
         processed_blocks.append(block)
     
     return processed_blocks
+
+def ollama_generate_gpt_test(prompt, model):
+    logger.debug(f"[DEBUG] entrée fonction : ollama_generate")
+    ollama_url_generate = os.getenv('OLLAMA_URL_GENERATE')
+
+    
+    
+    payload = {
+        "model": model,
+        "prompt": prompt
+    }
+    
+    response = requests.post(ollama_url_generate, json=payload, stream=True)
+    
+    full_response = ""
+    for line in response.iter_lines():
+        if line:
+            try:
+                json_line = json.loads(line)
+                full_response += json_line.get("response", "")
+            except json.JSONDecodeError as e:
+                print(f"Erreur de décodage JSON : {e}")
+    
+    return full_response.strip()

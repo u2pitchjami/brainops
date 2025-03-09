@@ -1,6 +1,6 @@
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler
-from datetime import datetime
+from datetime import datetime, timezone
 from handlers.utils.note_index import update_note_index, remove_note_from_index
 from handlers.start.process_note_event import process_note_event
 from handlers.start.process_folder_event import process_folder_event
@@ -9,14 +9,14 @@ import os
 from logger_setup import setup_logger
 import logging
 import time
-setup_logger("obsidian_notes", logging.DEBUG)
+setup_logger("obsidian_notes", logging.INFO)
 logger = logging.getLogger("obsidian_notes")
 print(f"🔎 {__name__} → Niveau du logger: {logger.level}")
 print(f"🔍 Vérif logger {__name__} → Handlers: {logger.handlers}, Level: {logger.level}")
-
+print("Watchdog timezone:", datetime.now().astimezone())  # Vérifie quelle heure il utilise
 # Chemin vers le dossier contenant les notes Obsidian
 obsidian_notes_folder = os.getenv('BASE_PATH')
-
+print(f"🔍 BASE_PATH défini comme : {obsidian_notes_folder}")
 # Lancement du watcher pour surveiller les modifications dans le dossier Obsidian
 def start_watcher():
     path = obsidian_notes_folder
@@ -24,7 +24,8 @@ def start_watcher():
     observer.schedule(NoteHandler(), path, recursive=True)
     observer.start()
     logger.info(f"[INFO] Démarrage du script, actif sur : {obsidian_notes_folder}")
-
+    print("Watcher démarré à :", datetime.now(timezone.utc))
+    print(f"Valeur de TZ : {os.environ.get('TZ', 'Non définie')}")
     try:
         process_queue()  # Lancement de la boucle de traitement de la file d’attente
     except KeyboardInterrupt:
@@ -36,6 +37,7 @@ class NoteHandler(FileSystemEventHandler):
         if not self.is_hidden(event.src_path):
             event_type = 'directory' if event.is_directory else 'file'
             logger.info(f"[INFO] [CREATION] {event_type.upper()} → {event.src_path}")
+            print ("event creation")
             
             # 🎯 Mise à jour immédiate de note_paths.json
             if event_type == 'file' and event.src_path.endswith('.md'):

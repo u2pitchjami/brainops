@@ -8,7 +8,7 @@ FILES_FOUND=0
 SQL_COMMAND=""
 
 # Construire une série de commandes SQL pour chaque fichier CSV disponible
-for file in $IMPORT_DIR/recap_*.csv; do
+for file in $IMPORT_DIR/recap_windows_*.csv; do
     
     if [ -f "$file" ]; then
         FILE_TIME=$(stat -c %Y "$file")

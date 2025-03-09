@@ -43,7 +43,7 @@ def process_get_note_type(filepath):
 
         logger.debug("[DEBUG] process_get_note_type : %s", prompt)
         response = ollama_generate(prompt)
-        #response = "Cinema/test"
+        #response = "Organization/Tools"
         logger.debug("[DEBUG] process_get_note_type response : %s", response)
 
         parse_category = parse_category_response(response)

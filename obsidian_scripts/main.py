@@ -5,7 +5,7 @@ import logging
 from dotenv import load_dotenv
 import threading
 print("🔥 Initialisation du script main.py")
-
+print(f"Valeur de TZ : {os.environ.get('TZ', 'Non définie')}")
 
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,8 +22,8 @@ from handlers.start.watcher import start_watcher
 setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
-print("✅ setup_logger a été exécuté !") 
-print(f"✅ Logger après setup_logger : {logger}")
+print("✅ setup_logger MAIN a été exécuté !") 
+print(f"✅ Logger MAIN après setup_logger : {logger}")
 
 
 # 🔥 Démarrer la sauvegarde automatique en parallèle du watcher

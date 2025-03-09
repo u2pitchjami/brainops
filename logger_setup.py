@@ -61,6 +61,6 @@ def setup_logger(script_name: str, level=logging.DEBUG):
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    print(f"✅ Handlers du logger : {logger.handlers}")
-    print(f"✅ Logger créé : {logger}")  # 🔥 Vérifions si le logger est bien instancié
+    print(f"✅ Handlers LOGS du logger : {logger.handlers}")
+    print(f"✅ Logger LOGS créé : {logger}")  # 🔥 Vérifions si le logger est bien instancié
     return logger  # Retourne un logger prêt à l'emploi

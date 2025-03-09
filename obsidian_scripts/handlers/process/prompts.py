@@ -1,34 +1,27 @@
 PROMPTS = {
     "test_gpt": """
-         
-        
-    Contexte :
-Tu es un assistant expert en synthèse et analyse de conversations entre un utilisateur et un modèle conversationnel de type GPT.
-Ton objectif est d'extraire l'essentiel des échanges tout en structurant le contenu sous forme de notes hiérarchisées.
+  Context:
+You are an expert assistant in synthesizing and analyzing conversations between a user and a GPT-type conversational model.
+Your goal is to extract the essential points from the exchanges while structuring the content into hierarchical notes.
 
-Analysez attentivement la conversation suivante entre un utilisateur et un agent IA.
-Votre tâche est de produire un résumé concis et structuré qui capture l'essence de l'échange.
-Suivez ces directives :
+Carefully analyze the following conversation between a user and an AI agent.
+Your task is to produce a concise and structured summary that captures the essence of the exchange.
 
-1. Identifiez et résumez le sujet principal et l'objectif de la conversation.
+Follow these guidelines:
+  01 - Identify and summarize the main topic and objective of the conversation.
+  02 - Extract key points and essential information, organizing them logically.
+  03 - Highlight important steps in the process or problem resolution.
+  04 - Emphasize difficulties or obstacles encountered and how they were overcome.
+  05 - Identify crucial decisions or breakthrough moments in the conversation.
+  06 - Ignore the following elements:
+    Polite exchanges or general small talk
+    Incorrect statements that were later corrected
+    Redundant or repetitive information
+    Digressions unrelated to the main topic
+    Use a clear format with bullet points or subtitles for easy readability.
+  07 - The content must be in French.
 
-2. Extrayez les points clés et les informations essentielles, en les organisant de manière logique.
-
-3. Mettez en évidence les étapes importantes du processus ou de la résolution du problème.
-
-4. Soulignez les difficultés ou obstacles rencontrés et comment ils ont été surmontés.
-
-5. Identifiez les décisions cruciales ou les moments de percée dans la conversation.
-
-6. Ignorez les éléments suivants :
-   - Les échanges de politesse ou la conversation générale
-   - Les propositions erronées ou corrigées par la suite
-   - Les informations redondantes ou répétitives
-   - Les digressions non pertinentes pour le sujet principal
-
-7. Utilisez un format clair avec des puces ou des sous-titres pour une lecture facile.
-
-voici le texte:
+Here is the text:
         {content}
       
             """,
@@ -321,19 +314,81 @@ Your task is to help me categorize and prioritize these items, suggesting an ord
     Generate only the filename, without any additional text or comments.
           """,
     "gpt_reformulation": """
-    Vous êtes un assistant organisateur de notes intelligent et structuré, spécialisé dans le traitement et l'amélioration de texte.
-Suivez les instructions spécifiques ci-dessous :
+    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
 
-1. Extraire les idées clés, réécrire le contenu pour améliorer la clarté, la concision et le flux logique tout en préservant le sens d'origine.
-2. Simplifier le langage complexe, éliminer le jargon inutile et garantir que le contenu est accessible à un public général.
-3. Utiliser un ton professionnel mais accessible.
-4. Supprimez les redondances et les détails inutiles.
-5. Suppromez Les échanges de politesse ou la conversation générale.
-6. Éliminez les sauts de ligne inutiles.
-7. Supprimez les publicités et le contenu promotionnel.
-        
-    Voici le texte à traiter :
-      {content}
+Follow the specific instructions below:
+
+  01 - Extract key ideas and rewrite the content to improve clarity, conciseness, and logical flow while preserving the original meaning.
+  02 - Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
+  03 - Use a professional yet approachable tone.
+  04 - Remove redundancies and unnecessary details.
+  05 - Omit polite exchanges or general conversation.
+  06 - Eliminate unnecessary line breaks.
+  07 - Remove advertisements and promotional content.
+  08 - The content must be in French.
+
+Here is the text to process:
+    {content}
+  """,
+    "first_block": """
+    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
+    This text is the first part of a larger document divided into sections. Ensure logical continuity between sections and avoid repetition of previous summaries.
+Follow the specific instructions below:
+
+  01 - Extract key ideas and rewrite the content to improve clarity, conciseness, and logical flow while preserving the original meaning.
+  02 - Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
+  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
+  04 - Remove redundancies and unnecessary details.
+  05 - Omit polite exchanges or general conversation.
+  06 - Eliminate unnecessary line breaks.
+  07 - Remove advertisements and promotional content.
+  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
+  09 - The content must be in French.
+
+Here is the text to process:
+    {content}
+  """,
+    "last_block": """
+    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
+    This text is the final part of a larger document divided into sections. Ensure logical continuity between sections and avoid repetition of previous summaries.
+Follow the specific instructions below:
+
+  01 - Extract key ideas and rewrite the content to improve clarity, conciseness, and logical flow while preserving the original meaning.
+  02 - Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
+  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
+  04 - Remove redundancies and unnecessary details.
+  05 - Omit polite exchanges or general conversation.
+  06 - Eliminate unnecessary line breaks.
+  07 - Remove advertisements and promotional content.
+  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
+  09 - The content must be in French.
+
+Here is the summary of the previous section:
+        {previous_response}
+
+This is the final section. Ensure a coherent conclusion:
+    {content}
+  """,
+    "middle_block": """
+    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
+    This text is a part of a larger document divided into sections. Ensure logical continuity between sections and avoid repetition of previous summaries.
+Follow the specific instructions below:
+
+  01 - Extract key ideas and rewrite the content to improve clarity, conciseness, and logical flow while preserving the original meaning.
+  02 - Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
+  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
+  04 - Remove redundancies and unnecessary details.
+  05 - Omit polite exchanges or general conversation.
+  06 - Eliminate unnecessary line breaks.
+  07 - Remove advertisements and promotional content.
+  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
+  09 - The content must be in French.
+
+Here is the summary of the previous section:
+        {previous_response}
+
+        Now, process the following section:
+        {content}
   """
    
    
