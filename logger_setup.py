@@ -35,14 +35,15 @@ def setup_logger(script_name: str, level=logging.DEBUG):
     :return: Logger configuré
     """
     log_dir = os.getenv('LOG_DIR', './logs')  # Dossier des logs (modifiable via .env)
-    print ("logdir : ", log_dir)
+    #print ("logdir : ", log_dir)
     os.makedirs(log_dir, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
-    log_file = os.path.join(log_dir, f"{script_name}.log")  # Pas de date dans le nom
-
+    #log_file = os.path.join(log_dir, f"{script_name}.log")  # Pas de date dans le nom
+    log_file = os.path.join(log_dir, "obsidian_notes.log")  # 🔥 Fichier unique
+    #print ("log_file : ", log_file)
     logger = logging.getLogger(script_name)
     logger.setLevel(level)
-
+    #print ("llevel : ", level)
     # Supprimer les handlers existants (évite la duplication)
     if logger.hasHandlers():
         logger.handlers.clear()
@@ -51,7 +52,8 @@ def setup_logger(script_name: str, level=logging.DEBUG):
     file_handler = TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=7, encoding="utf-8")
     file_handler.setLevel(level)
     file_handler.suffix = "%Y-%m-%d"  # Ajoute la date automatiquement aux archives
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    #formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(name)s] %(message)s')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
@@ -63,4 +65,9 @@ def setup_logger(script_name: str, level=logging.DEBUG):
 
     print(f"✅ Handlers LOGS du logger : {logger.handlers}")
     print(f"✅ Logger LOGS créé : {logger}")  # 🔥 Vérifions si le logger est bien instancié
+    logger.propagate = False  # 🚨 Empêche les logs d'être bloqués par un logger parent
+    print(f"🔍 Niveau du logger '{script_name}': {logger.level}")
+
+    for handler in logger.handlers:
+        print(f"🔍 Handler : {handler}, Niveau : {handler.level}")
     return logger  # Retourne un logger prêt à l'emploi

@@ -5,10 +5,11 @@ import os
 import glob
 from logger_setup import setup_logger
 import logging
-
+print("setup_logger backup_note_paths")
 setup_logger("obsidian_notes", logging.INFO)
 logger = logging.getLogger("obsidian_notes")
-
+print("✅ setup_logger backup_note_paths a été exécuté !") 
+print(f"✅ Logger backup_note_paths après setup_logger : {logger}")
 BACKUP_INTERVAL = 600  # ⏳ 10 minutes
 MAX_BACKUPS = 100  # 🔄 On garde 10 backups max
 backup_dir = os.getenv('BACKUP_DIR')

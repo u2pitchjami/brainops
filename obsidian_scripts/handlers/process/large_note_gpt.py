@@ -6,9 +6,20 @@ from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
+root_logger = logging.getLogger()  # Logger root (sans argument)
+print(f"🔍 Niveau du root logger largenotegpt : {logging.getLevelName(root_logger.level)}")
+print(f"🔍 Nombre de handlers dans root logger largenotegpt : {len(root_logger.handlers)}")
+setup_logger("large_note_gpt", logging.DEBUG)
+logger = logging.getLogger("large_note_gpt")
+print(f"🔍 Niveau du root logger largenotegpt : {logging.getLevelName(root_logger.level)}")
+print(f"🔍 Nombre de handlers dans root logger largenotegpt : {len(root_logger.handlers)}")
 
-setup_logger("obsidian_notes", logging.DEBUG)
-logger = logging.getLogger("obsidian_notes")
+for name, log in logging.root.manager.loggerDict.items():
+    if isinstance(log, logging.PlaceHolder):  # ⚠️ Évite les objets incomplets
+        print(f"⚠️ Logger '{name}' est un PlaceHolder (non initialisé)")
+    else:
+        print(f"🔍 Logger : {name} → Niveau : {logging.getLevelName(log.level)}")
+
 
 def determine_max_words(filepath):
     """Détermine dynamiquement la taille des blocs en fonction du fichier."""
@@ -52,13 +63,13 @@ def process_large_note_gpt_test(content, filepath, model):
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
         #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=500)
+        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
         base_folder = os.path.dirname(filepath)
 
-        #logfile = "/home/pipo/bin/mon_log.txt"
+        logfile = "/home/pipo/bin/mon_log.txt"
                     
         processed_blocks = []
         previous_response = ""  # Stocke la réponse du bloc précédent
@@ -81,15 +92,16 @@ def process_large_note_gpt_test(content, filepath, model):
                 previous_response=previous_response  # Injection de la réponse précédente
             )
 
-            logger.debug(f"[DEBUG] process_large_note : {prompt[:500]}")
+            #logger.info(f"[DEBUG] process_large_note {i + 1}/{len(blocks)} : {prompt[:1500]}")
             
-            #with open(logfile, "a", encoding="utf-8") as f:
-           #    f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
+            with open(logfile, "a", encoding="utf-8") as f:
+                f.write(F"=== [DEBUG] process_large_note : PROMPT {i + 1}/{len(blocks)} ===\n")  # Ajoute un titre
+                f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
             
-            logger.debug(f"[DEBUG] process_large_note : envoi vers ollama")    
+            logger.info(f"[DEBUG] process_large_note : envoi vers ollama")    
             response = ollama_generate_gpt_test(prompt, model)
 
-            logger.debug(f"[DEBUG] process_large_note : réponse {response[:500]}")
+            logger.debug(f"[DEBUG] process_large_note {i + 1}/{len(blocks)} : réponse {response}")
 
             # Ajouter le bloc traité à la liste
             processed_blocks.append(response)
@@ -100,8 +112,9 @@ def process_large_note_gpt_test(content, filepath, model):
             
                     
 
-            #with open(logfile, "a", encoding="utf-8") as f:
-             #   f.write(response + "\n\n")  # On ajoute une nouvelle ligne
+            with open(logfile, "a", encoding="utf-8") as f:
+                f.write(F"=== [DEBUG] process_large_note : REPONSE {i + 1}/{len(blocks)} ===\n")
+                f.write(response + "\n\n")  # On ajoute une nouvelle ligne
             
             logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
             processed_blocks.append(response.strip())
@@ -177,7 +190,7 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words_gpt_test(content, word_limit=500):
+def split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
@@ -272,7 +285,7 @@ def ensure_titles_in_initial_content_gpt_test(blocks, default_title="# Introduct
     return processed_blocks
 
 def ollama_generate_gpt_test(prompt, model):
-    logger.debug(f"[DEBUG] entrée fonction : ollama_generate")
+    logger.info(f"[DEBUG] entrée fonction : ollama_generate")
     ollama_url_generate = os.getenv('OLLAMA_URL_GENERATE')
 
     
@@ -293,4 +306,5 @@ def ollama_generate_gpt_test(prompt, model):
             except json.JSONDecodeError as e:
                 print(f"Erreur de décodage JSON : {e}")
     
+    logger.info(f"[DEBUG] SORTIE fonction : ollama_generate")
     return full_response.strip()

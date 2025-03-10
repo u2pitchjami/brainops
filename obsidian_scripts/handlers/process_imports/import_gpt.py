@@ -173,7 +173,7 @@ def process_class_gpt_test(filepath):
     destination_path = "/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/"
     filename = os.path.basename(filepath)  # Extrait "fichier.txt"
     logger.debug(f"[DEBUG] filename : {filename}")
-    models = ["llama-summary-gguf:latest", "qwen2.5:14b", "nomic-embed-text:latest", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
+    models = ["nomic-embed-text:137m-v1.5-fp16", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "nomic-embed-text:latest", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
     
     for model in models:
         logger.debug(f"[DEBUG] model : {model}")
