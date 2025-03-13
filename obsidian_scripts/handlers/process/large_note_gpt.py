@@ -63,7 +63,7 @@ def process_large_note_gpt_test(content, filepath, model):
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
         #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000)
+        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=500)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
@@ -73,7 +73,10 @@ def process_large_note_gpt_test(content, filepath, model):
                     
         processed_blocks = []
         previous_response = ""  # Stocke la réponse du bloc précédent
-
+        
+        with open(logfile, "a", encoding="utf-8") as f:
+                f.write(F"============= [DEBUG] process_large_note : MODEL {model} =============\n")  # Ajoute un titre
+                
         for i, block in enumerate(blocks):
             print(f"[INFO] Traitement du bloc {i + 1}/{len(blocks)}...")
             logger.debug(f"[DEBUG] process_large_note : Traitement du bloc {i + 1}/{len(blocks)}")
@@ -190,14 +193,14 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000):
+def split_large_note_by_titles_and_words_gpt_test(content, word_limit=500):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
     Chaque groupe conserve les titres et leurs contenus sans rupture.
     """
     # Expression régulière pour détecter les titres
-    title_pattern = r'(?m)^(\#{1,3})\s+.*$'
+    title_pattern = r'(?m)^(\#{2,5})\s+.*$'
     
     # Trouver toutes les correspondances (positions et contenu)
     matches = list(re.finditer(title_pattern, content))

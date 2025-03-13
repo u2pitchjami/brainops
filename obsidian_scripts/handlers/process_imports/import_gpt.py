@@ -173,7 +173,8 @@ def process_class_gpt_test(filepath):
     destination_path = "/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/"
     filename = os.path.basename(filepath)  # Extrait "fichier.txt"
     logger.debug(f"[DEBUG] filename : {filename}")
-    models = ["nomic-embed-text:137m-v1.5-fp16", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "nomic-embed-text:latest", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
+    models = ["mistral:latest", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
+    #models = ["deepseek-r1:14b", "llama3.2:latest", "llama3:latest", "llama3.3:latest"]  # Liste des modèles à tester
     
     for model in models:
         logger.debug(f"[DEBUG] model : {model}")
@@ -185,15 +186,17 @@ def process_class_gpt_test(filepath):
         content = read_note_content(new_file_path)
         cleaned_content = clean_content(content, new_file_path)
         content = cleaned_content
+        
         process_large_note_gpt_test(content, new_file_path, model)
-        destination_path1 = "/mnt/user/Documents/Obsidian/Agora/01/"
-        shutil.copy(new_file_path, destination_path1)
-        print(f"Fichier copié avec succès : {destination_path1}")
-        content = cleaned_content    
-        destination_path2 = "/mnt/user/Documents/Obsidian/Agora/02/"
-        shutil.copy(new_file_path, destination_path2)
-        print(f"Fichier copié avec succès : {destination_path2}")
-        process_large_note_gpt_test(content, new_file_path, model)
+        
+        # destination_path1 = "/mnt/user/Documents/Obsidian/Agora/01/"
+        # shutil.copy(new_file_path, destination_path1)
+        # print(f"Fichier copié avec succès : {destination_path1}")
+        # content = cleaned_content    
+        # destination_path2 = "/mnt/user/Documents/Obsidian/Agora/02/"
+        # shutil.copy(new_file_path, destination_path2)
+        # print(f"Fichier copié avec succès : {destination_path2}")
+        # process_large_note_gpt_test(content, new_file_path, model)
         
     
     return

@@ -57,8 +57,7 @@ def process_large_note(content, filepath, entry_type):
         # Obtenir le dossier contenant le fichier
         base_folder = os.path.dirname(filepath)
 
-        logfile = "/home/pipo/bin/mon_log.txt"
-                    
+                            
         processed_blocks = []
         for i, block in enumerate(blocks):
             print(f"[INFO] Traitement du bloc {i + 1}/{len(blocks)}...")
@@ -66,17 +65,14 @@ def process_large_note(content, filepath, entry_type):
             logger.debug(f"[DEBUG] process_large_note : prompt {entry_type}")
             prompt = PROMPTS[entry_type].format(content=block) 
             logger.debug(f"[DEBUG] process_large_note : {prompt[:50]}")
-            with open(logfile, "a", encoding="utf-8") as f:
-                f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
+           
             logger.debug(f"[DEBUG] process_large_note : envoie vers ollama")    
             response = ollama_generate(prompt)
             logger.debug(f"[DEBUG] process_large_note : reponse {response[:50]}")
             
                     
 
-            with open(logfile, "a", encoding="utf-8") as f:
-                f.write(response + "\n\n")  # On ajoute une nouvelle ligne
-            
+                       
             logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
             processed_blocks.append(response.strip())
 

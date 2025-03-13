@@ -343,7 +343,7 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The content must be in French.
+  09 - The output must be in **French**.
 
 Here is the text to process:
     {content}
@@ -361,10 +361,9 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The content must be in French.
+  09 - The output must be in **French**.
 
-Here is the summary of the previous section:
-        {previous_response}
+
 
 This is the final section. Ensure a coherent conclusion:
     {content}
@@ -382,10 +381,9 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The content must be in French.
+  09 - The output must be in **French**.
 
-Here is the summary of the previous section:
-        {previous_response}
+
 
         Now, process the following section:
         {content}
