@@ -5,69 +5,56 @@ import os
 from datetime import datetime
 from logger_setup import setup_logger
 import logging
+import yaml
+import re
 from pathlib import Path
+import unicodedata
 from handlers.process.ollama import get_summary_from_ollama, get_tags_from_ollama
 from handlers.utils.files import count_words
-from handlers.utils.extract_yaml_header import extract_yaml_header
+from handlers.utils.extract_yaml_header import extract_yaml_header, extract_metadata
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("obsidian_headers", logging.DEBUG)
+logger = logging.getLogger("obsidian_headers")
 
 # Fonction pour ajouter ou mettre à jour les tags, résumés et commandes dans le front matter YAML
 def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status):
     """
-    génère l'entête
+    Ajoute ou met à jour l'entête YAML d'un fichier Markdown.
     """
-    try:
-        logger.debug("[DEBUG] add_yaml : démarrage fonction : %s %s",filepath, status)
-        logger.debug("[DEBUG] add_yaml : démarrage fonction : %s / %s", category, subcategory)
 
+    try:
+        logger.debug("[DEBUG] add_yaml : démarrage pour %s", filepath)
+
+        # 🔥 Extraction rapide des métadonnées existantes
+        metadata = extract_metadata(filepath)
+
+        # 🔥 Définition des valeurs par défaut
+        title = metadata.get("title", Path(filepath).stem)
+        source_yaml = metadata.get("source", "")
+        author = metadata.get("author", "ChatGPT" if "ChatGPT" in title else "")
+        project = metadata.get("project", "")
+        date_creation = metadata.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        note_id = metadata.get("note_id", None)
+        nombre_mots = count_words(open(filepath, "r", encoding="utf-8").read())
+
+        # 🔥 Suppression de l'ancienne entête YAML
         with open(filepath, "r", encoding="utf-8") as file:
             lines = file.readlines()
-        # Initialisation des données
-        title = Path(filepath).stem
-        source_yaml = ""
-        author = ""
-        project = ""
-        date_creation = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        nombre_mots = count_words("".join(lines))
-        if "ChatGPT" in title:
-            author = "ChatGPT"
-
-        # Recherche des données dans tout le document
-        for line in lines:
-            if line.startswith("created:"):
-                date_creation = line.split(":", 1)[1].strip()
-            elif line.startswith("source:"):
-                source_yaml = line.split(":", 1)[1].strip()
-            elif line.startswith("author:"):
-                author = line.split(":", 1)[1].strip()
-            elif line.startswith("project:"):
-                project = line.split(":", 1)[1].strip()
-            elif line.startswith("title:"):
-                title = line.split(":", 1)[1].strip()
-        # Vérification de l'entête YAML
+        
         yaml_start, yaml_end = -1, -1
-        if lines[0].strip() == "---":
+        if lines and lines[0].strip() == "---":
             yaml_start = 0
-            yaml_end = next((i for i, line in enumerate(lines[1:], start=1)
-                             if line.strip() == "---"), -1)
-        # Supprimer l'ancienne entête YAML si présente
+            yaml_end = next((i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"), -1)
+
         if yaml_start != -1 and yaml_end != -1:
-            logger.debug("[DEBUG] add_yaml : suppression de l'ancienne entête YAML")
-            lines = lines[yaml_end + 1:]  # Supprime tout jusqu'à la fin de l'entête YAML
-            logger.debug("[DEBUG] add_yaml lines %s", lines)
+            logger.debug("[DEBUG] Suppression de l'ancienne entête YAML")
+            lines = lines[yaml_end + 1:]  # Supprime l'entête YAML existante
 
-        if not title:
-            title = os.path.basename(filepath).replace(".md", "")
-
-        logger.debug(f"[DEBUG] make_properties() - Données extraites : Status={status}, Tags={tags}, Source={source_yaml}, Author={author}")
-
-        # Créer une nouvelle entête YAML complète
+        # 🔥 Création de la nouvelle entête YAML
         yaml_block = [
             "---\n",
             f"title: {title}\n",
-            f"tags: [{', '.join(f'{tag.replace(" ", "_")}' for tag in tags)}]\n",
+            f"tags: [{', '.join(tag.replace(' ', '_') for tag in tags)}]\n",
             f"summary: |\n  {summary.replace('\n', '\n  ')}\n",
             f"word_count: {nombre_mots}\n",
             f"category: {category}\n",
@@ -77,24 +64,22 @@ def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status)
             f"source: {source_yaml}\n",
             f"author: {author}\n",
             f"status: {status}\n",
+            f"note_id: {note_id}\n",
             f"project: {project}\n",
             "---\n\n"
         ]
-        
-        # Insérer la nouvelle entête
-        lines = yaml_block + lines
-        try:
-            logger.debug("[DEBUG] add_yaml : nouvelle entête : %s / %s",category, subcategory)
-            logger.debug("Add_Metadata_to_yaml : Préparation à écrire : %s",yaml_block)
-            # Sauvegarde dans le fichier
-            with open(filepath, "w", encoding="utf-8") as file:
-                file.writelines(lines)
-            logger.info("[INFO] Génération de l'entête terminée")
-            logger.debug("Add_Metadata_to_yaml Écriture réussie dans le fichier")
-        except FileNotFoundError as e:
-            logger.error("Erreur lors de l'écriture dans le fichier : %s",e, exc_info=True)
-    except Exception as e:  # nosec: catch-all
-        logger.error("[ERROR]Fichier non trouvé : %s", e)
+
+        # 🔥 Sauvegarde sécurisée dans un fichier temporaire
+        with open(filepath, "w", encoding="utf-8") as file:
+            file.writelines(yaml_block + lines)
+
+       
+        logger.info("[INFO] Génération de l'entête terminée avec succès pour %s", filepath)
+
+    except FileNotFoundError as e:
+        logger.error("Erreur : fichier non trouvé %s", filepath)
+    except Exception as e:
+        logger.error("[ERREUR] Problème lors de l'ajout du YAML : %s", e, exc_info=True)
 
 def make_properties(content, filepath, category, subcategory, status):
     """
@@ -193,3 +178,26 @@ def extract_category_and_subcategory(filepath):
     except FileNotFoundError as e:
         logger.error("[ERREUR] Impossible de lire l'entête du fichier %s : %s",filepath, e)
         return None, None
+
+def sanitize_yaml_title(title: str) -> str:
+    """ Nettoie le titre pour éviter les erreurs YAML """
+    if not title:
+        return "Untitled"
+
+    logger.debug("[DEBUG] avant sanitize title %s", title)
+    
+    # 🔥 Normalise les caractères Unicode
+    title = unicodedata.normalize("NFC", title)
+
+    # 🔥 Supprime les caractères non imprimables et spéciaux
+    title = re.sub(r'[^\w\s\-\']', '', title)  # Garde lettres, chiffres, espace, tiret, apostrophe
+    
+    # 🔥 Remplace les " par ' et les : par un espace
+    title = title.replace('"', "'").replace(':', ' ')
+
+    logger.debug("[DEBUG] après sanitize title %s", title)
+    # 🔥 Vérifie si le titre est encore valide après nettoyage
+    if not title.strip():
+        return "Untitled"
+
+    return title

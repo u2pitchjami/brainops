@@ -2,7 +2,7 @@ from handlers.process.ollama import ollama_generate
 from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
-from handlers.utils.process_note_paths import get_prompt_name
+from handlers.utils.sql_helpers import get_prompt_name
 from handlers.utils.divers import read_note_content, clean_content
 from handlers.utils.files import copy_file_with_date, move_file_with_date, make_relative_link, copy_to_archives
 from handlers.process.prompts import PROMPTS

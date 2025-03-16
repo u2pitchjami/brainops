@@ -33,7 +33,7 @@ def read_note_content(filepath):
     """Lit le contenu d'une note depuis le fichier."""
     try:
         with open(filepath, 'r', encoding='utf-8') as file:
-            logger.error(f"[DEBUG] lecture du fichier {filepath}")
+            logger.debug(f"[DEBUG] lecture du fichier {filepath}")
             
             return file.read()
     except Exception as e:

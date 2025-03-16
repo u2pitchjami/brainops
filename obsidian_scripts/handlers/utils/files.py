@@ -8,8 +8,7 @@ import fnmatch
 from pathlib import Path
 import time
 from handlers.process.prompts import PROMPTS
-from handlers.utils.process_note_paths import get_path_from_classification, load_note_paths
-from handlers.utils.process_note_paths import is_folder_included
+from handlers.utils.sql_helpers import get_path_from_classification, is_folder_included
 from handlers.process.ollama import ollama_generate
 import fnmatch
 import unicodedata

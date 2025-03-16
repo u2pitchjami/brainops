@@ -39,6 +39,47 @@ def extract_yaml_header(content):
     # Rejoindre content_lines pour retourner une chaîne
     return header_lines, "\n".join(content_lines)
 
+def extract_category_and_subcategory(filepath):
+    """
+    Lit l'entête d'un fichier pour extraire la catégorie et la sous-catégorie.
+    On suppose que les lignes sont au format :
+    category: valeur
+    subcategory: valeur
+    """
+    logger.debug("[DEBUG] extract_category_and_subcategory %s", filepath)
+    category = None
+    subcategory = None
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            for line in file:
+                if line.startswith("category:"):
+                    category = line.split(":")[1].strip()
+                    logger.debug("[DEBUG] extract_category_and_subcategory %s", category)
+                elif line.startswith("sub category:"):
+                    subcategory = line.split(":")[1].strip()
+            return category, subcategory
+    except ValueError as e:
+        logger.error("[ERREUR] Impossible de lire l'entête du fichier %s : %s", filepath, e)
+        return None, None
+
+def extract_status(filepath):
+    """
+    Lit l'entête d'un fichier pour extraire la catégorie et la sous-catégorie.
+    On suppose que les lignes sont au format :
+    category: valeur
+    subcategory: valeur
+    """
+    status = None
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            for line in file:
+                if line.startswith("status:"):
+                    status = line.split(":")[1].strip()
+            return status
+    except FileNotFoundError as e:
+        logger.error("[ERREUR] Impossible de lire l'entête du fichier %s : %s", filepath, e)
+        return None
+
 def extract_tags(yaml_header):
     tags_existants = []
     in_tags = False
@@ -71,57 +112,117 @@ def extract_tags(yaml_header):
     logger.debug(f"[DEBUG] Tags extraits : {tags_existants}")
     return tags_existants
 
-def extract_metadata(filepath):
+def extract_summary(yaml_header):
+    resume_existant = []
+    in_summary = False
+
+    for line in yaml_header:
+        stripped_line = line.strip()
+
+        if stripped_line.startswith("summary:"):
+            in_summary = True
+            summary_content = stripped_line.replace("summary:", "").strip()
+
+            if summary_content and summary_content != "|":  # Si résumé en ligne unique
+                resume_existant.append(summary_content)
+                in_summary = False
+            elif summary_content == "|":  # Détection du résumé en bloc multi-lignes
+                resume_existant = []
+            else:
+                in_summary = False
+
+        elif in_summary:
+            if stripped_line == "" or re.match(r"^\w+:.*$", stripped_line):  # Fin du bloc summary
+                in_summary = False
+            else:
+                resume_existant.append(stripped_line)
+
+    resume_existant = "\n".join(resume_existant).strip()
+    logger.debug(f"[DEBUG] Résumé extrait : {resume_existant}")
+    return resume_existant
+
+def extract_metadata(yaml_header, key_to_extract=None):
     """
-    Extrait toutes les métadonnées YAML d'une note.
+    Extrait les métadonnées de l'entête YAML.
+    
+    :param yaml_header: Liste des lignes de l'entête YAML.
+    :param key_to_extract: Si spécifié, retourne uniquement la valeur de cette clé.
+    :return: Dictionnaire des métadonnées ou la valeur de la clé spécifiée.
     """
-    try:
-        with open(filepath, "r", encoding="utf-8") as file:
-            content = file.read()
+    logger.debug(f"[DEBUG] extract_metadata : {yaml_header}")
+    metadata = {}
+    for line in yaml_header:
+        stripped_line = line.strip()
 
-        yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
-        metadata = yaml.safe_load(yaml_match.group(1)) if yaml_match else {}
+        if ":" in stripped_line:
+            key, value = stripped_line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            metadata[key] = value
 
-        return metadata or {}
+    if key_to_extract:
+        result = metadata.get(key_to_extract, None)
+        logger.debug(f"[DEBUG] Métadonnée extraite pour '{key_to_extract}' : {result}")
+        return result
 
-    except Exception as e:
-        logger.error(f"[ERREUR] Impossible de lire l'entête du fichier {filepath} : {e}")
-        return {}
+    logger.debug(f"[DEBUG] Métadonnées extraites : {metadata}")
+    return metadata
 
 def extract_note_metadata(filepath, old_metadata=None):
     """
-    Extrait toutes les métadonnées d'une note en une seule lecture,
-    en fusionnant avec d'anciennes métadonnées si nécessaire.
+    Extrait toutes les métadonnées d'une note en une seule lecture.
 
     :param filepath: Chemin absolu du fichier Markdown.
-    :param old_metadata: Métadonnées précédentes (ex: en cas de déplacement).
-    :return: Dictionnaire avec `title`, `category`, `subcategory`, `tags`, `status`, etc.
+    :param old_metadata: Métadonnées précédentes si elles existent (ex: en cas de déplacement).
+    :return: Dictionnaire avec `title`, `category`, `subcategory`, `tags`, `status`
     """
     logger.debug(f"[DEBUG] extract_note_metadata : {filepath}")
-
-    # 🔥 Récupération directe des métadonnées avec `extract_metadata()`
-    metadata = extract_metadata(filepath)
-
-    # 🔥 Définition des valeurs par défaut si absentes
-    default_values = {
+    with open(filepath, "r", encoding="utf-8") as file:
+            content = file.read()
+    
+    logger.debug(f"[DEBUG] extract_note_metadata content : {content}")
+    
+    metadata = {
         "title": None,
         "category": None,
-        "sub category": None,
+        "subcategory": None,
         "tags": [],
-        "status": "draft",
-        "created": None,
-        "last_modified": None,
-        "project": None,
+        "status": None,
+        "created_at": None,
+        "modified_at": None,
         "note_id": None
     }
 
-    # 🔥 Fusion avec `old_metadata` et application des valeurs par défaut
-    if old_metadata:
-        default_values.update(old_metadata)  # 🔄 Priorité aux anciennes valeurs si existantes
-    default_values.update({k: v for k, v in metadata.items() if v})  # 🔄 Ajout des nouvelles valeurs si elles existent
+    # Lire l'entête YAML
+    yaml_header, _ = extract_yaml_header(content)
+    logger.debug(f"[DEBUG] extract_note_metadata yaml_header : {yaml_header}")
+    # 🔥 Convertir `yaml_header` en chaîne si c'est une liste
+    #if isinstance(yaml_header, list):
+    #    yaml_header = "\n".join(yaml_header)  # ✅ Transformer la liste en une seule chaîne
+    
+    logger.debug(f"[DEBUG] extract_note_metadata yaml_header type : {type(yaml_header)}")
+    if yaml_header:
+        metadata["title"] = extract_title(yaml_header)
+        metadata["tags"] = extract_tags_from_yaml(yaml_header) or []
+        metadata["status"] = extract_status_from_yaml(yaml_header) or "draft"
+        metadata["category"], metadata["subcategory"] = extract_category_and_subcategory_from_yaml(yaml_header)
+        metadata["created_at"] = extract_created_from_yaml(yaml_header)
+        metadata["modified_at"] = extract_modified_at_from_yaml(yaml_header)
+        metadata["note_id"] = extract_note_id(yaml_header) or None
 
-    logger.debug(f"[DEBUG] Métadonnées finales : {default_values}")
-    return default_values
+    # Si certaines valeurs sont absentes, récupérer les anciennes valeurs (ex: après un déplacement)
+    if old_metadata:
+        metadata["title"] = metadata["title"] or old_metadata.get("title")
+        metadata["category"] = metadata["category"] or old_metadata.get("category")
+        metadata["subcategory"] = metadata["subcategory"] or old_metadata.get("subcategory")
+        metadata["tags"] = metadata["tags"] or old_metadata.get("tags", [])
+        metadata["status"] = metadata["status"] or old_metadata.get("status", "draft")
+        metadata["created_at"] = metadata["created_at"] or old_metadata.get("created_at") or "unknown"
+        metadata["modified_at"] = metadata["modified_at"] or old_metadata.get("modified_at") or "unknown"
+        metadata["note_id"] = metadata["note_id"] or old_metadata.get("note_id") or None
+
+    logger.debug(f"[DEBUG] Métadonnées extraites : {metadata}")
+    return metadata
 
 def get_yaml_value(yaml_header, key, default=None):
     """ Récupère une valeur dans le YAML en évitant les erreurs. """

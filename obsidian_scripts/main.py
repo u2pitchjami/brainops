@@ -35,14 +35,13 @@ logger = logging.getLogger("obsidian_notes")
 #logging.debug("TEST DEBUG ROOT")  # 🔥 Ce message s'affiche-t-il ?
 #logging.info("TEST INFO ROOT")
 
-from handlers.utils.backup_note_paths import backup_note_paths
 from handlers.start.watcher import start_watcher
 
 
 
 # 🔥 Démarrer la sauvegarde automatique en parallèle du watcher
-backup_thread = threading.Thread(target=backup_note_paths, daemon=True)
-backup_thread.start()
+#backup_thread = threading.Thread(target=backup_note_paths, daemon=True)
+#backup_thread.start()
 
 if __name__ == "__main__":
     start_watcher()

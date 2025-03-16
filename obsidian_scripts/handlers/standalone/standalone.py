@@ -1,5 +1,5 @@
-from handlers.utils.process_note_paths import get_path_from_classification
-from handlers.utils.extract_yaml_header import extract_category_and_subcategory, extract_status
+from handlers.utils.sql_helpers import get_path_from_classification
+from handlers.utils.extract_yaml_header import extract_note_metadata
 from handlers.utils.files import read_note_content
 from handlers.process_imports.import_syntheses import process_import_syntheses
 from handlers.process.headers import make_properties
@@ -16,7 +16,10 @@ logger = logging.getLogger("obsidian_notes")
 def make_synthese_standalone(filepath):
         
     # Étape 1 : Lire l'entête pour récupérer catégorie et sous-catégorie
-    category, subcategory = extract_category_and_subcategory(filepath)
+    
+    metadata = extract_note_metadata(filepath)
+    category = (metadata["category"])
+    subcategory = (metadata["sub category"])
     logger.debug("[DEBUG] make_synthese_standalone %s %s",category, subcategory)
     if not category or not subcategory:
         logger.error(f"[ERREUR] Impossible d'extraire les informations du fichier : {filepath}")
@@ -24,6 +27,7 @@ def make_synthese_standalone(filepath):
     
     # Étape 2 : Trouver le chemin cible
     target_path = get_path_from_classification(category, subcategory)
+    target_path = Path(target_path)
     logger.debug("[DEBUG] make_synthese_standalone target_path %s",target_path)
     if not target_path:
         logger.error(f"[ERREUR] Aucun chemin trouvé pour category={category}, subcategory={subcategory}")
@@ -31,6 +35,9 @@ def make_synthese_standalone(filepath):
     
     # Étape 3 : Construire le chemin complet de l'ancienne synthèse
     filename = os.path.basename(filepath)
+    print(f"[DEBUG] Type de target_path: {type(target_path)}")  # Doit être Path, pas str
+    print(f"[DEBUG] Type de filename: {type(filename)}")  # Doit être str
+
     original_file = target_path / filename
     if original_file.exists():
         try:
@@ -57,7 +64,10 @@ def make_synthese_standalone(filepath):
 def make_header_standalone(filepath):
         
     # Étape 1 : Lire l'entête pour récupérer catégorie et sous-catégorie
-    category, subcategory = extract_category_and_subcategory(filepath)
+    metadata = extract_note_metadata(filepath)
+    category = (metadata["category"])
+    subcategory = (metadata["sub category"])
+    status = (metadata["status"])
     logger.debug("[DEBUG] make_header_standalone %s %s",category, subcategory)
     if not category or not subcategory:
         logger.error(f"[ERREUR] Impossible d'extraire les informations du fichier : {filepath}")
@@ -71,7 +81,7 @@ def make_header_standalone(filepath):
         raise
     
     # Étape 3 : Lire l'entête pour récupérer le statut
-    status = extract_status(filepath)
+    
     logger.debug("[DEBUG] make_header_standalone status %s",status)
     if not status:
         logger.error(f"[ERREUR] Impossible d'extraire le statut du fichier : {filepath}")

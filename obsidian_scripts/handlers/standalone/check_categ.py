@@ -7,11 +7,11 @@ from pathlib import Path
 import shutil
 import os
 from difflib import get_close_matches
-from handlers.utils.process_note_paths import get_path_from_classification, load_note_paths, get_path_by_category_and_subcategory, categ_extract
+from handlers.utils.sql_helpers import get_path_from_classification, get_path_by_category_and_subcategory, categ_extract
 from handlers.process.headers import add_metadata_to_yaml
 from handlers.process_imports.import_syntheses import process_import_syntheses
 from handlers.utils.files import make_relative_link
-from handlers.utils.extract_yaml_header import extract_yaml_header, extract_category_and_subcategory, extract_metadata, extract_summary, extract_tags
+from handlers.utils.extract_yaml_header import extract_yaml_header, extract_note_metadata, extract_metadata, extract_tags
 
 setup_logger("obsidian_notes", logging.INFO)
 logger = logging.getLogger("obsidian_notes")
@@ -35,13 +35,13 @@ def validate_category_and_subcategory(category, subcategory):
                 # Recherche du chemin dans la section 'folders'
                 logger.debug("[DEBUG] Validate_category_and_subcategory categ / subcateg trouvées")
                 for folder_path, folder_info in folders.items():
-                    if folder_info["category"] == category and folder_info.get("subcategory") == subcategory:
+                    if folder_info["category"] == category and folder_info.get("sub category") == subcategory:
                         logger.debug(f"[DEBUG] Validate_category_and_subcategory folder_info trouvé : {folder_info['path']}")
                         return folder_info["path"]
         else:
             # 🔹 Si aucune sous-catégorie n'est spécifiée, retourner le chemin de la catégorie
             for folder_info in folders.values():
-                if folder_info["category"] == category and folder_info.get("subcategory") is None:
+                if folder_info["category"] == category and folder_info.get("sub category") is None:
                     path = Path(folder_info["path"])  # 🔥 Conversion explicite en `Path`
                     logger.debug(f"[DEBUG] Validate_category_and_subcategory - Catégorie uniquement : {path}")
                     return path
@@ -75,7 +75,10 @@ def verify_and_correct_category(filepath):
         filepath = Path(filepath)
         logger.debug(f"[DEBUG] verify_and_correct_category {type(filepath)}")
         # Extraire la catégorie et sous-catégorie
-        category, subcategory = extract_category_and_subcategory(filepath)
+        metadata = extract_note_metadata(filepath)
+        category = (metadata["category"])
+        subcategory = (metadata["sub category"])
+        
         logger.debug(f"[DEBUG] catégorie/sous-catégorie {category} / {subcategory}")
         if not category or not subcategory:
             logger.warning(f"[ATTENTION] Impossible d'extraire catégorie/sous-catégorie pour {filepath}")
@@ -109,8 +112,8 @@ def verify_and_correct_category(filepath):
                 for i, line in enumerate(lines):
                     if line.startswith("category:"):
                         lines[i] = f"category: {category}\n"
-                    elif line.startswith("sub category:"):
-                        lines[i] = f"sub category: {subcategory}\n"
+                    elif line.startswith("subcategory:"):
+                        lines[i] = f"subcategory: {subcategory}\n"
                 file.seek(0)
                 file.writelines(lines)
                 file.truncate()
@@ -155,16 +158,17 @@ def process_sync_entete_with_path(filepath):
     """
     Synchronise l'entête YAML avec le chemin physique du fichier.
     """
-    note_paths = load_note_paths()
     filepath = Path(filepath)  # Nouveau chemin
     file = filepath.name
     base_folder = filepath.parent  # Simplification avec Path
     
-    new_category, new_subcategory = categ_extract(base_folder)  # Nouvelles catégories
+    new_category, new_subcategory, category_id, subcategory_id = categ_extract(base_folder)  # Nouvelles catégories
 
     logger.debug("[DEBUG] process_sync_entete_with_path %s", filepath)
 
-    category, subcategory = extract_category_and_subcategory(filepath)  # Anciennes catégories
+    metadata = extract_note_metadata(filepath)
+    category = (metadata["category"])
+    subcategory = (metadata["sub category"])  # Anciennes catégories
     logger.debug("[DEBUG] process_sync_entete_with_path %s %s", category, subcategory)
     path_src = get_path_by_category_and_subcategory(category, subcategory)  # Ancien chemin
     logger.debug("[DEBUG] process_sync_entete_with_path %s ", path_src)
@@ -195,9 +199,11 @@ def process_sync_entete_with_path(filepath):
     status_existant = ""
     yaml_header_archive, body_content_archive = extract_yaml_header(archive_content)
     logger.debug(f"[DEBUG] yaml_header_archive : {yaml_header_archive}")
-    tags_existants = extract_tags(yaml_header_archive)
-    resume_existant = extract_summary(yaml_header_archive)
-    status_existant = extract_metadata(yaml_header_archive, key_to_extract="status")
+    metadata_exist = extract_note_metadata(archives_path_dest)
+    
+    tags_existants = (metadata_exist["tags"])
+    resume_existant = (metadata_exist["summary"])
+    status_existant = (metadata_exist["status"])
 
     logger.debug(f"[DEBUG] Extraction terminée : Tags={tags_existants}, Summary=\n{resume_existant}, Status={status_existant}")
 
@@ -216,9 +222,11 @@ def process_sync_entete_with_path(filepath):
     yaml_header, body_content = extract_yaml_header(content)
     logger.debug(f"[DEBUG] Contenu actuel de yaml_header : {yaml_header}")
     # Récupérer les valeurs existantes
-    tags_existants = extract_tags(yaml_header)
-    resume_existant = extract_summary(yaml_header)
-    status_existant = extract_metadata(yaml_header, key_to_extract="status")
+    metadata = extract_note_metadata(filepath)
+    
+    tags_existants = (metadata["tags"])
+    resume_existant = (metadata["summary"])
+    status_existant = (metadata["status"])
     
     
     logger.debug(f"[DEBUG] tags envoyés : {tags_existants}")    
