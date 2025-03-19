@@ -36,8 +36,7 @@ def process_single_note(filepath, note_id, src_path=None):
             base_folder = os.path.dirname(new_path)
             log_event_queue()
             logger.debug(f"[DEBUG] process_single_note base_folder : {base_folder}")
-            time.sleep(10)  # Pause de 10 secondes
-            new_path = rename_file(filepath)
+            new_path = rename_file(filepath, note_id)
             logger.debug(f"[DEBUG] process_single_note fin rename_file : {new_path}")
             filepath = new_path
             if "gpt_import" in base_folder:

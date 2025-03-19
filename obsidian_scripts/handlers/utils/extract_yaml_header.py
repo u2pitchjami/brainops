@@ -2,6 +2,7 @@
 Ce module extrait les en-têtes YAML des fichiers de notes Obsidian.
 """
 from logger_setup import setup_logger
+from handlers.utils.sql_helpers import link_notes_parent_child
 import logging
 import re
 import yaml
@@ -232,7 +233,7 @@ def extract_tags_from_yaml(yaml_header):
         print(f"[ERREUR] Impossible de lire les tags YAML de {yaml_header}: {e}")
         return []
     
-def ensure_note_id_in_yaml(file_path, incoming_note_id):
+def ensure_note_id_in_yaml(file_path, incoming_note_id, status="draft"):
     """
     Vérifie et insère le note_id dans l'entête YAML si nécessaire.
     - Évite d'écrire inutilement si le note_id est déjà correct.
@@ -275,9 +276,12 @@ def ensure_note_id_in_yaml(file_path, incoming_note_id):
         # ✅ Mise à jour du `note_id`
         metadata["note_id"] = incoming_note_id
         logger.debug(f"[DEBUG] Mise à jour du note_id : {incoming_note_id}")
+        logger.debug(f"[DEBUG] status : {status}")
 
         new_yaml = f"---\n{yaml.dump(metadata, default_flow_style=False)}---\n"
-        new_content = new_yaml + content[len(yaml_match.group(0)):]  
+        new_content = new_yaml + content[len(yaml_match.group(0)):]
+        if status == "archive":
+            link_notes_parent_child(incoming_note_id, yaml_note_id) 
 
     else:
         new_content = f"---\nnote_id: {incoming_note_id}\n---\n{content}"

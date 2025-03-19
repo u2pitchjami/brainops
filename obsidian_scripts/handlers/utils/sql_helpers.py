@@ -327,11 +327,45 @@ def delete_note_from_db(file_path):
         return
     cursor = conn.cursor()
 
-    cursor.execute("DELETE FROM obsidian_tags WHERE note_id IN (SELECT id FROM obsidian_notes WHERE file_path = %s)", (file_path,))
-    cursor.execute("DELETE FROM obsidian_notes WHERE file_path = %s", (file_path,))
+    try:
+        # 🔍 Trouver le `note_id`, `parent_id` et `status` AVANT suppression
+        cursor.execute("SELECT id, parent_id, status FROM obsidian_notes WHERE file_path = %s", (file_path,))
+        result = cursor.fetchone()
 
-    conn.commit()
-    conn.close()
+        if not result:
+            logger.warning(f"⚠️ [WARNING] Aucune note trouvée pour {file_path}, suppression annulée")
+            return
+
+        note_id, parent_id, status = result
+        logger.debug(f"🔍 [DEBUG] Note {note_id} (status={status}) liée à parent {parent_id}")
+
+        # 🔥 Supprimer les tags associés AVANT la note
+        cursor.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
+        logger.info(f"🏷️ [INFO] Tags supprimés pour la note {note_id}")
+
+        # 🔥 Cas 1 : Suppression d'une `synthesis` → Supprime aussi l'archive associée (si elle existe)
+        if status == "synthesis" and parent_id:
+            logger.info(f"🗑️ [INFO] Suppression de l'archive associée : {parent_id}")
+            cursor.execute("DELETE FROM obsidian_notes WHERE id = %s", (parent_id,))
+            cursor.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (parent_id,))
+            logger.info(f"🏷️ [INFO] Tags supprimés pour l'archive {parent_id}")
+
+        # 🔥 Cas 2 : Suppression d'une `archive` → Met `parent_id = NULL` dans la `synthesis` (si parent existe)
+        elif status == "archive" and parent_id:
+            logger.info(f"🔄 [INFO] Dissociation de la `synthesis` {parent_id} (plus d'archive liée)")
+            cursor.execute("UPDATE obsidian_notes SET parent_id = NULL WHERE id = %s", (parent_id,))
+
+        # 🔥 Suppression de la note actuelle en base
+        cursor.execute("DELETE FROM obsidian_notes WHERE id = %s", (note_id,))
+        conn.commit()
+        logger.info(f"🗑️ [INFO] Note {note_id} supprimée avec succès")
+
+    except Exception as e:
+        logger.error(f"❌ [ERROR] Erreur lors de la suppression de la note {file_path} : {e}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
 
 def move_note_in_db(old_path, new_path):
     """Déplace une note en base en mettant à jour son chemin et son dossier."""
@@ -567,3 +601,208 @@ def get_path_by_category_and_subcategory(category, subcategory=None):
 
     logger.warning("[WARN] Aucun dossier trouvé pour %s/%s.", category, subcategory)
     return None
+
+
+def link_notes_parent_child(incoming_note_id, yaml_note_id):
+    """
+    Lie une note archive à sa note synthèse via `parent_id` et vice-versa.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return None
+    cursor = conn.cursor()
+
+    try:
+        # 🔗 Mise à jour des parent_id dans les deux sens
+        cursor.execute(
+            "UPDATE obsidian_notes SET parent_id = %s WHERE id = %s",
+            (yaml_note_id, incoming_note_id)
+        )
+        cursor.execute(
+            "UPDATE obsidian_notes SET parent_id = %s WHERE id = %s",
+            (incoming_note_id, yaml_note_id)
+        )
+
+        conn.commit()  # ✅ 🔥 IMPORTANT : On commit avant de fermer la connexion
+        logger.info(f"🔗 [INFO] Liens parent_id créés : Archive {incoming_note_id} ↔ Synthèse {yaml_note_id}")
+
+    except Exception as e:
+        logger.error(f"❌ [ERROR] Impossible d'ajouter les liens parent_id : {e}")
+        conn.rollback()  # 🔥 Annule les modifs en cas d'erreur
+    finally:
+        cursor.close()  # 🔥 Toujours fermer le curseur
+        conn.close()  # 🔥 Ferme la connexion proprement
+ 
+        
+def check_synthesis_and_trigger_archive(note_id):
+    """
+    Si une `synthesis` est modifiée, force un recheck de l'archive associée.
+    """
+    from handlers.utils.queue_manager import event_queue   
+    conn = get_db_connection()
+    if not conn:
+        return  
+    cursor = conn.cursor()
+
+    try:
+        # 🔍 Chercher l'archive associée
+        cursor.execute("SELECT file_path FROM obsidian_notes WHERE parent_id = %s AND status = 'archive'", (note_id,))
+        archive_result = cursor.fetchone()
+
+        if archive_result:
+            archive_path = archive_result[0]
+            logger.info(f"📂 [INFO] Archive trouvée : {archive_path}, ajout en file d'attente")
+
+            # 🔥 Ajout de l'archive à la file d'attente pour re-traitement
+            event_queue.put({'type': 'file', 'action': 'modified', 'path': archive_path})
+        else:
+            logger.warning(f"⚠️ [WARNING] Aucune archive associée trouvée pour la synthesis {note_id}")
+
+    except Exception as e:
+        logger.error(f"❌ [ERROR] Erreur lors de la vérification de la synthesis {note_id} : {e}")
+    finally:
+        cursor.close()
+        conn.close()
+        
+def get_note_data(note_id: int, table_name: str):
+    """
+    Récupère les données associées à une note depuis une table spécifique.
+    
+    Arguments :
+    - note_id (int) : L'ID de la note de référence.
+    - table_name (str) : La table cible (folders, categories, tags, notes).
+
+    Retourne :
+    - dict contenant les données récupérées.
+    """
+    
+    # Mapping des tables valides avec leurs jointures respectives
+    table_mapping = {
+        "folders": {
+            "table": "obsidian_folders",
+            "join_key": "folder_id",
+            "columns": "id, name, path, folder_type, parent_id, category_id, subcategory_id"
+        },
+        "categories": {
+            "table": "obsidian_categories",
+            "join_key": "category_id",
+            "columns": "id, name, description, prompt_name, parent_id"
+        },
+        "tags": {
+            "table": "obsidian_tags",
+            "join_key": "note_id",
+            "columns": "tag"
+        },
+        "notes": {  # Ajout de obsidian_notes
+            "table": "obsidian_notes",
+            "join_key": "id",  # La clé est directement l'id de la note
+            "columns": "id, parent_id, title, file_path, folder_id, category_id, subcategory_id, status, created_at, modified_at, updated_at"
+        }
+    }
+
+    # Vérifier si la table demandée est valide
+    if table_name not in table_mapping:
+        return {"error": "Table non reconnue. Utilisez 'folders', 'categories', 'tags' ou 'notes'."}
+
+    # Récupérer les infos de la table cible
+    table_info = table_mapping[table_name]
+    table = table_info["table"]
+    join_key = table_info["join_key"]
+    columns = table_info["columns"]
+
+    # Connexion à la base de données
+    conn = get_db_connection()
+    if not conn:
+        return {"error": "Impossible de se connecter à la base de données."}
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Requête SQL sécurisée
+        query = f"""
+            SELECT {columns} 
+            FROM {table} 
+            WHERE {join_key} = %s
+        """
+        cursor.execute(query, (note_id,))
+        results = cursor.fetchall()
+
+        return results if results else {"error": "Aucune donnée trouvée pour ce note_id."}
+
+    except mysql.connector.Error as err:
+        return {"error": f"Erreur SQL : {err}"}
+
+    finally:
+        cursor.close()
+        conn.close()
+        
+def adjust_event_action(event):
+    """
+    Vérifie si file_path est dans la base de données.
+    Si absent, change 'modified' en 'created'.
+
+    Arguments :
+    - event : Dictionnaire contenant l'événement du watcher.
+
+    Retourne :
+    - event modifié avec la bonne action.
+    """
+    file_path = event.get("file_path")
+    action = event.get("action")
+
+    if not file_path:
+        return event  # Aucun changement si le chemin est vide
+
+    conn = get_db_connection()
+    if not conn:
+        return event  # Si la base est inaccessible, on ne modifie rien
+
+    try:
+        cursor = conn.cursor()
+        query = "SELECT id FROM obsidian_notes WHERE file_path = %s"
+        cursor.execute(query, (file_path,))
+        result = cursor.fetchone()
+
+        if not result and action == "modified":
+            print(f"Correction : '{file_path}' passe de 'MODIFIED' à 'CREATED'")
+            event["action"] = "created"
+
+        return event
+
+    except mysql.connector.Error as err:
+        print(f"Erreur SQL : {err}")
+        return event
+
+    finally:
+        cursor.close()
+        conn.close()
+
+        
+def file_path_exists_in_db(file_path: str) -> bool:
+    """
+    Vérifie si un file_path existe dans la table obsidian_notes.
+
+    Arguments :
+    - file_path (str) : Le chemin du fichier à vérifier.
+
+    Retourne :
+    - True si le fichier existe dans la base, False sinon.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return False  # En cas d'erreur de connexion, on considère que le fichier n'existe pas
+
+    try:
+        cursor = conn.cursor()
+        query = "SELECT 1 FROM obsidian_notes WHERE file_path = %s LIMIT 1"
+        cursor.execute(query, (file_path,))
+        result = cursor.fetchone()
+        return result is not None
+
+    except mysql.connector.Error as err:
+        print(f"Erreur SQL : {err}")
+        return False
+
+    finally:
+        cursor.close()
+        conn.close()

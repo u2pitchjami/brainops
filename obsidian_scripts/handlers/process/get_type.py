@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from Levenshtein import ratio
-from handlers.process.ollama import ollama_generate
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.prompts import PROMPTS
 from handlers.utils.sql_helpers import get_path_from_classification, get_db_connection
@@ -27,6 +27,7 @@ uncategorized_data = "uncategorized_notes.json"
 def process_get_note_type(filepath):
     """Analyse le type de note via Llama3.2."""
     logger.debug("[DEBUG] Entrée process_get_note_type")
+    model_ollama = os.getenv('MODEL_GET_TYPE')
 
     with open(filepath, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -44,9 +45,13 @@ def process_get_note_type(filepath):
                     subcateg_dict=subcateg_dict, content=content_lines[:1500])
 
         logger.debug("[DEBUG] process_get_note_type : %s", prompt)
-        response = ollama_generate(prompt)
-        #response = "Politics/Europe"
-        logger.debug("[DEBUG] process_get_note_type response : %s", response)
+        
+        try:
+            response = call_ollama_with_retry(prompt, model_ollama)
+            #response = "Politics/Europe"
+            logger.debug("[DEBUG] process_get_note_type response : %s", response)
+        except OllamaError:
+            logger.error("[ERROR] Import annulé.")
 
         parse_category = parse_category_response(response)
         if parse_category is None:

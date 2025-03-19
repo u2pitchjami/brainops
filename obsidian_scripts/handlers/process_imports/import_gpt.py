@@ -1,6 +1,6 @@
 from handlers.process.large_note import process_large_note
 from handlers.process.large_note_gpt import process_large_note_gpt_test
-from handlers.process.ollama import ollama_generate
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
 from handlers.utils.divers import read_note_content, clean_content
@@ -33,7 +33,7 @@ def process_clean_gpt(filepath):
     # logger.debug(f"[DEBUG] process_clean_gpt : {prompt[:50]}")
 
     # logger.debug(f"[DEBUG] process_clean_gpt : envoie vers ollama")    
-    # response = ollama_generate(prompt)
+    # response = call_ollama_with_retry(prompt)
     # logger.debug(f"[DEBUG] process_clean_gpt : reponse {response[:50]}")
     
     with open(filepath, 'w', encoding='utf-8') as file:
@@ -173,10 +173,10 @@ def process_class_gpt_test(filepath):
     destination_path = "/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/"
     filename = os.path.basename(filepath)  # Extrait "fichier.txt"
     logger.debug(f"[DEBUG] filename : {filename}")
-    models = ["mistral:latest", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
-    #models = ["deepseek-r1:14b", "llama3.2:latest", "llama3:latest", "llama3.3:latest"]  # Liste des modèles à tester
+    #models_ollama = ["mixtral:8x7b-instruct-v0.1-q5_K_M", "mistral:7B-Instruct", "mixtral:latest", "mistral:latest", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
+    models_ollama = ["deepseek-r1:8b"]  # Liste des modèles à tester
     
-    for model in models:
+    for model in models_ollama:
         logger.debug(f"[DEBUG] model : {model}")
         safe_model_name = re.sub(r'[\/:*?"<>|]', '_', model)
         new_filename = f"{os.path.splitext(filename)[0]}_{safe_model_name}{os.path.splitext(filename)[1]}"  # Ajoute model_llama avant l'extension

@@ -35,8 +35,15 @@ class NoteHandler(FileSystemEventHandler):
             event_type = 'directory' if event.is_directory else 'file'
             logger.info(f"[INFO] [CREATION] {event_type.upper()} → {event.src_path}")
             
-            event_queue.put({'type': event_type, 'action': 'created', 'path': event.src_path})
-
+            if event.is_directory:
+                # 📂 🔥 Ajout immédiat en base si c'est un dossier
+                process_folder_event({'path': event.src_path, 'action': 'created'})
+                
+            else:
+                # 📝 🔥 Si c'est un fichier, on l'ajoute à la file d'attente
+                event_queue.put({'type': event_type, 'action': 'created', 'path': event.src_path})
+            
+            
     def on_deleted(self, event):
         if not self.is_hidden(event.src_path):
             event_type = 'directory' if event.is_directory else 'file'

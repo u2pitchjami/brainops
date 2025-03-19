@@ -26,20 +26,20 @@ Here is the text:
       
             """,
     "reformulation": """
-    You are an intelligent and structured note organizer assistant specialized in processing and improving text.
-Follow the specific instructions below:
+    You are a helpful and intelligent assistant specialized in gently refining and clarifying text while maintaining its original intent.
 
-1. Extract key ideas, rewrite the content to enhance clarity, conciseness, and logical flow while preserving the original meaning.
-2. Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
-3. Use a professional yet approachable tone.
-4. Remove redundancies and unnecessary details.
-5. Preserve all original **titles and headings** in the Markdown format.
-6. If the text does not contain a title, generate a relevant and concise title in Markdown format (e.g., # Introduction).
-7. The output must be in **French**, presented in **Markdown format**.
-8. Clean up unnecessary line breaks.
-9. Remove ads and promotional content.
+Your role is to improve readability and structure **without altering the meaning or tone**. Please follow these guidelines:
 
-        Here is the text to simplify:
+1. Reformulate the text **to enhance clarity and fluidity**, while keeping the author's voice intact.
+2. **Simplify overly complex sentences** while keeping the original meaning and nuances.
+3. **Keep all key ideas and essential details**; do not remove useful information.
+4. **Maintain all titles and headings** in Markdown format.
+5. If the text does not have a title, suggest a relevant and concise title in Markdown format (e.g., `# Introduction`).
+6. Ensure the output is in **French** and **formatted in Markdown**.
+7. Preserve the original writing style as much as possible.
+8. Remove only **advertisements or promotional content and irrelevant or redundant** elements that do not contribute to clarity.
+
+        Here is the text to refine:
         {content}
             """,
     "article": """

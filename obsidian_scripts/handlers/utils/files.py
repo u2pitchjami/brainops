@@ -8,13 +8,13 @@ import fnmatch
 from pathlib import Path
 import time
 from handlers.process.prompts import PROMPTS
-from handlers.utils.sql_helpers import get_path_from_classification, is_folder_included
-from handlers.process.ollama import ollama_generate
+from handlers.utils.sql_helpers import get_path_from_classification, is_folder_included, get_note_data
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 import fnmatch
 import unicodedata
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("files", logging.DEBUG)
+logger = logging.getLogger("files")
 def copy_file_with_date(filepath, destination_folder):
     """
     Copie un fichier en ajoutant la date au nom.
@@ -106,7 +106,7 @@ def generate_unique_filename_from_folder(filepath, base_folder):
 
     logger.debug(f"[DEBUG] generate_unique_filename_from_folder : envoie vers ollama") 
     # Appel à Ollama
-    base_filename = ollama_generate(prompt).strip().replace(" ", "_").lower()
+    base_filename = call_ollama_with_retry(prompt).strip().replace(" ", "_").lower()
     logger.debug(f"[DEBUG] generate_unique_filename_from_folder : reponse {base_filename}")
      # Vérifie l'extension
     if not base_filename.endswith(".md"):
@@ -122,7 +122,7 @@ def generate_unique_filename_from_folder(filepath, base_folder):
 
     return f"{filename}"
 
-def rename_file(filepath):
+def rename_file(filepath, note_id):
     """
     Renomme un fichier avec un nouveau nom tout en conservant son dossier d'origine.
     """
@@ -134,15 +134,25 @@ def rename_file(filepath):
             logger.error(f"[ERREUR] Le fichier {filepath} n'existe pas.")
             raise # Ou lève une exception si c'est critique
         logger.debug(f"[DEBUG] rename_file file_path.name {file_path.name}")
-        date_str = datetime.now().strftime("%y%m%d")  # Exemple : '250112'
-        new_name = f"{date_str}_{sanitize_filename(file_path.name)}"
+        date_str = datetime.now().strftime("%y-%m-%d")  # Exemple : '250112'
+        created_at = date_str
+        data = get_note_data(note_id, "notes")
+        
+        if data:
+            created_at = data[0].get("created_at", date_str)  # Utilise .get() pour éviter KeyError
+            print(f"date : {created_at}")
+        else:
+            print("Aucune donnée trouvée pour ce note_id")
+            
+            
+        new_name = f"{created_at}_{sanitize_filename(file_path.name)}"
         new_path = file_path.parent / new_name  # Nouveau chemin dans le même dossier
         
                
         # Résolution des collisions : ajouter un suffixe si le fichier existe déjà
         counter = 1
         while new_path.exists():
-            new_name = f"{date_str}_{sanitize_filename(file_path.stem)}_{counter}{file_path.suffix}"
+            new_name = f"{created_at}_{sanitize_filename(file_path.stem)}_{counter}{file_path.suffix}"
             new_path = file_path.parent / new_name
             counter += 1
         

@@ -7,8 +7,8 @@ import os
 from logger_setup import setup_logger
 import logging
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("import_normal", logging.DEBUG)
+logger = logging.getLogger("import_normal")
 
 def import_normal(filepath, category, subcategory):
     logger.debug(f"[DEBUG] démarrage du process_import_normal pour : {filepath}")

@@ -3,6 +3,7 @@ import re
 import requests
 import json
 from handlers.utils.extract_yaml_header import extract_yaml_header
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
@@ -49,7 +50,7 @@ def split_large_note(content, max_words=1000):
 
     return blocks
 
-def process_large_note_gpt_test(content, filepath, model):
+def process_large_note_gpt_test(content, filepath, model_ollama):
     logger.info(f"[DEBUG] entrée process_large_note")
     """
     Traite une note volumineuse en la découpant et en envoyant les blocs au modèle.
@@ -63,7 +64,7 @@ def process_large_note_gpt_test(content, filepath, model):
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
         #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=500)
+        blocks = split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
@@ -75,7 +76,7 @@ def process_large_note_gpt_test(content, filepath, model):
         previous_response = ""  # Stocke la réponse du bloc précédent
         
         with open(logfile, "a", encoding="utf-8") as f:
-                f.write(F"============= [DEBUG] process_large_note : MODEL {model} =============\n")  # Ajoute un titre
+                f.write(F"============= [DEBUG] process_large_note : MODEL {model_ollama} =============\n")  # Ajoute un titre
                 
         for i, block in enumerate(blocks):
             print(f"[INFO] Traitement du bloc {i + 1}/{len(blocks)}...")
@@ -102,7 +103,11 @@ def process_large_note_gpt_test(content, filepath, model):
                 f.write(prompt + "\n\n")  # On ajoute une nouvelle ligne
             
             logger.info(f"[DEBUG] process_large_note : envoi vers ollama")    
-            response = ollama_generate_gpt_test(prompt, model)
+            try:
+                response = call_ollama_with_retry(prompt, model_ollama)
+                
+            except OllamaError:
+                logger.error("[ERROR] Import annulé.")
 
             logger.debug(f"[DEBUG] process_large_note {i + 1}/{len(blocks)} : réponse {response}")
 
@@ -193,7 +198,7 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words_gpt_test(content, word_limit=500):
+def split_large_note_by_titles_and_words_gpt_test(content, word_limit=1000):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
@@ -286,28 +291,3 @@ def ensure_titles_in_initial_content_gpt_test(blocks, default_title="# Introduct
         processed_blocks.append(block)
     
     return processed_blocks
-
-def ollama_generate_gpt_test(prompt, model):
-    logger.info(f"[DEBUG] entrée fonction : ollama_generate")
-    ollama_url_generate = os.getenv('OLLAMA_URL_GENERATE')
-
-    
-    
-    payload = {
-        "model": model,
-        "prompt": prompt
-    }
-    
-    response = requests.post(ollama_url_generate, json=payload, stream=True)
-    
-    full_response = ""
-    for line in response.iter_lines():
-        if line:
-            try:
-                json_line = json.loads(line)
-                full_response += json_line.get("response", "")
-            except json.JSONDecodeError as e:
-                print(f"Erreur de décodage JSON : {e}")
-    
-    logger.info(f"[DEBUG] SORTIE fonction : ollama_generate")
-    return full_response.strip()

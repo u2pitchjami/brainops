@@ -5,6 +5,7 @@ import os
 import time
 import re
 import yaml
+from handlers.utils.sql_helpers import file_path_exists_in_db
 
 setup_logger("process_queue", logging.DEBUG)
 logger = logging.getLogger("process_queue")
@@ -21,23 +22,46 @@ def wait_for_file(file_path, timeout=3):
         time.sleep(0.5)  # Vérifie toutes les 0.5 sec
 
     return True
-def test_note_id(file_path):
-    
-    with open(file_path, "r", encoding="utf-8") as file:
-        content = file.read()
-    test_note_id = None
-    yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
 
-    if yaml_match:
-        metadata = yaml.safe_load(yaml_match.group(1)) or {}
+def test_title(file_path):
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
 
-        yaml_note_id = metadata.get("note_id")
-        if yaml_note_id:
-            logger.debug(f"🔍 [DEBUG] note_id présent")
-            return True
+        yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+        
+        if yaml_match:
+            yaml_content = yaml_match.group(1)
+            body_content = content[len(yaml_match.group(0)):]
 
-        logger.debug(f"🔍 [DEBUG] pas de note_id ")
-    logger.debug(f"🔍 [DEBUG] pas d'entête) ")
+            # 🔍 Extraction du `note_id`
+            note_id_match = re.search(r"^note_id:\s*(.+)", yaml_content, re.MULTILINE)
+            note_id = note_id_match.group(1).strip() if note_id_match else None
+
+            # 🔍 Extraction et correction du `title`
+            title_match = re.search(r"^title:\s*(.+)", yaml_content, re.MULTILINE)
+            title = title_match.group(1).strip() if title_match else None
+
+            if title:
+                # Remplacement du titre directement dans le fichier
+                corrected_yaml_content = re.sub(r'^(title:\s*)(.+)$', lambda m: f"{m.group(1)}{m.group(2).replace(':', ' ')}", yaml_content, flags=re.MULTILINE)
+
+                # Vérifie si une correction a été faite avant d'écrire
+                if corrected_yaml_content != yaml_content:
+                    with open(file_path, "w", encoding="utf-8") as file:
+                        file.write(f"---\n{corrected_yaml_content}\n---\n{body_content}")
+                    logger.info(f"💾 [INFO] Fichier corrigé : {file_path}")
+
+            # if note_id:
+            #     logger.debug(f"🔍 [DEBUG] note_id trouvé: {note_id}")
+            #     return True
+
+            # logger.debug(f"🔍 [DEBUG] pas de note_id ")
+
+    except Exception as e:
+        logger.error(f"❌ [ERREUR] Erreur dans test_note_id : {e}")
+
+    #return False  # Retourne False par défaut si pas de note_id
     
 def process_queue():
     from handlers.start.process_single_note import process_single_note, resume_import_normal, resume_import_synthesis
@@ -49,6 +73,7 @@ def process_queue():
             event = event_queue.get()
             logger.debug(f"[DEBUG] ===== PROCESS QUEUE EVENT RECUP : {event}")
             file_path = event.get("path")
+            trigger = True
             # Vérifier si le fichier existe
             if not wait_for_file(file_path) and (event['action'] != "deleted"):
                 logger.warning(f"⚠️ Fichier introuvable, suppression de l'événement : {file_path}")
@@ -63,13 +88,17 @@ def process_queue():
                     continue
                     
                 logger.debug(f"[DEBUG] ===== Test Note_ID")
-                if not test_note_id(file_path):
+                test_title(file_path)
+                if not file_path_exists_in_db(str(file_path)):
+                    event["action"] = "created"
                     note_id = process_note_event(event)  # 🔥 Gère les événements des notes
+                    trigger = False
                     
                 if event['action'] in ['created', 'modified']:
                     logger.debug(f"[DEBUG] ===== Event created, modified")
-                        
-                    note_id = process_note_event(event)  # 🔥 Gère les événements des notes
+                    if trigger:    
+                        note_id = process_note_event(event)  # 🔥 Gère les événements des notes
+                    
                     if note_id:
                         process_single_note(event['path'], note_id)
                     else:

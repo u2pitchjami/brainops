@@ -1,4 +1,4 @@
-from handlers.process.ollama import ollama_generate
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
@@ -50,6 +50,8 @@ def process_import_syntheses(filepath, category, subcategory):
         
 def make_syntheses(filepath, content, header_lines, category, subcategory, original_path):
     logger.debug(f"[DEBUG] démarrage de make_synthèse pour {filepath}")
+    model_ollama = os.getenv('MODEL_SYNTHESIS1')
+    model_ollama2 = os.getenv('MODEL_SYNTHESIS2')
     try:
         try:
             prompt_name = get_prompt_name(category, subcategory)
@@ -59,19 +61,25 @@ def make_syntheses(filepath, content, header_lines, category, subcategory, origi
         logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt_name}")
         prompt = PROMPTS[prompt_name].format(content=content) 
         logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt}")            
-        logger.debug(f"[DEBUG] make_syntheses : envoie vers ollama")    
-        response = ollama_generate(prompt)
-        logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
-        logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
+        logger.debug(f"[DEBUG] make_syntheses : envoie vers ollama")
+        try:  
+            response = call_ollama_with_retry(prompt, model_ollama)
+            logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
+            logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
+        except OllamaError:
+            logger.error("[ERROR] Import annulé.")
         
         prompt_name = "synthese2"
         logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt_name}")
         prompt = PROMPTS[prompt_name].format(content=response) 
         logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt}")            
         logger.debug(f"[DEBUG] make_syntheses : envoie vers ollama")    
-        response = ollama_generate(prompt)
-        logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
-        logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
+        try:  
+            response = call_ollama_with_retry(prompt, model_ollama2)
+            logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
+            logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
+        except OllamaError:
+            logger.error("[ERROR] Import annulé.")
         
         # Étape 3 : Fusionner les blocs reformulés
         header_content = "\n".join(header_lines).strip()
@@ -82,7 +90,7 @@ def make_syntheses(filepath, content, header_lines, category, subcategory, origi
         elif isinstance(response, list):
             body_content = "\n\n".join(block.strip() for block in response if isinstance(block, str)).strip()
         else:
-            raise ValueError("Response de ollama_generate n'est ni une chaîne ni une liste valide")
+            raise ValueError("Response de call_ollama_with_retry n'est ni une chaîne ni une liste valide")
         logger.debug(f"[DEBUG] make_syntheses body_content : {body_content[:50]}")
         # Construire le lien vers la note originale
         logger.debug(f"[DEBUG] process_import_synthese : original_path {original_path}") 

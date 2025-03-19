@@ -1,13 +1,13 @@
 import os
 import re
 from handlers.utils.extract_yaml_header import extract_yaml_header
-from handlers.process.ollama import ollama_generate
+from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("large_note", logging.DEBUG)
+logger = logging.getLogger("large_note")
 
 def determine_max_words(filepath):
     """Détermine dynamiquement la taille des blocs en fonction du fichier."""
@@ -38,10 +38,11 @@ def split_large_note(content, max_words=1000):
     return blocks
 
 def process_large_note(content, filepath, entry_type):
-    logger.info(f"[DEBUG] entrée process_large_note")
     """
     Traite une note volumineuse en la découpant et en envoyant les blocs au modèle.
     """
+    logger.info(f"[DEBUG] entrée process_large_note")
+    model_ollama = os.getenv('MODEL_LARGE_NOTE')
     logger.debug(f"[DEBUG] Type de content avant extract_yaml_header : {type(content)}")
     logger.debug(f"[DEBUG] Contenu brut avant extract_yaml_header : {repr(content[:100])}")
     try:
@@ -51,7 +52,7 @@ def process_large_note(content, filepath, entry_type):
         # Étape 1 : Découpage en blocs optimaux
         #blocks = split_large_note(content, max_words=max_words)
         #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles_and_words(content, word_limit=1000)
+        blocks = split_large_note_by_titles(content)
         print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         # Obtenir le dossier contenant le fichier
@@ -64,13 +65,16 @@ def process_large_note(content, filepath, entry_type):
             logger.debug(f"[DEBUG] process_large_note : Traitement du bloc {i + 1}/{len(blocks)}")
             logger.debug(f"[DEBUG] process_large_note : prompt {entry_type}")
             prompt = PROMPTS[entry_type].format(content=block) 
-            logger.debug(f"[DEBUG] process_large_note : {prompt[:50]}")
+            logger.debug(f"[DEBUG] process_large_note : {prompt}")
            
             logger.debug(f"[DEBUG] process_large_note : envoie vers ollama")    
-            response = ollama_generate(prompt)
-            logger.debug(f"[DEBUG] process_large_note : reponse {response[:50]}")
+            try:
+                response = call_ollama_with_retry(prompt, model_ollama)
+                logger.debug(f"[DEBUG] process_large_note reponse : {response}")
+            except OllamaError:
+                logger.error("[ERROR] Import annulé.")
             
-                    
+                              
 
                        
             logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
@@ -91,11 +95,11 @@ def process_large_note(content, filepath, entry_type):
         # Fusionner l'entête et le contenu principal avec un seul saut de ligne entre les deux
         final_content = f"{header_content}\n\n{body_content}" if header_content else body_content
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
-        print(f"\nTexte final recomposé :\n{final_content[:100]}...\n")  # Aperçu limité
+        logger.debug(f"\nTexte final recomposé :\n{final_content}...\n")  # Aperçu limité
         # Écriture de la note reformulée
         with open(filepath, 'w', encoding='utf-8') as file:
             file.write(final_content)
-        print(f"[INFO] La note volumineuse a été traitée et enregistrée : {filepath}")
+        logger.debug(f"[INFO] La note volumineuse a été traitée et enregistrée : {filepath}")
         logger.debug(f"[DEBUG] process_large_note : mis à jour du fichier")
         
 
@@ -147,7 +151,7 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words(content, word_limit=1000):
+def split_large_note_by_titles_and_words(content, word_limit=500):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
