@@ -8,13 +8,56 @@ import fnmatch
 from pathlib import Path
 import time
 from handlers.process.prompts import PROMPTS
-from handlers.utils.sql_helpers import get_path_from_classification, is_folder_included, get_note_data
+from handlers.utils.sql_helpers import get_path_from_classification, is_folder_included, get_note_linked_data, update_note_in_db, categ_extract
 from handlers.process.ollama import call_ollama_with_retry, OllamaError
 import fnmatch
 import unicodedata
 
 setup_logger("files", logging.DEBUG)
 logger = logging.getLogger("files")
+
+def safe_write(file_path: str, content, verify_contains: list[str] = None) -> bool:
+    """
+    Écrit du contenu dans un fichier de manière sécurisée.
+    Gère les strings et les listes de chaînes, avec logs et vérification facultative.
+
+    Args:
+        file_path (str): Chemin du fichier à écrire.
+        content (str or list[str]): Contenu à écrire.
+        verify_contains (list[str], optional): Champs à vérifier après écriture.
+
+    Returns:
+        bool: True si tout est ok, False sinon.
+    """
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            if isinstance(content, list):
+                f.writelines(content)
+                logger.debug(f"[safe_write] Écriture par writelines() - {len(content)} lignes dans {file_path}")
+            else:
+                f.write(content)
+                logger.debug(f"[safe_write] Écriture par write() - {len(content)} caractères dans {file_path}")
+
+            f.flush()
+            os.fsync(f.fileno())
+            logger.debug(f"[safe_write] flush + fsync effectués pour {file_path}")
+
+        # Vérification post-écriture
+        if verify_contains:
+            with open(file_path, "r", encoding="utf-8") as f:
+                written = f.read()
+
+            for entry in verify_contains:
+                if entry not in written:
+                    logger.warning(f"[safe_write] Champ manquant : '{entry}' dans {file_path}")
+                    return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"[safe_write] Erreur d'écriture dans {file_path} : {e}")
+        return False
+
 def copy_file_with_date(filepath, destination_folder):
     """
     Copie un fichier en ajoutant la date au nom.
@@ -81,14 +124,18 @@ def copy_to_archives(filepath):
         archives_dir = file_path_obj.parent / "Archives"  # Ajouter "Archives" au dossier parent
         archives_dir.mkdir(parents=True, exist_ok=True)  # Créer le dossier Archives s'il n'existe pas
         new_path = archives_dir / file_path_obj.name  # Conserve le même nom de fichier dans Archives
+        dest_path = os.path.join(archives_dir, os.path.basename(filepath))
         logger.debug(f"[DEBUG] copy_to_archive : construction de : {archives_dir}")
     except ValueError:
         logger.error(f"Impossible de modifier le nom du fichier : {filepath}")
         return None
     try:
-        shutil.copy(filepath, archives_dir)
-        logger.info(f"[INFO] copy réussi vers : {new_path}")
-        return new_path
+        if not os.path.exists(dest_path):
+            shutil.copy(filepath, archives_dir)
+            logger.info(f"[INFO] copy réussi vers : {new_path}")
+            return new_path
+        else:
+            logger.warning(f"Fichier déjà existant : {dest_path} — copie ignorée")
     except ValueError:
         logger.error(f"Impossible de copier le fichier vers : {archives_dir}")
         return None
@@ -126,7 +173,17 @@ def rename_file(filepath, note_id):
     """
     Renomme un fichier avec un nouveau nom tout en conservant son dossier d'origine.
     """
+    from handlers.utils.extract_yaml_header import extract_note_metadata
+    
     logger.debug(f"[DEBUG] entrée rename_file")
+    
+    tags = None
+    src_path = None
+    category_id = None
+    subcategory_id = None
+    status = None
+    new_title = None
+    
     try:
         file_path = Path(filepath)
         # Obtenir la date actuelle au format souhaité
@@ -136,10 +193,10 @@ def rename_file(filepath, note_id):
         logger.debug(f"[DEBUG] rename_file file_path.name {file_path.name}")
         date_str = datetime.now().strftime("%y-%m-%d")  # Exemple : '250112'
         created_at = date_str
-        data = get_note_data(note_id, "notes")
+        data = get_note_linked_data(note_id, "note")
         
         if data:
-            created_at = data[0].get("created_at", date_str)  # Utilise .get() pour éviter KeyError
+            created_at = data.get("created_at", date_str)
             print(f"date : {created_at}")
         else:
             print("Aucune donnée trouvée pour ce note_id")
@@ -159,6 +216,18 @@ def rename_file(filepath, note_id):
         
         file_path.rename(new_path)  # Renomme le fichier
         logger.info(f"[INFO] Note renommée : {filepath} --> {new_path}")
+        
+        base_folder = os.path.dirname(Path(new_path))
+        metadata = extract_note_metadata(new_path)
+        status = metadata.get("status")
+        new_title = metadata.get("title")
+        tags = metadata.get("tags", [])
+        src_path = new_path           
+        _, _, category_id, subcategory_id = categ_extract(base_folder)
+        
+        update_note_in_db(src_path, new_title, note_id, tags, category_id, subcategory_id, status)
+              
+        
         return new_path
     except Exception as e:
             logger.error(f"[ERREUR] Anomalie lors du renommage : {e}")
@@ -212,8 +281,15 @@ def clean_content(content, filepath):
     # Supprimer les balises SVG ou autres formats inutiles
     content = re.sub(r'<svg[^>]*>.*?</svg>', '', content, flags=re.DOTALL)
 
-    # Supprimer les lignes vides multiples
-    #content = re.sub(r'\n\s*\n', '\n', content)
+    # Supprimer les listes de menus en début de fichier (lignes commençant par "- ")
+    content = re.sub(r"^- .*\n?", "", content, flags=re.MULTILINE)
+
+    # Supprimer les liens inutiles (Markdown [texte](url) ou juste (url))
+    content = re.sub(r"\[.*?\]\(https?://[^\)]+\)", "", content)
+    content = re.sub(r"https?://\S+", "", content)  # Supprime aussi les liens bruts
+
+    # Supprimer les lignes vides multiples pour garder une structure propre
+    content = re.sub(r'\n\s*\n+', '\n\n', content)
 
     # Vérifier le type et l'état final
     logger.debug(f"[DEBUG] Après nettoyage : {type(content)}, longueur = {len(content)}")

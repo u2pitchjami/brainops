@@ -4,7 +4,7 @@ from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
 from handlers.utils.divers import read_note_content, clean_content
-from handlers.utils.files import copy_file_with_date, move_file_with_date, make_relative_link, copy_to_archives
+from handlers.utils.files import copy_file_with_date, move_file_with_date, make_relative_link, copy_to_archives, safe_write
 from handlers.process.prompts import PROMPTS
 from datetime import datetime
 from logger_setup import setup_logger
@@ -36,8 +36,10 @@ def process_clean_gpt(filepath):
     # response = call_ollama_with_retry(prompt)
     # logger.debug(f"[DEBUG] process_clean_gpt : reponse {response[:50]}")
     
-    with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(content)
+    success = safe_write(filepath, content=content)
+    if not success:
+        logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
+    
         
 def process_import_gpt(filepath):
     """
@@ -174,7 +176,7 @@ def process_class_gpt_test(filepath):
     filename = os.path.basename(filepath)  # Extrait "fichier.txt"
     logger.debug(f"[DEBUG] filename : {filename}")
     #models_ollama = ["mixtral:8x7b-instruct-v0.1-q5_K_M", "mistral:7B-Instruct", "mixtral:latest", "mistral:latest", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
-    models_ollama = ["deepseek-r1:8b"]  # Liste des modèles à tester
+    models_ollama = ["mistral:7B-Instruct", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:8b", "llama3.2:latest"]  # Liste des modèles à tester
     
     for model in models_ollama:
         logger.debug(f"[DEBUG] model : {model}")

@@ -8,8 +8,8 @@ from pathlib import Path
 from handlers.utils.sql_helpers import (
     check_synthesis_and_trigger_archive, add_note_to_db, update_note_in_db, delete_note_from_db, check_duplicate, categ_extract)
 from handlers.utils.extract_yaml_header import extract_tags, extract_note_metadata, ensure_note_id_in_yaml
-from handlers.utils.normalization import normalize_path
 from handlers.utils.queue_manager import event_queue
+from handlers.process.headers import add_metadata_to_yaml
 from Levenshtein import ratio
 setup_logger("process_note_event", logging.DEBUG)
 logger = logging.getLogger("process_note_event")
@@ -23,10 +23,9 @@ def process_note_event(event):
     """Gère les événements liés aux notes (création, modification, suppression, déplacement)."""
 
     logger.debug(f"[DEBUG] ===== process_note_event() reçu : {event}")
-    file_path = normalize_path(event.get("path", event.get("src_path")))
+    file_path = event.get("path", event.get("src_path"))
     relative_filepath = str(Path(file_path).relative_to(RELATIVE_PATH))
     note_title = Path(file_path).stem.replace("_", " ").replace(":", " ")
-
     
     src_path = None
     tags = None
@@ -72,6 +71,11 @@ def process_note_event(event):
             
             ensure_note_id_in_yaml(file_path, note_id, status)
             
+            if "Archives" in file_path:
+                add_metadata_to_yaml(file_path)
+                return note_id
+            
+            
             return note_id
             
         except Exception as e:
@@ -80,8 +84,8 @@ def process_note_event(event):
     elif event["action"] == "moved":
         logger.debug(f"[DEBUG] ===== MOVED Déplacement détecté pour {file_path}")
 
-        src_path = normalize_path(event.get("src_path"))
-        path = normalize_path(event.get("path"))
+        src_path = event.get("src_path")
+        path = event.get("path")
 
         if not src_path or not path:
             logger.error(f"[ERREUR] `moved` reçu sans `src_path` ou `path` : {event}")

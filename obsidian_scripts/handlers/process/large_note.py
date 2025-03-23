@@ -3,6 +3,8 @@ import re
 from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.prompts import PROMPTS
+from handlers.utils.files import safe_write
+from handlers.utils.sql_helpers import get_db_connection
 from logger_setup import setup_logger
 import logging
 
@@ -37,74 +39,134 @@ def split_large_note(content, max_words=1000):
 
     return blocks
 
-def process_large_note(content, filepath, entry_type):
+def process_large_note(
+    content,
+    filepath,
+    entry_type,
+    word_limit=1000,
+    split_method="titles_and_words",
+    write_file=True,
+    send_to_model=True,
+    model_name=None,
+    custom_prompts=None,
+    persist_blocks=True,
+    resume_if_possible=True
+):
     """
-    Traite une note volumineuse en la découpant et en envoyant les blocs au modèle.
+    Fonction unique pour traiter une note volumineuse.
+    Si persist_blocks=True, chaque bloc est stocké en base dans `obsidian_temp_blocks`
     """
-    logger.info(f"[DEBUG] entrée process_large_note")
-    model_ollama = os.getenv('MODEL_LARGE_NOTE')
-    logger.debug(f"[DEBUG] Type de content avant extract_yaml_header : {type(content)}")
-    logger.debug(f"[DEBUG] Contenu brut avant extract_yaml_header : {repr(content[:100])}")
+    
+    setup_logger("process_large_note", logging.DEBUG)
+    logger = logging.getLogger("process_large_note")
+
+    logger.info(f"[DEBUG] Entrée process_large_note pour {filepath}")
+    model_ollama = model_name or os.getenv('MODEL_LARGE_NOTE')
+
     try:
         header_lines, content_lines = extract_yaml_header(content)
         content = content_lines
-    
-        # Étape 1 : Découpage en blocs optimaux
-        #blocks = split_large_note(content, max_words=max_words)
-        #blocks = split_large_note_by_titles(content)
-        blocks = split_large_note_by_titles(content)
-        print(f"[INFO] La note a été découpée en {len(blocks)} blocs.")
-        logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
-        # Obtenir le dossier contenant le fichier
-        base_folder = os.path.dirname(filepath)
 
-                            
+        # Choix de la méthode de split
+        if split_method == "titles_and_words":
+            blocks = split_large_note_by_titles_and_words(content, word_limit=word_limit)
+        elif split_method == "titles":
+            blocks = split_large_note_by_titles(content)
+        elif split_method == "words":
+            blocks = split_large_note(content, max_words=word_limit)
+        else:
+            logger.error(f"[ERROR] Méthode de split inconnue : {split_method}")
+            return None
+
+        logger.info(f"[INFO] Note découpée en {len(blocks)} blocs")
+
         processed_blocks = []
-        for i, block in enumerate(blocks):
-            print(f"[INFO] Traitement du bloc {i + 1}/{len(blocks)}...")
-            logger.debug(f"[DEBUG] process_large_note : Traitement du bloc {i + 1}/{len(blocks)}")
-            logger.debug(f"[DEBUG] process_large_note : prompt {entry_type}")
-            prompt = PROMPTS[entry_type].format(content=block) 
-            logger.debug(f"[DEBUG] process_large_note : {prompt}")
-           
-            logger.debug(f"[DEBUG] process_large_note : envoie vers ollama")    
-            try:
-                response = call_ollama_with_retry(prompt, model_ollama)
-                logger.debug(f"[DEBUG] process_large_note reponse : {response}")
-            except OllamaError:
-                logger.error("[ERROR] Import annulé.")
-            
-                              
 
-                       
-            logger.debug(f"[DEBUG] process_large_note : retour ollama, récupération des blocs")
+        conn = get_db_connection() if persist_blocks else None
+        cursor = conn.cursor() if conn else None
+
+        for i, block in enumerate(blocks):
+            logger.info(f"[INFO] Bloc {i + 1}/{len(blocks)}")
+
+            # Si persisté, vérifie si déjà traité
+            if persist_blocks:
+                cursor.execute("""
+                    SELECT response, status FROM obsidian_temp_blocks
+                    WHERE note_path = %s AND block_index = %s
+                """, (str(filepath), i))
+                row = cursor.fetchone()
+
+                if row:
+                    response, status = row
+                    if status == "processed" and resume_if_possible:
+                        logger.debug(f"[DEBUG] Bloc {i} déjà traité, skip")
+                        processed_blocks.append(response.strip())
+                        continue
+                else:
+                    cursor.execute("""
+                        INSERT INTO obsidian_temp_blocks (note_path, block_index, content, status)
+                        VALUES (%s, %s, %s, 'waiting')
+                    """, (str(filepath), i, block))
+                    conn.commit()
+
+            # Traitement du bloc (ou simple passage)
+            response = block
+
+            if send_to_model:
+                if custom_prompts:
+                    if i == 0 and "first" in custom_prompts:
+                        prompt = custom_prompts["first"].format(content=block)
+                    elif i == len(blocks) - 1 and "last" in custom_prompts:
+                        prompt = custom_prompts["last"].format(content=block)
+                    else:
+                        prompt = custom_prompts.get("middle", PROMPTS[entry_type]).format(content=block)
+                else:
+                    prompt = PROMPTS[entry_type].format(content=block)
+
+                try:
+                    response = call_ollama_with_retry(prompt, model_ollama)
+                except OllamaError:
+                    logger.error(f"[ERROR] Échec du bloc {i+1}, saut...")
+                    if persist_blocks:
+                        cursor.execute("""
+                            UPDATE obsidian_temp_blocks
+                            SET status = 'error'
+                            WHERE note_path = %s AND block_index = %s
+                        """, (str(filepath), i))
+                        conn.commit()
+                    continue
+
+            if persist_blocks:
+                cursor.execute("""
+                    UPDATE obsidian_temp_blocks
+                    SET response = %s, status = 'processed'
+                    WHERE note_path = %s AND block_index = %s
+                """, (response.strip(), str(filepath), i))
+                conn.commit()
+
             processed_blocks.append(response.strip())
 
-        # Vérifie et corrige les titres après traitement
+        if conn:
+            conn.close()
+
         final_blocks = ensure_titles_in_blocks(processed_blocks)
-                
-        
-
-        # Étape 3 : Fusionner les blocs reformulés
-        # Construire l'entête (sans saut de ligne final inutile)
         header_content = "\n".join(header_lines).strip()
-
-        # Construire le contenu principal (final_blocks)
         body_content = "\n\n".join(final_blocks).strip()
-
-        # Fusionner l'entête et le contenu principal avec un seul saut de ligne entre les deux
         final_content = f"{header_content}\n\n{body_content}" if header_content else body_content
-        logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
-        logger.debug(f"\nTexte final recomposé :\n{final_content}...\n")  # Aperçu limité
-        # Écriture de la note reformulée
-        with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(final_content)
-        logger.debug(f"[INFO] La note volumineuse a été traitée et enregistrée : {filepath}")
-        logger.debug(f"[DEBUG] process_large_note : mis à jour du fichier")
-        
+
+        if write_file:
+            success = safe_write(filepath, content=final_content)
+            if not success:
+                logger.error(f"[main] Problème lors de l’écriture de {filepath}")
+            else:
+                logger.info(f"[INFO] Note enregistrée : {filepath}")
+        else:
+            return final_content
 
     except Exception as e:
-        print(f"[ERREUR] Impossible de traiter {filepath} : {e}")
+        logger.error(f"[ERREUR] Traitement de {filepath} échoué : {e}")
+        return None
+
         
         
 def split_large_note_by_titles(content):
@@ -151,7 +213,7 @@ def split_large_note_by_titles(content):
     
     return blocks
 
-def split_large_note_by_titles_and_words(content, word_limit=500):
+def split_large_note_by_titles_and_words(content, word_limit=1000):
     """
     Découpe une note en blocs basés sur les titres (#, ##, ###),
     et regroupe les sections en paquets de 1000 mots maximum.
@@ -176,34 +238,41 @@ def split_large_note_by_titles_and_words(content, word_limit=500):
 
     # Gestion de l'introduction avant le premier titre
     last_pos = 0
-    if matches and matches[0].start() > 0:
-        intro = content[:matches[0].start()].strip()
-        logger.debug(f"[DEBUG] Introduction détectée : {intro[:50]}")
+    if matches:
+        if matches[0].start() > 0:
+            intro = content[:matches[0].start()].strip()
+            logger.debug(f"[DEBUG] Introduction détectée : {intro[:50]}")
+            if intro:
+                temp_block.append(f"## **Introduction**\n\n{intro}")
+                word_count += len(intro.split())
+
+        # Découpage basé sur les titres
+        for i, match in enumerate(matches):
+            title = match.group().strip()  # Le titre complet (ex. : "# Section")
+            start_pos = match.end()  # Fin du titre
+            end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+
+            # Extraire le contenu de la section
+            section_content = content[start_pos:end_pos].strip()
+            section_word_count = len(section_content.split())
+
+            # Vérifier si l'ajout dépasse la limite de mots
+            if word_count + section_word_count > word_limit:
+                add_block()  # On sauvegarde le bloc actuel
+                word_count = 0  # On reset le compteur de mots
+
+            # Ajouter le titre et son contenu au bloc courant
+            temp_block.append(f"{title}\n{section_content}")
+            word_count += section_word_count
+
+        # Ajouter le dernier bloc restant
+        add_block()
+        
+    else:
+        intro = content.strip()
+        logger.debug(f"[DEBUG] Aucun titre trouvé, tout le contenu est traité comme une introduction : {intro[:50]}")
         if intro:
-            temp_block.append(f"## **Introduction**\n\n{intro}")
-            word_count += len(intro.split())
-
-    # Découpage basé sur les titres
-    for i, match in enumerate(matches):
-        title = match.group().strip()  # Le titre complet (ex. : "# Section")
-        start_pos = match.end()  # Fin du titre
-        end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
-
-        # Extraire le contenu de la section
-        section_content = content[start_pos:end_pos].strip()
-        section_word_count = len(section_content.split())
-
-        # Vérifier si l'ajout dépasse la limite de mots
-        if word_count + section_word_count > word_limit:
-            add_block()  # On sauvegarde le bloc actuel
-            word_count = 0  # On reset le compteur de mots
-
-        # Ajouter le titre et son contenu au bloc courant
-        temp_block.append(f"{title}\n{section_content}")
-        word_count += section_word_count
-
-    # Ajouter le dernier bloc restant
-    add_block()
+            blocks.append(f"## **Introduction**\n\n{intro}")
 
     return blocks
 

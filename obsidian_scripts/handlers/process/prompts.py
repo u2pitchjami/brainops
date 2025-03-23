@@ -28,16 +28,20 @@ Here is the text:
     "reformulation": """
     You are a helpful and intelligent assistant specialized in gently refining and clarifying text while maintaining its original intent.
 
-Your role is to improve readability and structure **without altering the meaning or tone**. Please follow these guidelines:
+Your task is to gently improve readability **without altering the structure or removing key details**.
+Follow these instructions:
 
-1. Reformulate the text **to enhance clarity and fluidity**, while keeping the author's voice intact.
-2. **Simplify overly complex sentences** while keeping the original meaning and nuances.
-3. **Keep all key ideas and essential details**; do not remove useful information.
-4. **Maintain all titles and headings** in Markdown format.
-5. If the text does not have a title, suggest a relevant and concise title in Markdown format (e.g., `# Introduction`).
-6. Ensure the output is in **French** and **formatted in Markdown**.
-7. Preserve the original writing style as much as possible.
-8. Remove only **advertisements or promotional content and irrelevant or redundant** elements that do not contribute to clarity.
+1. **Delete** navigation sections, menus, external links, and category lists.
+2. **Keep only the main content** of the article.
+3. Extract key ideas, rewrite the content to enhance clarity, conciseness, and logical flow while preserving the original meaning.
+4. Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
+5. Use a professional yet approachable tone.
+6. Remove redundancies and unnecessary details.
+7. Preserve all original **titles and headings** in the Markdown format.
+8. If the text does not contain a title, generate a relevant and concise title in Markdown format (e.g., # Introduction).
+9. The output must be in **French**, presented in **Markdown format**.
+10. Clean up unnecessary line breaks.
+11. Remove ads and promotional content.
 
         Here is the text to refine:
         {content}
@@ -343,7 +347,7 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**.
+  09 - The output must be in **French**, and must **avoid unnecessary introductory or concluding phrases**.
 
 Here is the text to process:
     {content}
@@ -361,7 +365,7 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**.
+  09 - The output must be in **French**, and must **avoid unnecessary introductory phrases**.
 
 
 
@@ -381,14 +385,43 @@ Follow the specific instructions below:
   06 - Eliminate unnecessary line breaks.
   07 - Remove advertisements and promotional content.
   08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**.
+  09 - The output must be in **French**, and must **avoid unnecessary introductory or concluding phrases**.
 
 
 
         Now, process the following section:
         {content}
-  """
-   
+  """,
+    "test_tags_gpt": """
+    Tu es un assistant de structuration de journaux de développement.
+
+Ton rôle est de lire un échange de discussion brute (entre développeur et assistant IA), et de produire un journal clair en format Markdown structuré.
+
+Voici ce que tu dois faire :
+
+1. Analyse la conversation ligne par ligne.
+2. Regroupe les lignes en blocs cohérents autour d’un sujet (ex : discussion sur un bug, une solution, une amélioration…).
+3. Pour chaque bloc, ajoute un titre Markdown adapté parmi :
+   - ## 🔍 Contexte
+   - ## 🐛 Problème
+   - ## ✅ Solution
+   - ## 🚀 Amélioration possible
+   - ## 📌 À faire
+
+4. À la fin de chaque bloc, ajoute une ligne `_tags: #...` avec 1 à 3 tags pertinents.
+   (ex : `#bug`, `#note_id`, `#prompt`, `#watcher`, `#refacto`, `#obsidian`, `#todo`...)
+
+5. N’invente rien, ne reformule pas. Structure uniquement.
+
+Format de sortie : Markdown Obsidian directement utilisable.
+
+Commence directement par le contenu Markdown structuré.
+
+
+
+        contenu à traiter :
+        {content}
+  """ 
    
    
    

@@ -9,8 +9,8 @@ from handlers.utils.sql_helpers import get_db_connection, add_folder_to_db, upda
 
 
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("process_folder_event", logging.DEBUG)
+logger = logging.getLogger("process_folder_event")
 base_path = os.getenv('BASE_PATH')
 
 def process_folder_event(event):
@@ -28,9 +28,11 @@ def process_folder_event(event):
         logger.info(f"[INFO] Dossier ignoré : {folder_path}")
         return  # Ignore les dossiers cachés ou non pertinents
 
+    logger.debug(f"[DEBUG] process_folder_event() detect_folder_type")
     folder_type = detect_folder_type(folder_path)  # 🔥 On détecte automatiquement le type
-
+    logger.debug(f"[DEBUG] process_folder_event() folder_type {folder_type}")
     if action == 'created':
+        logger.debug(f"[DEBUG] process_folder_event() envoie add_folder_to_db")
         add_folder_to_db(folder_path, folder_type)
 
     elif action == 'deleted':
@@ -38,6 +40,7 @@ def process_folder_event(event):
 
     elif action == 'moved':
         new_folder_path = event.get('new_path')
+        logger.info(f"[INFO] new_folder_path : {new_folder_path}")
         if not new_folder_path:
             return
         update_folder_in_db(folder_path, new_folder_path)

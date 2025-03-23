@@ -10,7 +10,7 @@ import logging
 setup_logger("import_normal", logging.DEBUG)
 logger = logging.getLogger("import_normal")
 
-def import_normal(filepath, category, subcategory):
+def import_normal(filepath, note_id):
     logger.debug(f"[DEBUG] démarrage du process_import_normal pour : {filepath}")
     try:
         sav_dir = os.getenv('SAV_PATH')
@@ -58,12 +58,12 @@ def import_normal(filepath, category, subcategory):
             cleaned_content = clean_content(content, filepath)
             content = cleaned_content
             logger.debug(f"[DEBUG] import_normal : envoie process_large {filepath}")
-            process_large_note(content, filepath, "reformulation")
+            process_large_note(content, filepath, entry_type="reformulation")
             logger.debug(f"[DEBUG] import_normal :retour du process_large {filepath}")
             logger.debug(f"[DEBUG] import_normal : import normal envoi vers process & update {filepath}")
             process_and_update_file(filepath)
             logger.debug(f"[DEBUG] import_normal : import normal envoi vers make_properties {filepath}")
-            make_properties(content, filepath, category, subcategory, status = "archive")
+            make_properties(content, filepath, note_id, status = "archive")
             
             
             return

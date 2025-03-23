@@ -3,6 +3,7 @@ import re
 import requests
 import json
 from handlers.utils.extract_yaml_header import extract_yaml_header
+from handlers.utils.files import safe_write
 from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.prompts import PROMPTS
 from logger_setup import setup_logger
@@ -84,11 +85,11 @@ def process_large_note_gpt_test(content, filepath, model_ollama):
             
             # Définir quel prompt utiliser
             if i == 0:
-                prompt_template = PROMPTS["first_block"]  # Premier bloc
+                prompt_template = PROMPTS["test_tags_gpt"]  # Premier bloc
             elif i == len(blocks) - 1:
-                prompt_template = PROMPTS["last_block"]  # Dernier bloc
+                prompt_template = PROMPTS["test_tags_gpt"]  # Dernier bloc
             else:
-                prompt_template = PROMPTS["middle_block"]  # Blocs intermédiaires
+                prompt_template = PROMPTS["test_tags_gpt"]  # Blocs intermédiaires
 
             # Construire le prompt avec le bloc actuel et le contexte du bloc précédent
             prompt = prompt_template.format(
@@ -144,8 +145,10 @@ def process_large_note_gpt_test(content, filepath, model_ollama):
         logger.debug(f"[DEBUG] process_large_note : {len(blocks)} blocs")
         print(f"\nTexte final recomposé :\n{final_content[:100]}...\n")  # Aperçu limité
         # Écriture de la note reformulée
-        with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(final_content)
+        success = safe_write(filepath, content=final_content)
+        if not success:
+            logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
+        
         print(f"[INFO] La note volumineuse a été traitée et enregistrée : {filepath}")
         logger.debug(f"[DEBUG] process_large_note : mis à jour du fichier")
         

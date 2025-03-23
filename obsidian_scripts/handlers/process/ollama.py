@@ -136,7 +136,7 @@ def call_ollama_with_retry(prompt, model_ollama, retries=5, delay=100):
 def ollama_generate(prompt, model_ollama):
     logger.debug(f"[DEBUG] entrée fonction : ollama_generate")
     ollama_url_generate = os.getenv('OLLAMA_URL_GENERATE')
-    logger.debug(f"[DEBUG] ollama_generate, prompt : {prompt}")
+    #logger.debug(f"[DEBUG] ollama_generate, prompt : {prompt}")
     logger.debug(f"[DEBUG] ollama_generate, model_ollama : {model_ollama}")
     logger.debug(f"[DEBUG] ollama_generate, ollama_url_generate : {ollama_url_generate}")
         
@@ -152,7 +152,7 @@ def ollama_generate(prompt, model_ollama):
         }
         
         response = requests.post(ollama_url_generate, json=payload, stream=True)
-        logger.debug(f"[DEBUG] ollama_generate, response : {response}")
+        #logger.debug(f"[DEBUG] ollama_generate, response : {response}")
         
         if response.status_code == 200:
             full_response = ""
@@ -165,7 +165,7 @@ def ollama_generate(prompt, model_ollama):
                     except json.JSONDecodeError as e:
                         print(f"Erreur de décodage JSON : {e}")
             
-            logger.debug(f"[DEBUG] ollama_generate, full_response : {full_response}")
+            #logger.debug(f"[DEBUG] ollama_generate, full_response : {full_response}")
             return full_response.strip()
         
         elif response.status_code in (500, 503):

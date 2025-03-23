@@ -3,8 +3,10 @@ Ce module extrait les en-têtes YAML des fichiers de notes Obsidian.
 """
 from logger_setup import setup_logger
 from handlers.utils.sql_helpers import link_notes_parent_child
+from handlers.utils.files import safe_write
 import logging
 import re
+import os
 import yaml
 
 setup_logger("extract_yaml_header", logging.DEBUG)
@@ -80,6 +82,7 @@ def extract_metadata(filepath):
         with open(filepath, "r", encoding="utf-8") as file:
             content = file.read()
 
+        logger.debug(f"[DEBUG] extract_metadata : {content}")
         yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
         metadata = yaml.safe_load(yaml_match.group(1)) if yaml_match else {}
 
@@ -240,27 +243,27 @@ def ensure_note_id_in_yaml(file_path, incoming_note_id, status="draft"):
     - Garde note_id en entier sans guillemets.
     """
     try:
-        incoming_note_id = int(incoming_note_id)  # 🔥 On force incoming_note_id en int
+        incoming_note_id = int(incoming_note_id)
     except ValueError:
         logger.error(f"❌ [ERROR] incoming_note_id invalide : {incoming_note_id}")
-        return  
+        return
 
     logger.debug(f"[DEBUG] Entrée ensure_note_id_in_yaml incoming_note_id={incoming_note_id}")
 
     with open(file_path, "r", encoding="utf-8") as file:
         content = file.read()
+        logger.debug(f"[DEBUG] Contenu AVANT traitement :\n{content[:500]}...")  # on évite de logguer 5k lignes
 
-    yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+    yaml_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
 
     if yaml_match:
         metadata = yaml.safe_load(yaml_match.group(1)) or {}
-
         yaml_note_id = metadata.get("note_id")
 
         logger.debug(f"🔍 [DEBUG] note_id récupéré depuis le YAML : {yaml_note_id}")
 
-        if isinstance(yaml_note_id, str):  # 🔥 Si c'est une string, on nettoie les quotes
-            yaml_note_id = yaml_note_id.strip("'").strip('"')
+        if isinstance(yaml_note_id, str):
+            yaml_note_id = yaml_note_id.strip('"').strip("'").strip()
 
         try:
             yaml_note_id = int(yaml_note_id) if yaml_note_id is not None else None
@@ -268,12 +271,10 @@ def ensure_note_id_in_yaml(file_path, incoming_note_id, status="draft"):
             logger.warning(f"⚠️ [WARNING] Conversion en int impossible pour note_id : {yaml_note_id}")
             yaml_note_id = None
 
-        # ✅ STOP SI LE `note_id` EST DÉJÀ CORRECT
         if yaml_note_id == incoming_note_id:
             logger.debug(f"🔄 [DEBUG] Le note_id est déjà correct ({incoming_note_id}), pas d'écriture")
-            return  
+            return
 
-        # ✅ Mise à jour du `note_id`
         metadata["note_id"] = incoming_note_id
         logger.debug(f"[DEBUG] Mise à jour du note_id : {incoming_note_id}")
         logger.debug(f"[DEBUG] status : {status}")
@@ -281,19 +282,28 @@ def ensure_note_id_in_yaml(file_path, incoming_note_id, status="draft"):
         new_yaml = f"---\n{yaml.dump(metadata, default_flow_style=False)}---\n"
         new_content = new_yaml + content[len(yaml_match.group(0)):]
         if status == "archive":
-            link_notes_parent_child(incoming_note_id, yaml_note_id) 
+            link_notes_parent_child(incoming_note_id, yaml_note_id)
 
     else:
+        logger.warning(f"❗ [WARNING] Entête YAML absente ou mal formée dans : {file_path}")
         new_content = f"---\nnote_id: {incoming_note_id}\n---\n{content}"
-        logger.debug(f"[DEBUG] ensure_note_id_in_yaml pas d'entête --> création {incoming_note_id}")
 
+    # Vérification avant écriture
     with open(file_path, "r", encoding="utf-8") as file:
         existing_content = file.read()
 
     if existing_content == new_content:
         logger.debug(f"🔄 [DEBUG] Le fichier {file_path} est déjà à jour, pas d'écriture")
-        return  
+        return
 
     logger.debug(f"💾 [DEBUG] Écriture du fichier {file_path} (note_id mis à jour)")
-    with open(file_path, "w", encoding="utf-8") as file:
-        file.write(new_content)
+    success = safe_write(file_path, content=new_content, verify_contains="note_id:")
+    if not success:
+        logger.error(f"[main] Problème lors de l’écriture sécurisée de {file_path}")
+    
+    logger.info(f"[INFO] Lien mis à jour pour : {file_path}")
+    
+    
+    with open(file_path, "r", encoding="utf-8") as file:
+        after_write = file.read()
+        logger.debug(f"[DEBUG] DEBUG NOTE_ID (post-écriture) : {after_write[:500]}...")

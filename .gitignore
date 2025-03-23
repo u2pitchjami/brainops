@@ -7,3 +7,6 @@ json/
 *.json
 obsidian_scripts/handlers/utils/note_paths.json.lock
 activity/machines/extract_2_centraldb/config.env
+orga/extract_gpt.py
+orga/generate_obsidian_journal_from_blocks.py
+orga/generate_obsidian_journal_note.py

@@ -9,22 +9,23 @@ import yaml
 import re
 from pathlib import Path
 import unicodedata
+from handlers.utils.sql_helpers import get_category_and_subcategory_names
 from handlers.process.ollama import get_summary_from_ollama, get_tags_from_ollama
-from handlers.utils.files import count_words
+from handlers.utils.files import count_words, safe_write
 from handlers.utils.extract_yaml_header import extract_yaml_header, extract_metadata
 
 setup_logger("obsidian_headers", logging.DEBUG)
 logger = logging.getLogger("obsidian_headers")
 
 # Fonction pour ajouter ou mettre à jour les tags, résumés et commandes dans le front matter YAML
-def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status):
+def add_metadata_to_yaml(filepath, tags=None, summary=None, status=None):
     """
     Ajoute ou met à jour l'entête YAML d'un fichier Markdown.
     """
 
     try:
         logger.debug("[DEBUG] add_yaml : démarrage pour %s", filepath)
-
+               
         # 🔥 Extraction rapide des métadonnées existantes
         metadata = extract_metadata(filepath)
 
@@ -35,7 +36,12 @@ def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status)
         project = metadata.get("project", "")
         date_creation = metadata.get("created", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         note_id = metadata.get("note_id", None)
+        category = metadata.get("category", None)
+        subcategory = metadata.get("sub category", None)
         nombre_mots = count_words(open(filepath, "r", encoding="utf-8").read())
+        
+        category, subcategory = get_category_and_subcategory_names(note_id)
+        logger.debug(f"[DEBUG] category : {category}")
 
         # 🔥 Suppression de l'ancienne entête YAML
         with open(filepath, "r", encoding="utf-8") as file:
@@ -70,9 +76,10 @@ def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status)
         ]
 
         # 🔥 Sauvegarde sécurisée dans un fichier temporaire
-        with open(filepath, "w", encoding="utf-8") as file:
-            file.writelines(yaml_block + lines)
-
+        success = safe_write(filepath, content=yaml_block + lines)
+        if not success:
+            logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
+       
        
         logger.info("[INFO] Génération de l'entête terminée avec succès pour %s", filepath)
 
@@ -81,7 +88,7 @@ def add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status)
     except Exception as e:
         logger.error("[ERREUR] Problème lors de l'ajout du YAML : %s", e, exc_info=True)
 
-def make_properties(content, filepath, category, subcategory, status):
+def make_properties(content, filepath, note_id, status):
     """
     Génère les entêtes et met à jour les métadonnées.
     """
@@ -98,7 +105,7 @@ def make_properties(content, filepath, category, subcategory, status):
 
     # Mise à jour des métadonnées YAML
     logger.debug("[DEBUG] make_pro : Mise à jour du YAML")
-    add_metadata_to_yaml(filepath, tags, summary, category, subcategory, status)
+    add_metadata_to_yaml(filepath, tags, summary, status)
 
     # Lecture et mise à jour en une seule passe
     with open(filepath, "r+", encoding="utf-8") as file:

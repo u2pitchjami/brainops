@@ -10,7 +10,7 @@ from difflib import get_close_matches
 from handlers.utils.sql_helpers import get_path_from_classification, get_path_by_category_and_subcategory, categ_extract
 from handlers.process.headers import add_metadata_to_yaml
 from handlers.process_imports.import_syntheses import process_import_syntheses
-from handlers.utils.files import make_relative_link
+from handlers.utils.files import make_relative_link, safe_write
 from handlers.utils.extract_yaml_header import extract_yaml_header, extract_note_metadata, extract_metadata, extract_tags
 
 setup_logger("obsidian_notes", logging.INFO)
@@ -255,9 +255,10 @@ def update_archive_link(filepath, content, new_archive_path):
         logger.warning("⚠️ Aucun lien d'archive trouvé.")
 
     new_content = "\n".join(lines)  # ✅ Assemble les lignes en un seul texte
-    with open(filepath, "w", encoding="utf-8") as file:  # ✅ Ouvre bien le fichier
-        file.write(new_content)  # ✅ Écrit le texte dans le fichier
-
+    success = safe_write(filepath, content=new_content)
+    if not success:
+        logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
+    
     logger.info(f"[INFO] Lien mis à jour pour : {filepath}")  # ✅ Confirme l'action
     
     return

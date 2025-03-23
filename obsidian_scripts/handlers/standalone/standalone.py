@@ -10,23 +10,20 @@ from pathlib import Path
 import shutil
 import os
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+setup_logger("Standalone", logging.DEBUG)
+logger = logging.getLogger("Standalone")
 
-def make_synthese_standalone(filepath):
+def make_synthese_standalone(filepath, src_path, note_id):
         
     # Étape 1 : Lire l'entête pour récupérer catégorie et sous-catégorie
     
     metadata = extract_note_metadata(filepath)
     category = (metadata["category"])
     subcategory = (metadata["sub category"])
-    logger.debug("[DEBUG] make_synthese_standalone %s %s",category, subcategory)
-    if not category or not subcategory:
-        logger.error(f"[ERREUR] Impossible d'extraire les informations du fichier : {filepath}")
-        raise
-    
+    logger.debug("[DEBUG] make_synthese_standalone")
+        
     # Étape 2 : Trouver le chemin cible
-    target_path = get_path_from_classification(category, subcategory)
+    target_path = src_path
     target_path = Path(target_path)
     logger.debug("[DEBUG] make_synthese_standalone target_path %s",target_path)
     if not target_path:
@@ -54,14 +51,14 @@ def make_synthese_standalone(filepath):
     filepath = original_file
     # Étape 4 : Relancer la génération de synthèse
     try:
-        process_import_syntheses(filepath, category, subcategory)
-        logger.info(f"[INFO] Synthèse régénérée pour category={category}, subcategory={subcategory}")
+        process_import_syntheses(filepath, note_id)
+        logger.info(f"[INFO] Synthèse régénérée pour note_id {note_id}")
     except Exception as e:
         logger.error(f"[ERREUR] Échec lors de la régénération de la synthèse : {e}")
         raise   
     
     
-def make_header_standalone(filepath):
+def make_header_standalone(filepath, src_path, note_id):
         
     # Étape 1 : Lire l'entête pour récupérer catégorie et sous-catégorie
     metadata = extract_note_metadata(filepath)
@@ -74,7 +71,7 @@ def make_header_standalone(filepath):
         raise
     
     # Étape 2 : Trouver le chemin cible
-    target_path = get_path_from_classification(category, subcategory)
+    target_path = src_path
     logger.debug("[DEBUG] make_sheader_standalone target_path %s",target_path)
     if not target_path:
         logger.error(f"[ERREUR] Aucun chemin trouvé pour category={category}, subcategory={subcategory}")
@@ -127,7 +124,7 @@ def make_header_standalone(filepath):
             logger.info(f"[INFO] Keywords mis à jour")
         logger.debug(f"[DEBUG] vers make_properties {filepath}")
         logger.debug(f"[DEBUG] make_properties() - File: {filepath}, Category: {category}, Subcategory: {subcategory}, Status: {status}")
-        make_properties(content, filepath, category, subcategory, status)
+        make_properties(content, filepath, note_id, status)
         logger.info(f"[INFO] Entête régénérée")    
         
         

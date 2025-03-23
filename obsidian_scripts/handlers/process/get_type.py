@@ -14,8 +14,9 @@ from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.utils.extract_yaml_header import extract_yaml_header
 from handlers.process.prompts import PROMPTS
 from handlers.utils.sql_helpers import get_path_from_classification, get_db_connection
+from handlers.utils.normalization import normalize_full_path
 
-setup_logger("get_type", logging.INFO)
+setup_logger("get_type", logging.DEBUG)
 logger = logging.getLogger("get_type")
 
 similarity_warnings_log = os.getenv('SIMILARITY_WARNINGS_LOG')
@@ -48,7 +49,7 @@ def process_get_note_type(filepath):
         
         try:
             response = call_ollama_with_retry(prompt, model_ollama)
-            #response = "Politics/Europe"
+            #response = "Bidule/Chouet"
             logger.debug("[DEBUG] process_get_note_type response : %s", response)
         except OllamaError:
             logger.error("[ERROR] Import annulé.")
@@ -105,8 +106,8 @@ def clean_note_type(response):
     Supprimer les guillemets et mettre en minuscule
     """
     logger.debug("[DEBUG] clean_note_type : %s", response)
-    clean_str = response.strip().lower().replace('"', '').replace("'", '')
-
+    #clean_str = response.strip().lower().replace('"', '').replace("'", '')
+    clean_str = response.strip().replace('"', '').replace("'", '')
     # Remplacer les espaces par des underscores
     clean_str = clean_str.replace(" ", "_")
 
@@ -248,15 +249,17 @@ def get_path_safe(note_type, filepath):
         # 🔹 Vérifier si la sous-catégorie existe
         cursor.execute("SELECT id FROM obsidian_categories WHERE name = %s AND parent_id = %s", (subcategory, category_id))
         subcategory_result = cursor.fetchone()
-
+        conn.close()
+        
         if not subcategory_result:
             logger.info(f"[INFO] Sous-catégorie absente : {subcategory}. Création en cours...")
             subcategory_id = add_dynamic_subcategory(category, subcategory)
         else:
             subcategory_id = subcategory_result["id"]
 
-        conn.close()
-        return get_path_from_classification(category, subcategory)
+        logger.debug(f"[DEBUG] Sous-catégorie {subcategory_id} , categ : {category_id}.")
+        
+        return get_path_from_classification(category_id, subcategory_id)
 
     except ValueError:
         logger.error("Format inattendu du résultat Llama : %s", note_type)
@@ -286,6 +289,19 @@ def add_dynamic_subcategory(category, subcategory):
         return None
 
     category_id = category_result[0]
+    
+    # 🔹 Récupérer l'ID de la dossier parent
+    cursor.execute("SELECT id, path FROM obsidian_folders WHERE category_id = %s AND subcategory_id IS NULL", (category_id,))
+    folder_category_result = cursor.fetchone()
+
+    if not folder_category_result:
+        logger.warning(f"[WARN] Impossible folder_category_result est absente.")
+        conn.close()
+        return None
+
+    category_folder_id = folder_category_result[0]
+    category_folder_path = folder_category_result[1]
+    new_subcateg_path = Path(category_folder_path) / subcategory
 
     logger.info(f"[INFO] Création de la sous-catégorie : {subcategory} sous {category}")
 
@@ -296,8 +312,17 @@ def add_dynamic_subcategory(category, subcategory):
     """, (subcategory, category_id, f"Note about {subcategory.lower()}", "divers"))
 
     subcategory_id = cursor.lastrowid
+    
+    cursor.execute("""
+        INSERT INTO obsidian_folders (name, path, folder_type, parent_id, category_id, subcategory_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (subcategory, str(new_subcateg_path), "storage", category_folder_id, category_id, subcategory_id))
+    
     conn.commit()
     conn.close()
+    
+    Path(new_subcateg_path).mkdir(parents=True, exist_ok=True)
+
     
     return subcategory_id
 
@@ -385,11 +410,28 @@ def add_dynamic_category(category):
     """
     Ajoute une nouvelle catégorie dans la base de données si elle n'existe pas.
     """
+    logger.debug(f"add_dynamic_category")
+    z_storage_path = normalize_full_path(os.getenv('Z_STORAGE_PATH'))
+    logger.debug(f"add_dynamic_category z_storage_path : {z_storage_path}")
+    new_categ_path = Path(z_storage_path) / category
+    logger.debug(f"add_dynamic_category new_categ_path : {new_categ_path}")
     conn = get_db_connection()
     if not conn:
         return None
     cursor = conn.cursor()
 
+    # 🔹 Récupérer l'ID de la dossier parent
+    cursor.execute("SELECT id FROM obsidian_folders WHERE path = %s AND category_id IS NULL AND subcategory_id IS NULL", (str(z_storage_path),))
+    folder_parent_id = cursor.fetchone()
+    folder_parent_id = folder_parent_id[0]
+    logger.debug(f"add_dynamic_category folder_parent_id: {folder_parent_id}")
+
+
+    if not folder_parent_id:
+        logger.warning(f"[WARN] Impossible folder_parent_id est absent.")
+        conn.close()
+        return None
+    
     logger.info(f"[INFO] Création de la nouvelle catégorie : {category}")
 
     # 🔹 Création dans la base
@@ -399,6 +441,13 @@ def add_dynamic_category(category):
     """, (category, f"Note about {category.lower()}", "divers"))
 
     category_id = cursor.lastrowid
+    
+    cursor.execute("""
+    INSERT INTO obsidian_folders (name, path, folder_type, parent_id, category_id, subcategory_id) 
+    VALUES (%s, %s, %s, %s, %s, %s)
+""", (category, str(new_categ_path), "storage", folder_parent_id, category_id, None))
+    
+    
     conn.commit()
     conn.close()
     

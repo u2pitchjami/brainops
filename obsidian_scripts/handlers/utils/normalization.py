@@ -1,5 +1,8 @@
 import unicodedata
+import os
 
-def normalize_path(path):
-    """ Normalise les caractères spéciaux pour garantir la correspondance """
-    return unicodedata.normalize("NFC", path)
+def normalize_full_path(path):
+    """ Nettoie un chemin de fichier (slashs, accents, espaces, etc.) """
+    path = unicodedata.normalize("NFC", path)
+    path = path.strip()
+    return os.path.normpath(path)

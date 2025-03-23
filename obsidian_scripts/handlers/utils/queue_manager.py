@@ -6,6 +6,7 @@ import time
 import re
 import yaml
 from handlers.utils.sql_helpers import file_path_exists_in_db
+from handlers.utils.files import safe_write
 
 setup_logger("process_queue", logging.DEBUG)
 logger = logging.getLogger("process_queue")
@@ -28,6 +29,7 @@ def test_title(file_path):
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
 
+        logger.debug(f"[DEBUG] test_title : {content}")
         yaml_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
         
         if yaml_match:
@@ -35,8 +37,8 @@ def test_title(file_path):
             body_content = content[len(yaml_match.group(0)):]
 
             # 🔍 Extraction du `note_id`
-            note_id_match = re.search(r"^note_id:\s*(.+)", yaml_content, re.MULTILINE)
-            note_id = note_id_match.group(1).strip() if note_id_match else None
+            # note_id_match = re.search(r"^note_id:\s*(.+)", yaml_content, re.MULTILINE)
+            # note_id = note_id_match.group(1).strip() if note_id_match else None
 
             # 🔍 Extraction et correction du `title`
             title_match = re.search(r"^title:\s*(.+)", yaml_content, re.MULTILINE)
@@ -48,9 +50,16 @@ def test_title(file_path):
 
                 # Vérifie si une correction a été faite avant d'écrire
                 if corrected_yaml_content != yaml_content:
-                    with open(file_path, "w", encoding="utf-8") as file:
-                        file.write(f"---\n{corrected_yaml_content}\n---\n{body_content}")
-                    logger.info(f"💾 [INFO] Fichier corrigé : {file_path}")
+                    success = safe_write(file_path, content=f"---\n{corrected_yaml_content}\n---\n{body_content}")
+                    if not success:
+                        logger.error(f"[main] Problème lors de l’écriture sécurisée de {file_path}")
+                    
+                    logger.info(f"[INFO] Lien mis à jour pour : {file_path}")
+                    
+                    # with open(file_path, "w", encoding="utf-8") as file:
+                    #     file.write(f"---\n{corrected_yaml_content}\n---\n{body_content}")
+                    # logger.info(f"💾 [INFO] Fichier corrigé : {file_path}")
+                    
 
             # if note_id:
             #     logger.debug(f"🔍 [DEBUG] note_id trouvé: {note_id}")
@@ -73,6 +82,7 @@ def process_queue():
             event = event_queue.get()
             logger.debug(f"[DEBUG] ===== PROCESS QUEUE EVENT RECUP : {event}")
             file_path = event.get("path")
+            src_path = event.get("src_path")
             trigger = True
             # Vérifier si le fichier existe
             if not wait_for_file(file_path) and (event['action'] != "deleted"):
@@ -89,20 +99,21 @@ def process_queue():
                     
                 logger.debug(f"[DEBUG] ===== Test Note_ID")
                 test_title(file_path)
-                if not file_path_exists_in_db(str(file_path)):
+                if not file_path_exists_in_db(file_path, src_path):
+                    logger.debug(f"[DEBUG] {file_path} innexistant dans obsidian_notes")
                     event["action"] = "created"
+                    logger.debug("[DEBUG] event mofifié en created")
                     note_id = process_note_event(event)  # 🔥 Gère les événements des notes
                     trigger = False
                     
                 if event['action'] in ['created', 'modified']:
-                    logger.debug(f"[DEBUG] ===== Event created, modified")
+                    logger.debug(f"[DEBUG] ===== Event created, modified : {event['action']}")
                     if trigger:    
                         note_id = process_note_event(event)  # 🔥 Gère les événements des notes
-                    
-                    if note_id:
-                        process_single_note(event['path'], note_id)
-                    else:
-                        logger.warning(f"[⚠️] Aucun note_id retourné pour {event['path']}")
+                        if note_id:
+                            process_single_note(event['path'], note_id)
+                        else:
+                            logger.warning(f"[⚠️] Aucun note_id retourné pour {event['path']}")
                     
                 elif event['action'] == 'moved':
                     logger.debug(f"[DEBUG] ===== Event moved")
@@ -115,22 +126,25 @@ def process_queue():
                         logger.warning(f"[⚠️] Aucun note_id retourné pour {event['path']}")
                 elif event["action"] == "resume_import_normal":
                     logger.debug(f"[DEBUG] ===== resume_import_normal")
-                    resume_import_normal(event["path"], event["category"], event["subcategory"])
+                    resume_import_normal(event["path"], event["note_id"])
                     
                 elif event["action"] == "resume_import_synthesis":
                     logger.debug(f"[DEBUG] ===== resume_import_synthesis")
-                    resume_import_synthesis(event["path"], event["category"], event["subcategory"])
+                    resume_import_synthesis(event["path"], event["note_id"])
 
             elif event['type'] == 'directory':
                 if event['action'] == 'moved':
                     # ⚡ Traite le déplacement en une seule transaction
+                    logger.debug(f"📂 [DEBUG] Action: {event['action']} | Path: {event['path']}")
                     process_folder_event({'action': 'created', 'path': event['path']})
+                    logger.debug(f"[DEBUG] Sortie Created, entrée Deleted")
                     process_folder_event({'action': 'deleted', 'path': event['src_path']})
+                    logger.debug(f"[DEBUG] fini")
                 else:
                     process_folder_event(event)
 
             if event:
-                logger.debug("[DEBUG] L'événement est bien détecté, traitement en cours...")
+                logger.debug(f"[DEBUG] Traitement terminé pour {event['type']} - {event['action']}")
             else:
                 logger.error("[ERREUR] Event vide récupéré, suppression forcée.")
             

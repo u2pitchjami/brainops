@@ -43,15 +43,14 @@ def process_single_note(filepath, note_id, src_path=None):
                 logger.info(f"[INFO] Conversation GPT détectée, déplacement vers : {base_folder}")
                 return
             time.sleep(10)  # Pause de 10 secondes
-            category, subcategory, category_id, subcategory_id = categ_extract(base_folder)
+            
             new_title = Path(filepath).stem.replace("_", " ")
             #update_note_in_db(filepath, new_title, note_id, category_id, subcategory_id, status="draft")
             log_event_queue()
             event_queue.put({
                 "action": "resume_import_normal",
                 "path": filepath,
-                "category": category,
-                "subcategory": subcategory,
+                "note_id": note_id,
                 "type": "file"
             })
             logger.debug(f"[DEBUG] ===== ⏸️ Import mis en attente pour {filepath}")
@@ -81,12 +80,12 @@ def process_single_note(filepath, note_id, src_path=None):
         # 1.2 Autres déplacements (exemple : ZMake)
         elif "Z_technical/ZMake_Synthese" in filepath:
             logger.info(f"[INFO] ===== Déplacement manuel vers ZMake_Synthese : {src_path} --> {filepath}")
-            make_synthese_standalone(filepath)
+            make_synthese_standalone(filepath, src_path, note_id)
             return
 
         elif "Z_technical/ZMake_Header" in filepath:
             logger.info(f"[INFO] ===== Déplacement manuel vers ZMake_Header : {src_path} --> {filepath}")
-            make_header_standalone(filepath)
+            make_header_standalone(filepath, src_path, note_id)
             return
 
         # Autres cas : déplacement ignoré
@@ -149,25 +148,25 @@ def process_single_note(filepath, note_id, src_path=None):
             logger.debug(f"[DEBUG] Aucune correspondance pour : {filepath}")
             return
 
-def resume_import_synthesis(filepath, category, subcategory):
+def resume_import_synthesis(filepath, note_id):
     """ Exécute la synthèse après la pause """
     logger.debug(f"[DEBUG] ===== ▶️ REPRISE SYNTHESE pour {filepath}")
-    process_import_syntheses(filepath, category, subcategory)
+    process_import_syntheses(filepath, note_id)
     logger.info(f"[INFO] ===== Process Single Note : SYNTHESE terminée pour : {filepath}")
     log_event_queue()
     
 
-def resume_import_normal(filepath, category, subcategory):
+def resume_import_normal(filepath, note_id):
     """ Exécute la synthèse après la pause """
     logger.debug(f"[DEBUG] ===== ▶️ Reprise IMPORT NORMAL pour {filepath}")
-    import_normal(filepath, category, subcategory)
-    logger.debug(f"[DEBUG] ===== process_single_note IMPORT NORMAL terminé {category}/{subcategory}")
+    import_normal(filepath, note_id)
+    
+    logger.debug(f"[DEBUG] ===== process_single_note IMPORT NORMAL terminé")
     log_event_queue()
     event_queue.put({
                 "action": "resume_import_synthesis",
                 "path": filepath,
-                "category": category,
-                "subcategory": subcategory,
+                "note_id": note_id,
                 "type": "file"
             })
     logger.debug(f"[DEBUG] ===== ⏸️ SYNTHESE mise en attente pour {filepath}")
