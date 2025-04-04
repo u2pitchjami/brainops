@@ -1,6 +1,7 @@
 from handlers.process.large_note import process_large_note
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
+from handlers.sql.db_update_notes import update_obsidian_note
 from handlers.utils.files import copy_file_with_date, read_note_content, count_words
 from handlers.sql.db_get_linked_data import get_note_linked_data
 import os
