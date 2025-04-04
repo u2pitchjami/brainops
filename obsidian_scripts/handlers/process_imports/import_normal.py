@@ -1,8 +1,8 @@
 from handlers.process.large_note import process_large_note
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
-from handlers.utils.divers import read_note_content, clean_content, count_words
-from handlers.utils.files import copy_file_with_date
+from handlers.utils.files import copy_file_with_date, read_note_content, count_words
+from handlers.sql.db_get_linked_data import get_note_linked_data
 import os
 from logger_setup import setup_logger
 import logging
@@ -18,14 +18,15 @@ def import_normal(filepath, note_id):
         content = read_note_content(filepath)
         lines = content.splitlines()
         
-        cleaned_content = clean_content(content, filepath)
-
         # Définir le seuil de mots pour déclencher l'analyse
         nombre_mots_actuels = count_words(content)
         seuil_mots_initial = 100
         seuil_modif = 100
         ancienne_valeur = 0
-        
+        updates = {
+        'word_count': nombre_mots_actuels
+        }
+        update_obsidian_note(note_id, updates)
         # Lire les métadonnées existantes
         logger.debug(f"[DEBUG] import_normal lecture des metadonnees {filepath}")
            
@@ -53,17 +54,21 @@ def import_normal(filepath, note_id):
         if nombre_mots_actuels - ancienne_valeur >= seuil_modif or ancienne_valeur == 0:
             logger.info("[INFO] Modification significative détectée. Reformulation du texte.")
             logger.debug(f"[DEBUG] import_normal : modif significative {filepath}")
-            # Nettoyer le contenu
-            logger.debug(f"[DEBUG] import_normal : envoie pour vers clean_content {filepath}")
-            cleaned_content = clean_content(content, filepath)
-            content = cleaned_content
             logger.debug(f"[DEBUG] import_normal : envoie process_large {filepath}")
-            process_large_note(content, filepath, entry_type="reformulation")
+            data = get_note_linked_data(note_id, "note")
+            logger.debug(f"[DEBUG] data : {data}")
+            process_large_note(filepath, entry_type="reformulation")
+            data = get_note_linked_data(note_id, "note")
+            logger.debug(f"[DEBUG] data : {data}")
             logger.debug(f"[DEBUG] import_normal :retour du process_large {filepath}")
             logger.debug(f"[DEBUG] import_normal : import normal envoi vers process & update {filepath}")
+            data = get_note_linked_data(note_id, "note")
+            logger.debug(f"[DEBUG] data : {data}")
             process_and_update_file(filepath)
+            data = get_note_linked_data(note_id, "note")
+            logger.debug(f"[DEBUG] data : {data}")
             logger.debug(f"[DEBUG] import_normal : import normal envoi vers make_properties {filepath}")
-            make_properties(content, filepath, note_id, status = "archive")
+            make_properties(filepath, note_id, status = "archive")
             
             
             return

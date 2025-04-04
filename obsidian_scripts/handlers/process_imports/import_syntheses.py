@@ -1,13 +1,11 @@
-from handlers.process.ollama import call_ollama_with_retry, OllamaError
 from handlers.process.large_note import process_large_note
-from handlers.utils.extract_yaml_header import extract_yaml_header
+from handlers.process.standard_note import process_standard_note
+from handlers.process.divers import copy_to_archive
+from handlers.header.extract_yaml_header import extract_yaml_header
 from handlers.process.headers import make_properties
-from handlers.process.keywords import process_and_update_file
-from handlers.utils.sql_helpers import get_subcategory_prompt
-from handlers.utils.divers import read_note_content, clean_content
-from handlers.utils.files import copy_file_with_date, move_file_with_date, make_relative_link, copy_to_archives, safe_write
-from handlers.process.prompts import PROMPTS
-from datetime import datetime
+from handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt
+from handlers.utils.files import safe_write, join_yaml_and_body
+from handlers.utils.divers import make_relative_link
 from logger_setup import setup_logger
 import logging
 import os
@@ -19,96 +17,107 @@ def process_import_syntheses(filepath, note_id):
     logger.info(f"[INFO] Génération de la synthèse pour : {filepath}")
     logger.debug(f"[DEBUG] démarrage du process_import_synthèse pour : {note_id}")
     try:
-        content = read_note_content(filepath)
-       #with open(filepath, "r", encoding="utf-8") as file:
-       #     content = file.readlines()
-        logger.debug(f"[DEBUG] Contenu brut : {repr(content[:100])}...")  # Limité pour éviter de surcharger
-        logger.debug(f"[DEBUG] Type après lecture : {type(content)}")
-        
         
         logger.debug(f"[DEBUG] process_import_syntheses lancement copy_to_archives")
                 
-        new_path = copy_to_archives(filepath)
-        original_path = new_path
-        original_path = make_relative_link(original_path, link_text="Voir la note originale")
+        original_path = copy_to_archive(filepath, note_id)
+        original_path = make_relative_link(original_path, filepath)
         logger.debug(f"[DEBUG] process_import_syntheses : original_path {original_path}")
+        model_ollama = os.getenv('MODEL_SYNTHESIS1')
+        make_pre_synthese(filepath, note_id, model_ollama, source="synthesis")
         
+        model_ollama = os.getenv('MODEL_SYNTHESIS2')
         
-        header_lines, content_lines = extract_yaml_header(content)
-        content = content_lines
-        logger.debug(f"[DEBUG] process_import_synthese : original_path {original_path}")              
-        make_syntheses(filepath, content, header_lines, note_id, original_path)        
+        make_syntheses(filepath, note_id, model_ollama, original_path)        
         #logger.debug(f"[DEBUG] process_import_syntheses : envoi vers process & update {filepath}")
         #process_and_update_file(filepath)
         logger.debug(f"[DEBUG] process_import_syntheses : envoi vers make_properties {filepath} ")
-        make_properties(content, filepath, note_id, status = "synthesis")
+        make_properties(filepath, note_id, status = "synthesis")
         logger.info(f"[INFO] Synthèse terminée pour {filepath}")
         return
         
       
     except Exception as e:
         print(f"[ERREUR] Impossible de traiter {filepath} : {e}")    
-        
-def make_syntheses(filepath, content, header_lines, note_id, original_path):
-    logger.debug(f"[DEBUG] démarrage de make_synthèse pour {filepath}")
-    model_ollama = os.getenv('MODEL_SYNTHESIS1')
-    model_ollama2 = os.getenv('MODEL_SYNTHESIS2')
+
+def make_pre_synthese(
+    filepath,
+    note_id=None,
+    model_ollama=None,
+    word_limit=1000,
+    split_method="titles_and_words",
+    write_file=True,
+    send_to_model=True,
+    custom_prompts=None,
+    persist_blocks=True,
+    resume_if_possible=True,
+    source="normal"
+):
+    logger.debug(f"[DEBUG] Démarrage de make_pre_synthese pour {filepath}")
     try:
-        prompt_name = get_subcategory_prompt(note_id)
-            
-        logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt_name}")
-        prompt = PROMPTS[prompt_name].format(content=content) 
-        #logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt}")
-                 
-        logger.debug(f"[DEBUG] make_syntheses : envoie vers ollama")
-          
-        body_content = process_large_note(content, filepath, entry_type=prompt_name, write_file=True)
-        #response = call_ollama_with_retry(prompt, model_ollama)
-        #logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
-        #logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
+        # Extraire le contenu sans le YAML (utile si on veut le passer à l’IA à la main)
+       
+        prompt_name = get_subcategory_prompt(note_id) if note_id else "divers"
+        logger.debug(f"[DEBUG] Prompt utilisé : {prompt_name}")
+
+        response = process_large_note(
+            filepath=filepath,
+            entry_type=prompt_name,
+            word_limit=word_limit,
+            split_method=split_method,
+            write_file=write_file,
+            send_to_model=send_to_model,
+            model_name=model_ollama,
+            custom_prompts=custom_prompts,
+            persist_blocks=persist_blocks,
+            resume_if_possible=resume_if_possible,
+            source=source
+        )
+
         
+        return response
+
+    except Exception as e:
+        logger.error(f"[ERREUR] make_pre_synthese : Impossible de traiter {filepath} : {e}")
+        return ""
+ 
         
+def make_syntheses(filepath: str, note_id: str, model_ollama: str, original_path: str):
+    logger.debug(f"[DEBUG] Démarrage de make_syntheses pour {filepath}")
+
+    try:
+        # Lecture + séparation header / contenu
+        header_lines, _ = extract_yaml_header(filepath)
+        
+        # Préparation du prompt
         prompt_name = "synthese2"
-        logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt_name}")
-        prompt = PROMPTS[prompt_name].format(content=body_content) 
-        logger.debug(f"[DEBUG] make_syntheses : prompt : {prompt}")            
-        logger.debug(f"[DEBUG] make_syntheses : envoie vers ollama")    
-        try:  
-            response = call_ollama_with_retry(prompt, model_ollama2)
-            logger.debug(f"[DEBUG] make_syntheses : type de response : {type(response)}")
-            logger.debug(f"[DEBUG] make_syntheses : contenu de response : {response[:50]}")
-        except OllamaError:
-            logger.error("[ERROR] Import annulé.")
+        response = process_standard_note(filepath, model_ollama, prompt_name, source = "synthesis2", resume_if_possible = True)
         
-        # Étape 3 : Fusionner les blocs reformulés
-        header_content = "\n".join(header_lines).strip()
-        logger.debug(f"[DEBUG] make_syntheses header_content : {header_content[:50]}")
-        # Construire le contenu principal
+        # Traitement de la réponse
         if isinstance(response, str):
             body_content = response.strip()
         elif isinstance(response, list):
-            body_content = "\n\n".join(block.strip() for block in response if isinstance(block, str)).strip()
+            body_content = "\n".join(block.strip() for block in response if isinstance(block, str)).strip()
         else:
-            raise ValueError("Response de call_ollama_with_retry n'est ni une chaîne ni une liste valide")
-        logger.debug(f"[DEBUG] make_syntheses body_content : {body_content[:50]}")
-        # Construire le lien vers la note originale
-        logger.debug(f"[DEBUG] process_import_synthese : original_path {original_path}") 
-        original_link = f"[Voir la note originale]({original_path})"
-        logger.debug(f"[DEBUG] process_import_synthese : original_link {original_link}") 
-        # Ajouter le lien au début du corps principal
-        body_content = f"{original_path}\n\n{body_content}"
+            raise ValueError("La réponse d'Ollama n'est ni une chaîne ni une liste.")
 
-        # Fusionner l'entête et le contenu principal
-        final_content = f"{header_content}\n\n{body_content}" if header_content else body_content
-        logger.debug(f"[DEBUG] make_syntheses final_content : {final_content[:50]}")
-        print(f"\nTexte final recomposé :\n{final_content[:50]}...\n")  # Aperçu limité
-        # Écriture de la note reformulée
+        # Construction du lien vers la note originale
+        original_link = f"[[{original_path}|Voir la note originale]]"
+        logger.debug(f"[DEBUG] Lien original : {original_link}")
+
+        # Recomposition du contenu final
+        body_with_link = f"{original_link}\n\n{body_content.strip()}"
+        header_content = "\n".join(header_lines).strip()
+        final_content = join_yaml_and_body(header_lines, body_with_link)
+        logger.debug(f"[DEBUG] Contenu final généré : {final_content[:2000]}...")
+
+        # Écriture du fichier
         success = safe_write(filepath, content=final_content)
         if not success:
-            logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
-        
-        print(f"[INFO] make_syntheses a été traitée et enregistrée : {filepath}")
-        logger.debug(f"[DEBUG] make_syntheses : mis à jour du fichier")
-        return
+            logger.error(f"[ERROR] Échec de l’écriture du fichier : {filepath}")
+            return
+
+        logger.info(f"[INFO] Note synthétisée enregistrée : {filepath}")
     except Exception as e:
-        print(f"[ERREUR] make_syntheses : Impossible de traiter : {e}")    
+        logger.exception(f"[ERREUR] Échec dans make_syntheses pour {filepath} : {e}")
+   

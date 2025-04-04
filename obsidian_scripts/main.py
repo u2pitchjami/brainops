@@ -35,7 +35,7 @@ logger = logging.getLogger("obsidian_notes")
 #logging.debug("TEST DEBUG ROOT")  # 🔥 Ce message s'affiche-t-il ?
 #logging.info("TEST INFO ROOT")
 
-from handlers.start.watcher import start_watcher
+from handlers.watcher.watcher import start_watcher
 
 
 

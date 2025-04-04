@@ -3,8 +3,7 @@ import yaml
 import os
 from logger_setup import setup_logger
 import logging
-from handlers.utils.extract_yaml_header import extract_yaml_header
-from handlers.utils.files import copy_file_with_date
+from handlers.header.extract_yaml_header import extract_yaml_header
 
 setup_logger("obsidian_notes", logging.INFO)
 logger = logging.getLogger("obsidian_notes")
@@ -50,9 +49,7 @@ def process_and_update_file(filepath):
     
     # Charger le contenu du fichier
         
-    with open(filepath, "r", encoding="utf-8") as file:
-        content = file.read()
-    header_lines, content_lines = extract_yaml_header(content)
+    header_lines, content_lines = extract_yaml_header(filepath)
     {repr(header_lines)}
     logger.debug(f"[DEBUG] Contenu brut après extract_yaml_header : {header_lines[:5]}")
     logger.debug(f"[DEBUG] Contenu brut après extract_yaml_header : {repr(header_lines[:5])}")

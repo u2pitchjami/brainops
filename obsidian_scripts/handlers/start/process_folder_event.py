@@ -1,12 +1,8 @@
 import os
-import json
 from logger_setup import setup_logger
 import logging
-import time
-from pathlib import Path
-from dotenv import load_dotenv
-from handlers.utils.sql_helpers import get_db_connection, add_folder_to_db, update_folder_in_db, delete_folder_from_db
-
+from handlers.sql.db_folders import delete_folder_from_db
+from handlers.process.folders import add_folder, update_folder
 
 
 setup_logger("process_folder_event", logging.DEBUG)
@@ -33,7 +29,7 @@ def process_folder_event(event):
     logger.debug(f"[DEBUG] process_folder_event() folder_type {folder_type}")
     if action == 'created':
         logger.debug(f"[DEBUG] process_folder_event() envoie add_folder_to_db")
-        add_folder_to_db(folder_path, folder_type)
+        add_folder(folder_path, folder_type)
 
     elif action == 'deleted':
         delete_folder_from_db(folder_path)
@@ -43,7 +39,7 @@ def process_folder_event(event):
         logger.info(f"[INFO] new_folder_path : {new_folder_path}")
         if not new_folder_path:
             return
-        update_folder_in_db(folder_path, new_folder_path)
+        update_folder(folder_path, new_folder_path)
         
 def detect_folder_type(folder_path):
     """Détecte automatiquement le type de dossier en fonction de son chemin"""

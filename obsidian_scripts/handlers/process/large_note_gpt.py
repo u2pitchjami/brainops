@@ -1,11 +1,9 @@
 import os
 import re
-import requests
-import json
-from handlers.utils.extract_yaml_header import extract_yaml_header
+from handlers.header.extract_yaml_header import extract_yaml_header
 from handlers.utils.files import safe_write
-from handlers.process.ollama import call_ollama_with_retry, OllamaError
-from handlers.process.prompts import PROMPTS
+from handlers.ollama.ollama import call_ollama_with_retry, OllamaError
+from handlers.ollama.prompts import PROMPTS
 from logger_setup import setup_logger
 import logging
 root_logger = logging.getLogger()  # Logger root (sans argument)
@@ -59,7 +57,7 @@ def process_large_note_gpt_test(content, filepath, model_ollama):
     logger.debug(f"[DEBUG] Type de content avant extract_yaml_header : {type(content)}")
     logger.debug(f"[DEBUG] Contenu brut avant extract_yaml_header : {repr(content[:100])}")
     try:
-        header_lines, content_lines = extract_yaml_header(content)
+        header_lines, content_lines = extract_yaml_header(filepath)
         content = content_lines
     
         # Étape 1 : Découpage en blocs optimaux

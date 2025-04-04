@@ -10,11 +10,16 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from Levenshtein import ratio
-from handlers.process.ollama import call_ollama_with_retry, OllamaError
-from handlers.utils.extract_yaml_header import extract_yaml_header
-from handlers.process.prompts import PROMPTS
-from handlers.utils.sql_helpers import get_path_from_classification, get_db_connection
-from handlers.utils.normalization import normalize_full_path
+from handlers.ollama.ollama import call_ollama_with_retry, OllamaError
+from handlers.header.extract_yaml_header import extract_yaml_header
+from handlers.utils.files import clean_content
+from handlers.ollama.prompts import PROMPTS
+from handlers.sql.db_folders_utils import get_path_from_classification
+from handlers.sql.db_update_notes import update_obsidian_note
+from handlers.sql.db_categs_utils import generate_categ_dictionary, generate_categ_dictionary, generate_optional_subcategories
+from handlers.sql.db_categs import get_path_safe
+from handlers.sql.db_get_linked_folders_utils import get_folder_id
+from handlers.utils.paths import ensure_folder_exists
 
 setup_logger("get_type", logging.DEBUG)
 logger = logging.getLogger("get_type")
@@ -22,19 +27,17 @@ logger = logging.getLogger("get_type")
 similarity_warnings_log = os.getenv('SIMILARITY_WARNINGS_LOG')
 uncategorized_log = os.getenv('UNCATEGORIZED_LOG')
 uncategorized_path = Path(os.getenv('UNCATEGORIZED_PATH'))
-uncategorized_path.mkdir(parents=True, exist_ok=True)
-uncategorized_data = "uncategorized_notes.json"
+uncategorized_data = Path(os.getenv('UNCATEGORIZED_JSON'))
 
-def process_get_note_type(filepath):
+def process_get_note_type(filepath: str, note_id: int):
     """Analyse le type de note via Llama3.2."""
     logger.debug("[DEBUG] Entrée process_get_note_type")
     model_ollama = os.getenv('MODEL_GET_TYPE')
 
-    with open(filepath, 'r', encoding='utf-8') as file:
-        content = file.read()
     try:
         logger.debug("[DEBUG] process_get_note_type avant extract yaml")
-        _, content_lines = extract_yaml_header(content)
+        _, content_lines = extract_yaml_header(filepath)
+        content_lines = clean_content(content_lines)
         logger.debug("[DEBUG] process_get_note_type content_lines %s", content_lines)
         subcateg_dict = generate_optional_subcategories()
         logger.debug("[DEBUG] process_get_note_type subcateg_dict %s", subcateg_dict)
@@ -48,66 +51,81 @@ def process_get_note_type(filepath):
         logger.debug("[DEBUG] process_get_note_type : %s", prompt)
         
         try:
-            response = call_ollama_with_retry(prompt, model_ollama)
-            #response = "Bidule/Chouet"
-            logger.debug("[DEBUG] process_get_note_type response : %s", response)
+            llama_proposition = call_ollama_with_retry(prompt, model_ollama)
+            #llama_proposition = "Bidule/unknown"
+            logger.debug("[DEBUG] process_get_note_type llama_proposition : %s", llama_proposition)
         except OllamaError:
             logger.error("[ERROR] Import annulé.")
 
-        parse_category = parse_category_response(response)
+        parse_category = parse_category_response(llama_proposition)
         if parse_category is None:
             logger.warning("[WARNING] Classification invalide, tentative de reclassement ultérieur.")
-            handle_uncategorized(filepath, "Invalid format", "")
+            handle_uncategorized(note_id, filepath, "Invalid format", "")
             return None
         
         logger.debug("[DEBUG] process_get_note_type parse_category %s", parse_category)
         note_type = clean_note_type(parse_category)
+        
+        if any(term in note_type.lower() for term in ["uncategorized", "unknow"]):
+            logger.warning(f"[REDIRECT] note_type = {note_type} redirigé vers 'uncategorized'")
+            return handle_uncategorized(note_id, filepath, note_type, llama_proposition)
 
         logger.info("Type de note détecté pour %s : %s", filepath, note_type)
     except Exception as e:
         logger.error("Erreur lors de l'analyse : %s", e)
-        handle_uncategorized(filepath, "Error", "")
+        handle_uncategorized(note_id, filepath, "Error", llama_proposition)
         return None
 
-    dir_type_name = get_path_safe(note_type, filepath)
+    category_id, subcategory_id = get_path_safe(note_type, filepath, note_id)
+    folder_id, dir_type_name = get_path_from_classification(category_id, subcategory_id)
+    
     if dir_type_name is None:
         logger.warning("La note %s a été déplacée dans 'uncategorized'.", filepath)
         return None
 
     try:
         dir_type_name = Path(dir_type_name)
-        dir_type_name.mkdir(parents=True, exist_ok=True)
+        ensure_folder_exists(dir_type_name)
         logger.debug("[DEBUG] dirtype_name %s", type(dir_type_name))
         logger.info("[INFO] Catégorie définie %s", dir_type_name)
     except Exception as e:
         logger.error("[ERREUR] Anomalie lors du process de catégorisation : %s", e)
-        handle_uncategorized(filepath, note_type, "")
+        handle_uncategorized(note_id, filepath, note_type, llama_proposition)
         return None
 
     try:
         new_path = shutil.move(filepath, dir_type_name)
+        updates = {
+        'folder_id': folder_id,      # Catégorie déterminée par `get_type`
+        'file_path': str(dir_type_name),
+        'category_id': category_id,      # Catégorie déterminée par get_path_safe
+        'subcategory_id': subcategory_id        
+        }
+        logger.debug("[DEBUG] updates : %s", updates)
+        update_obsidian_note(note_id, updates)
+        
         logger.info("[INFO] Note déplacée vers : %s", new_path)
         return new_path
     except Exception as e:
         logger.error("[ERREUR] Pb lors du déplacement : %s", e)
-        handle_uncategorized(filepath, note_type, "")
+        handle_uncategorized(note_id, filepath, note_type, llama_proposition)
         return None
 
-def parse_category_response(response):
+def parse_category_response(llama_proposition):
     pattern = r'([A-Za-z0-9_ ]+)/([A-Za-z0-9_ ]+)'
-    match = re.search(pattern, response)
+    match = re.search(pattern, llama_proposition)
     if match:
         return f"{match.group(1).strip()}/{match.group(2).strip()}"
     return None
 
 
-def clean_note_type(response):
+def clean_note_type(parse_category):
     """
     Supprimer les guillemets et mettre en minuscule
     """
-    logger.debug("[DEBUG] clean_note_type : %s", response)
-    #clean_str = response.strip().lower().replace('"', '').replace("'", '')
-    clean_str = response.strip().replace('"', '').replace("'", '')
+    logger.debug("[DEBUG] clean_note_type : %s", parse_category)
+    #clean_str = parse_category.strip().lower().replace('"', '').replace("'", '')
+    clean_str = parse_category.strip().replace('"', '').replace("'", '')
     # Remplacer les espaces par des underscores
     clean_str = clean_str.replace(" ", "_")
 
@@ -119,239 +137,53 @@ def clean_note_type(response):
     logger.debug("[DEBUG] clean_note_type : %s", clean_str)
     return clean_str
 
-def generate_classification_dictionary():
-    """
-    Génère la section 'Classification Dictionary' du prompt à partir de la base MySQL.
-    :return: Texte formaté pour le dictionnaire
-    """
-    conn = get_db_connection()
-    if not conn:
-        return ""
-    cursor = conn.cursor(dictionary=True)
-
-    logger.debug("[DEBUG] generate_classification_dictionary")
-    classification_dict = "Classification Dictionary:\n"
-
-    # 🔹 Récupérer toutes les catégories et sous-catégories
-    cursor.execute("SELECT id, name, description FROM obsidian_categories WHERE parent_id IS NULL")
-    categories = cursor.fetchall()
-
-    for category in categories:
-        description = category["description"] or "No description available."
-        classification_dict += f'- "{category["name"]}": {description}\n'
-        
-        # 🔹 Récupérer les sous-catégories associées
-        cursor.execute("SELECT name, description FROM obsidian_categories WHERE parent_id = %s", (category["id"],))
-        subcategories = cursor.fetchall()
-
-        for subcategory in subcategories:
-            sub_description = subcategory["description"] or "No description available."
-            classification_dict += f'  - "{subcategory["name"]}": {sub_description}\n'
-
-    conn.close()
-    return classification_dict
-
-def generate_optional_subcategories():
-    """
-    Génère uniquement la liste des sous-catégories disponibles, 
-    en excluant les catégories sans sous-catégories.
-    
-    :return: Texte formaté avec les sous-catégories optionnelles.
-    """
-    conn = get_db_connection()
-    if not conn:
-        return ""
-    cursor = conn.cursor(dictionary=True)
-
-    logger.debug("[DEBUG] generate_optional_subcategories")
-    subcateg_dict = "Optional Subcategories:\n"
-
-    # 🔹 Récupérer toutes les catégories ayant des sous-catégories
-    cursor.execute("""
-        SELECT c1.name AS category_name, c2.name AS subcategory_name
-        FROM obsidian_categories c1 
-        JOIN obsidian_categories c2 ON c1.id = c2.parent_id
-        ORDER BY c1.name, c2.name
-    """)
-    results = cursor.fetchall()
-
-    # 🔹 Organisation des données
-    categories_with_subcategories = {}
-    for row in results:
-        category = row["category_name"]
-        subcategory = row["subcategory_name"]
-
-        if category not in categories_with_subcategories:
-            categories_with_subcategories[category] = []
-        categories_with_subcategories[category].append(subcategory)
-
-    # 🔹 Construire le dictionnaire final
-    for category, subcategories in categories_with_subcategories.items():
-        subcateg_dict += f'- "{category}": {", ".join(sorted(subcategories))}\n'
-
-    conn.close()
-    return subcateg_dict if subcateg_dict != "Optional Subcategories:\n" else ""
-
-def generate_categ_dictionary():
-    """
-    Génère la liste de toutes les catégories avec leurs descriptions, 
-    qu'elles aient des sous-catégories ou non.
-    
-    :return: Texte formaté avec toutes les catégories.
-    """
-    conn = get_db_connection()
-    if not conn:
-        return ""
-    cursor = conn.cursor(dictionary=True)
-
-    logger.debug("[DEBUG] generate_categ_dictionary")
-    categ_dict = "Categ Dictionary:\n"
-
-    # 🔹 Récupérer toutes les catégories
-    cursor.execute("SELECT name, description FROM obsidian_categories WHERE parent_id IS NULL")
-    categories = cursor.fetchall()
-
-    for category in categories:
-        explanation = category["description"] or "No description available."
-        categ_dict += f'- "{category["name"]}": {explanation}\n'
-
-    conn.close()
-    return categ_dict
-
-# Trouver ou créer un chemin
-def get_path_safe(note_type, filepath):
-    """
-    Vérifie et crée les chemins si besoin pour une note importée.
-    - Vérifie si la catégorie et la sous-catégorie existent.
-    - Si non, elles sont créées automatiquement.
-    - Vérifie aussi si une catégorie similaire existe avant d’en créer une nouvelle.
-    """
-    logger.debug("Entrée get_path_safe avec note_type: %s", note_type)
-
-    try:
-        category, subcategory = note_type.split("/")
-        
-        conn = get_db_connection()
-        if not conn:
-            return None
-        cursor = conn.cursor(dictionary=True)
-
-        # 🔹 Vérifier si la catégorie existe
-        cursor.execute("SELECT id FROM obsidian_categories WHERE name = %s AND parent_id IS NULL", (category,))
-        category_result = cursor.fetchone()
-        logger.debug("get_path_safe category_result: %s", category_result)
-        if not category_result:
-            logger.info(f"[INFO] Catégorie absente : {category}. Création en cours...")
-            category_id = add_dynamic_category(category)
-        else:
-            category_id = category_result["id"]
-
-        # 🔹 Vérifier si la sous-catégorie existe
-        cursor.execute("SELECT id FROM obsidian_categories WHERE name = %s AND parent_id = %s", (subcategory, category_id))
-        subcategory_result = cursor.fetchone()
-        conn.close()
-        
-        if not subcategory_result:
-            logger.info(f"[INFO] Sous-catégorie absente : {subcategory}. Création en cours...")
-            subcategory_id = add_dynamic_subcategory(category, subcategory)
-        else:
-            subcategory_id = subcategory_result["id"]
-
-        logger.debug(f"[DEBUG] Sous-catégorie {subcategory_id} , categ : {category_id}.")
-        
-        return get_path_from_classification(category_id, subcategory_id)
-
-    except ValueError:
-        logger.error("Format inattendu du résultat Llama : %s", note_type)
-        handle_uncategorized(filepath, note_type, llama_proposition="Invalid format")
-        return None
-
-
-
-
-# Ajouter une sous-catégorie dynamiquement
-def add_dynamic_subcategory(category, subcategory):
-    """
-    Ajoute une sous-catégorie dans la base de données.
-    """
-    conn = get_db_connection()
-    if not conn:
-        return None
-    cursor = conn.cursor()
-
-    # 🔹 Récupérer l'ID de la catégorie parent
-    cursor.execute("SELECT id FROM obsidian_categories WHERE name = %s AND parent_id IS NULL", (category,))
-    category_result = cursor.fetchone()
-
-    if not category_result:
-        logger.warning(f"[WARN] Impossible d'ajouter la sous-catégorie {subcategory}, la catégorie {category} est absente.")
-        conn.close()
-        return None
-
-    category_id = category_result[0]
-    
-    # 🔹 Récupérer l'ID de la dossier parent
-    cursor.execute("SELECT id, path FROM obsidian_folders WHERE category_id = %s AND subcategory_id IS NULL", (category_id,))
-    folder_category_result = cursor.fetchone()
-
-    if not folder_category_result:
-        logger.warning(f"[WARN] Impossible folder_category_result est absente.")
-        conn.close()
-        return None
-
-    category_folder_id = folder_category_result[0]
-    category_folder_path = folder_category_result[1]
-    new_subcateg_path = Path(category_folder_path) / subcategory
-
-    logger.info(f"[INFO] Création de la sous-catégorie : {subcategory} sous {category}")
-
-    # 🔹 Création de la sous-catégorie
-    cursor.execute("""
-        INSERT INTO obsidian_categories (name, parent_id, description, prompt_name) 
-        VALUES (%s, %s, %s, %s)
-    """, (subcategory, category_id, f"Note about {subcategory.lower()}", "divers"))
-
-    subcategory_id = cursor.lastrowid
-    
-    cursor.execute("""
-        INSERT INTO obsidian_folders (name, path, folder_type, parent_id, category_id, subcategory_id)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (subcategory, str(new_subcateg_path), "storage", category_folder_id, category_id, subcategory_id))
-    
-    conn.commit()
-    conn.close()
-    
-    Path(new_subcateg_path).mkdir(parents=True, exist_ok=True)
-
-    
-    return subcategory_id
-
 
 # Gérer les notes non catégorisées
-def handle_uncategorized(filepath, note_type, llama_proposition):
-    new_path = uncategorized_path / Path(filepath).name
-    shutil.move(filepath, new_path)
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(uncategorized_log, "a", encoding='utf-8') as log_file:
-        log_file.write(f"[{current_time}] Note: {new_path} | Proposition: {llama_proposition} | Type original: {note_type}\n")
-    logger.warning("Note déplacée vers 'uncategorized' : %s", new_path)
-    
-    # Sauvegarde pour reclassement ultérieur
+def handle_uncategorized(
+    note_id: str,
+    filepath: str | Path,
+    note_type: str,
+    llama_proposition: str
+) -> None:
+    """
+    Déplace une note dans le dossier 'uncategorized' et enregistre les infos pour reclassement futur.
+    """
+
+    filepath = Path(filepath)
     try:
-        if os.path.exists(uncategorized_data):
-            with open(uncategorized_data, "r", encoding='utf-8') as file:
-                uncategorized_notes = json.load(file)
-        else:
-            uncategorized_notes = {}
-        uncategorized_notes[str(new_path)] = {
+        # _, _, category_id, subcategory_id = categ_extract(uncategorized_path)
+        # folder_id, _ = get_path_from_classification(category_id, subcategory_id)
+        base_folder = os.path.dirname(filepath)
+        folder_id = get_folder_id(base_folder)
+        new_path = uncategorized_path / filepath.name
+
+        shutil.move(str(filepath), str(new_path))
+        logger.warning("Note déplacée vers 'uncategorized' : %s", new_path)
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        updates = {
+            'folder_id': folder_id,
+            'file_path': str(new_path)
+        }
+
+        update_obsidian_note(note_id, updates)
+   
+
+        data = {}
+        if uncategorized_data.exists():
+            with open(uncategorized_data, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        data[str(new_path)] = {
             "original_type": note_type,
             "llama_proposition": llama_proposition,
             "date": current_time
         }
-        with open(uncategorized_data, "w", encoding='utf-8') as file:
-            json.dump(uncategorized_notes, file, indent=4)
+
+        with open(uncategorized_data, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+
     except Exception as e:
-        logger.error("Erreur lors de la sauvegarde des notes non catégorisées : %s", e)
+        logger.error("[ERREUR] dans handle_uncategorized pour %s : %s", filepath, e)
 
 # Vérification des similarités avec Levenshtein
 def find_similar_levenshtein(name, existing_names, threshold_low=0.7, entity_type="subcategory"):
@@ -405,50 +237,3 @@ def check_and_handle_similarity(name, existing_names, threshold_low=0.7, entity_
 
     # ✅ Si aucune similarité significative, considérer comme une nouvelle catégorie/sous-catégorie
     return name
-
-def add_dynamic_category(category):
-    """
-    Ajoute une nouvelle catégorie dans la base de données si elle n'existe pas.
-    """
-    logger.debug(f"add_dynamic_category")
-    z_storage_path = normalize_full_path(os.getenv('Z_STORAGE_PATH'))
-    logger.debug(f"add_dynamic_category z_storage_path : {z_storage_path}")
-    new_categ_path = Path(z_storage_path) / category
-    logger.debug(f"add_dynamic_category new_categ_path : {new_categ_path}")
-    conn = get_db_connection()
-    if not conn:
-        return None
-    cursor = conn.cursor()
-
-    # 🔹 Récupérer l'ID de la dossier parent
-    cursor.execute("SELECT id FROM obsidian_folders WHERE path = %s AND category_id IS NULL AND subcategory_id IS NULL", (str(z_storage_path),))
-    folder_parent_id = cursor.fetchone()
-    folder_parent_id = folder_parent_id[0]
-    logger.debug(f"add_dynamic_category folder_parent_id: {folder_parent_id}")
-
-
-    if not folder_parent_id:
-        logger.warning(f"[WARN] Impossible folder_parent_id est absent.")
-        conn.close()
-        return None
-    
-    logger.info(f"[INFO] Création de la nouvelle catégorie : {category}")
-
-    # 🔹 Création dans la base
-    cursor.execute("""
-        INSERT INTO obsidian_categories (name, description, prompt_name) 
-        VALUES (%s, %s, %s)
-    """, (category, f"Note about {category.lower()}", "divers"))
-
-    category_id = cursor.lastrowid
-    
-    cursor.execute("""
-    INSERT INTO obsidian_folders (name, path, folder_type, parent_id, category_id, subcategory_id) 
-    VALUES (%s, %s, %s, %s, %s, %s)
-""", (category, str(new_categ_path), "storage", folder_parent_id, category_id, None))
-    
-    
-    conn.commit()
-    conn.close()
-    
-    return category_id
