@@ -3,7 +3,7 @@ import logging
 from handlers.sql.db_connection import get_db_connection
 from handlers.sql.db_utils import safe_execute
 
-setup_logger("db_folder_utils", logging.DEBUG)
+#setup_logger("db_folder_utils", logging.DEBUG)
 logger = logging.getLogger("db_folder_utils")
 
 def is_folder_included(path, include_types=None, exclude_types=None):

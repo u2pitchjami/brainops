@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import shutil
 from pathlib import Path
@@ -12,8 +11,7 @@ from handlers.process.folders import add_folder
 from handlers.utils.normalization import sanitize_filename
 
 
-setup_logger("process_div", logging.DEBUG)
-logger = logging.getLogger("process_div")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def rename_file(filepath, note_id):
     """

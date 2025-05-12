@@ -1,79 +1,38 @@
 import os
+from handlers.process.embeddings_utils import make_embeddings_synthesis
 from handlers.process.divers import rename_file
-from handlers.utils.divers import make_relative_link
+from handlers.utils.divers import make_relative_link, prompt_name_and_model_selection
 from handlers.utils.files import safe_write
-from handlers.process_imports.import_syntheses import make_pre_synthese, make_syntheses
+from handlers.ollama.ollama_utils import large_or_standard_note
+from handlers.process_imports.import_syntheses import make_syntheses, process_import_syntheses
 from handlers.process.headers import make_properties
 from handlers.sql.db_get_linked_data import get_note_linked_data
 from handlers.sql.db_temp_blocs import delete_blocs_by_path_and_source
 from handlers.sql.db_update_notes import update_obsidian_note
-from logger_setup import setup_logger
 import logging
 from handlers.sql.db_categs_utils import categ_extract
+from handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt, get_note_lang, get_file_path
+from handlers.utils.files import safe_write
 from handlers.process_imports.import_normal import import_normal
-from handlers.process_imports.import_syntheses import process_import_syntheses
 
+logger = logging.getLogger("obsidian_notes." + __name__)
 
-setup_logger("regen_utils")
-logger = logging.getLogger("regen_utils")
-
-def generate_synthesis_content(archive_path: str, synthesis_path: str, note_id: int) -> str:
-    """
-    Génére une synthèse à partir d'une archive et l'enregistre dans le fichier de synthèse.
-    """
-    try:
-        delete_blocs_by_path_and_source(synthesis_path, source="synthesis")
-        delete_blocs_by_path_and_source(synthesis_path, source="synthesis2")
-        
-        model_ollama = os.getenv('MODEL_SYNTHESIS1')
-        response = make_pre_synthese(
-            filepath=archive_path,
-            write_file=False,
-            model_ollama=model_ollama,
-            source="synthesis"
-        )
-
-        if not response:
-            logger.error("[ERREUR] Aucune réponse générée depuis make_pre_synthese.")
-            return ""
-
-        success = safe_write(synthesis_path, content=response)
-        if not success:
-            logger.error(f"[ERREUR] Écriture échouée pour : {synthesis_path}")
-            return ""
-
-        original_path = make_relative_link(archive_path, synthesis_path)
-        model_ollama_2 = os.getenv('MODEL_SYNTHESIS2')
-
-        make_syntheses(synthesis_path, note_id, model_ollama_2, original_path)
-        make_properties(synthesis_path, note_id, status="synthesis")
-
-        return response
-
-    except Exception as e:
-        logger.error(f"[ERREUR] generate_synthesis_content : {e}")
-        return ""
-
-def regen_synthese_from_archive(note_id, parent_id):
+def regen_synthese_from_archive(note_id, filepath=None):
     """
     Régénère une synthèse pour une note à partir de son archive liée.
     """
-    logger.info(f"[REGEN] Démarrage régénération synthèse pour note_id={note_id}, parent_id={parent_id}")
+    logger.info(f"[REGEN] Démarrage régénération synthèse pour note_id={note_id} filepath={filepath}")
     
     try:
-        data_synthese = get_note_linked_data(note_id, "note")
-        synthese_path = data_synthese.get("file_path")
-
-        data_archive = get_note_linked_data(parent_id, "note")
-        archive_path = data_archive.get("file_path")
-
-        if not archive_path or not os.path.exists(archive_path):
-            logger.error(f"[ERREUR] Fichier archive introuvable : {archive_path}")
-            return
-
-        _ = generate_synthesis_content(archive_path, synthese_path, note_id)
-        logger.info("[INFO] Synthese régen OK.")
-
+        if not filepath:
+            filepath=get_file_path(note_id)
+            logger.debug(f"[REGEN] filepath={filepath}")
+               
+            
+        delete_blocs_by_path_and_source(note_id, filepath, source="all")
+        process_import_syntheses(filepath, note_id)
+        logger.info(f"[REGEN] Régénération synthèse terminée pour note_id={note_id}")
+       
     except Exception as e:
         logger.error(f"[ERREUR] Échec regen_synthese_from_archive : {e}")
 
@@ -127,7 +86,6 @@ def force_categ_from_path(filepath, note_id):
         
         logger.debug(f"[DEBUG] process_single_note mise à jour base de données : {updates}")
         update_obsidian_note(note_id, updates)
-               
         import_normal(new_path, note_id)
         process_import_syntheses(new_path, note_id)
 

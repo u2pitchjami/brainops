@@ -1,31 +1,26 @@
 PROMPTS = {
-    "test_gpt": """
-  Context:
-You are an expert assistant in synthesizing and analyzing conversations between a user and a GPT-type conversational model.
-Your goal is to extract the essential points from the exchanges while structuring the content into hierarchical notes.
-
-Carefully analyze the following conversation between a user and an AI agent.
-Your task is to produce a concise and structured summary that captures the essence of the exchange.
-
-Follow these guidelines:
-  01 - Identify and summarize the main topic and objective of the conversation.
-  02 - Extract key points and essential information, organizing them logically.
-  03 - Highlight important steps in the process or problem resolution.
-  04 - Emphasize difficulties or obstacles encountered and how they were overcome.
-  05 - Identify crucial decisions or breakthrough moments in the conversation.
-  06 - Ignore the following elements:
-    Polite exchanges or general small talk
-    Incorrect statements that were later corrected
-    Redundant or repetitive information
-    Digressions unrelated to the main topic
-    Use a clear format with bullet points or subtitles for easy readability.
-  07 - The content must be in French.
-
-Here is the text:
-        {content}
-      
-            """,
     "reformulation": """
+    Tu es un assistant intelligent et bienveillant, spécialisé dans l’amélioration douce et la clarification des textes tout en respectant leur intention d’origine.
+
+Ta mission est d’améliorer la lisibilité sans modifier la structure ni supprimer les détails importants.
+
+Suis les instructions suivantes :
+  1 - Supprime les sections de navigation, les menus, les liens externes et les listes de catégories.
+  2 - Conserve uniquement le contenu principal de l’article.
+  3 - Extrait les idées clés, réécris le contenu pour en améliorer la clarté, la concision et la fluidité logique, tout en préservant le sens d’origine.
+  4 - Simplifie le langage complexe, élimine le jargon inutile, et veille à ce que le contenu soit accessible à un public général.
+  5 - Utilise un ton professionnel mais accessible.
+  6 - Supprime les redondances et les détails superflus.
+  7 - Préserve tous les titres et sous-titres d’origine au format Markdown.
+  8 - Si le texte ne contient pas de titre, génère un titre pertinent et concis au format Markdown (ex. : # Introduction).
+  9 - Supprime les sauts de ligne inutiles.
+  10 - Retire toute publicité ou contenu promotionnel.
+  11 - La sortie doit être en **français** et lisible dans **Obsidian**.
+
+Voici le texte à traiter :
+        {content}
+            """,
+    "reformulation_en": """
     You are a helpful and intelligent assistant specialized in gently refining and clarifying text while maintaining its original intent.
 
 Your task is to gently improve readability **without altering the structure or removing key details**.
@@ -39,120 +34,103 @@ Follow these instructions:
 6. Remove redundancies and unnecessary details.
 7. Preserve all original **titles and headings** in the Markdown format.
 8. If the text does not contain a title, generate a relevant and concise title in Markdown format (e.g., # Introduction).
-9. The output must be in **French**, presented in **Markdown format**.
-10. Clean up unnecessary line breaks.
-11. Remove ads and promotional content.
+9. Clean up unnecessary line breaks.
+10. Remove ads and promotional content.
 
         Here is the text to refine:
         {content}
             """,
-    "article": """
-    You are an intelligent note-organizing assistant.
-    Your task is to summarize the following article.
-    Provide a comprehensive summary that captures the main ideas, key findings, and essential technical details.
-    Structure your summary logically, starting with an overview and progressing through the article's main sections.
-    Use markdown to format your output, bolding key subject matter and potential areas that may need expanded information.
-    Ensure the summary is accessible to the target audience while maintaining technical accuracy.
-    Conclude with the most significant implications or applications of the article's content.
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
+    "reformulation2": """
+    Tu es un assistant utile et précis. Ton rôle est de nettoyer un article en français sans le résumer.
+
+Tes tâches :
+  1 - Conserver uniquement le contenu principal : supprime les menus, éléments de navigation, catégories, liens externes, publicités et contenus promotionnels.
+  2 - Préserver tous les titres et sous-titres d’origine, en utilisant le format Markdown. S’il n’y a pas de titre, crée-en un (ex. : # Introduction).
+  3 - La sortie doit être en **français** en Markdown propre, sans sauts de ligne inutiles.
+
+Langue : Français
+
+    Voici le contenu :
+        {content}
+            """,
+    "reformulation2_en": """
+    You are a helpful and precise assistant. Your role is to clean and lightly improve a French article **without summarizing or altering its core structure**.
+
+Your tasks:
+1. **Keep only the main content**: remove menus, navigation, categories, external links, ads, and promotional content.
+2. **Preserve all original titles and headings**, using Markdown format. If there’s no title, create one (e.g., `# Introduction`).
+3. Gently improve the text: clarify awkward phrasing, remove redundancies, simplify overly complex language — but **do not cut or rephrase entire paragraphs**.
+4. Output should be in **clean Markdown**, with no unnecessary line breaks.
+
+Style: **Professional and accessible**
+
+        Here is the content:
+        {content}
             """,
     "divers": """
+  Tu es un assistant intelligent spécialisé dans la synthèse d’articles.
+  
+Résume l’article suivant en te concentrant sur les éléments clés suivants :
+ - Structure le texte en sections claires avec des titres en Markdown.
+ - Utilise # pour le titre principal (titre du résumé).
+ - Utilise ## pour chaque section principale, et ### pour les sous-sections.
+ - Ajoute une ligne vide entre chaque paragraphe et après les titres.
+ - Supprime le contenu superflu ou redondant.
+ - Conserve les faits ou statistiques importants.
+ - Mentionne les implications ou conséquences possibles.
+ - Identifie la thèse ou l’argument principal de l’auteur.
+ - Mets en évidence les techniques de persuasion utilisées (s’il y en a).
+ - Pour les articles d’opinion, résume clairement le point de vue de l’auteur.
+ - Ne retourne que le contenu en Markdown, sans explication supplémentaire.
+ - Le contenu doit être obligatoirement en **français**.
+ 
+
+  Voici le texte :
+      {content}
+            """,
+    "divers_en": """
     
     You are an intelligent assistant specialized in summarizing articles.
     Summarize the following article, focusing on these key elements:
-        - structure the text logically, using clear paragraphs.
-        - Connect important ideas
-        - Remove superfluous or redundant details.
-        - Make sure the result is fluid and readable.
-        - Important facts or statistics mentioned
-        - Potential implications or consequences
-        - Any proposed solutions or policy recommendations
-        - Identify the author's thesis statement or main argument.
-        - Highlight any persuasive techniques used in the article.
-        - For opinion pieces, clearly outline the author's viewpoint and key arguments
-        - The output must be in **French**, presented in **Markdown format**.
+        - Structure the text in clear sections with **Markdown headings**.
+        - Use `#` for the main title (summary title).
+        - Use `##` for each major section, and `###` for sub-sections.
+        - Add a blank line between each paragraph and after headings.
+        - Remove superfluous or redundant content.
+        - Keep important facts or statistics.
+        - Mention potential implications or consequences.
+        - Identify the author's thesis or main argument.
+        - Highlight persuasive techniques used (if any).
+        - For opinion pieces, summarize the author's point of view clearly.
+        - Only return the **Markdown content**, no additional explanation.
         
         Here is the text :
             {content}
             """,
-    "idea": """
-    Provide a comprehensive summary and structured outline of [topic/project].
-    Include the following elements:
-        - A concise overview in 2-3 sentences
-        - Key objectives or goals
-        - Main ideas or components, organized into logical sections
-        - Reflections on challenges, insights, and lessons learned
-        - Potential next steps or areas for improvement
-        - Format the response using appropriate headers, bullet points, and numbering.
-        - Ensure the summary is clear, concise, and captures the essential elements without excessive detail.
-        - The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-            """,
-    "todo": """
-    You are an intelligent note-organizing assistant.
-    Create a comprehensive task management plan that:
-        - Prioritizes tasks using a strategic approach
-        - Allocates appropriate time blocks
-        - Identifies potential bottlenecks
-        - Suggests optimal task sequencing
-
-        - Current tasks: [detailed task list]
-        - Project goals: [specific objectives]
-        - Time constraints: [available working hours]
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-            """,
-    "tutorial": """
-    You are an intelligent note-organizing assistant.
-    Please provide a summary of this tutorial or lesson that includes:
-      1. Main Learning Objectives
-        - What core skills or knowledge are being taught?
-        - What is the primary goal of this tutorial?
-
-      2. Key Concepts Covered
-        - List the most important theoretical or practical concepts
-        - Highlight any critical technical or procedural details
-
-      3. Step-by-Step Overview
-        - Briefly outline the main stages or progression of the tutorial
-        - Note any critical decision points or techniques
-
-      4. Practical Takeaways
-        - What specific skills can a learner immediately apply?
-        - What are the most valuable practical insights?
-
-      5. Potential Challenges and Solutions
-        - What common difficulties might learners encounter?
-        - What strategies help overcome these challenges?
-
-      6. Next Learning Recommendations
-        - What follow-up resources or advanced topics complement this tutorial?
-        - Suggest potential paths for deeper exploration
+    "add_tags": """
+    You are a bot in a read-it-later app and your responsibility is to help with automatic tagging.
+    CONTENT START HERE
+    {content}
+    CONTENT END HERE
     
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-            """,            
-    "title": """
-    You are an intelligent note-organizing assistant. Add clear, structured titles in markdown format.
-
-    **Instructions:**
-    - Use `##` for major sections.
-    - Use `###` for subsections within each section.
-    - Use `####` only for deeply detailed points.
-    - Do not add unnecessary titles like "ChatGPT said" or "You said".
-    - Titles should be short (max 8 words) and descriptive.
-    - The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-  
-
-    Here is the text to process:
-    {content}    
+    Instructions:
+      1. Read the content
+      2. suggest relevant tags that describe its key themes, topics, and main ideas. The rules are:
+        - Aim for a variety of tags, including broad categories, specific keywords, and potential sub-genres.
+        - The tags language must be in English.
+        - If it's a famous website you may also include a tag for the website. If the tag is not generic enough, don't include it.
+        - The content can include text for cookie consent, ads and privacy policy, ignore those while tagging.
+        - Aim for 3-5 tags.
+        - if a specific hardware and/or specific software are use add tags with the names for each.
+        - If there are no good tags, leave the array empty.
+      3. The tags must be returned in **strict JSON format**.
+      4. Do **not** use YAML, markdown, bullet points, or any other formatting.
+      5. Return **only** the JSON object with the key "tags" and an array of strings as the value.
+      6. **Do not include** any explanations, titles, or additional text in the response.
+      7. Do **not** add any elements that start with `#` (hashtags or titles) or `-` (bullet points or lists).
+              
     """,
-    "tags": """
+    "add_tags_en": """
     You are a bot in a read-it-later app and your responsibility is to help with automatic tagging.
     CONTENT START HERE
     {content}
@@ -176,6 +154,23 @@ Follow these instructions:
               
     """,
     "summary": """
+    Résume le texte suivant de façon concise en te concentrant sur :
+    - les arguments principaux,
+    - les éléments de preuve importants,
+    - et les conclusions significatives.
+
+    Consignes :
+    1. Présente le résumé sous forme de puces (bullet points).
+    2. Maximum 5 phrases au total.
+    3. Ne commence ni ne termine par des phrases introductives ou conclusives.
+    4. **Ne répète pas** les éléments déjà présents dans la section "summary:" du texte.
+    5. Ne retourne **que le résumé**, sans titre, explication ou formatage supplémentaire.
+
+    Voici le texte à analyser :
+    {content}
+
+    """,
+    "summary_en": """
     Provide a concise summary of the key points discussed in the following text.
     Focus on the main arguments, supporting evidence, and any significant conclusions.
     Present the summary in a bullet-point format, highlighting the most crucial information.
@@ -197,18 +192,38 @@ Here is the text to process:
     {content}    
     """,
     "synthese2": """
+    Tu es un assistant intelligent chargé d’organiser des notes.
+
+    Le contenu est une synthèse issue de plusieurs blocs. Ta mission est de :
+
+    - Structurer le texte en **Markdown clair** :
+      - Commencer par un `# Titre général`
+      - Utiliser `##` pour chaque section, `###` si besoin pour les sous-thèmes
+      - Ajouter **une ligne vide après chaque titre et entre chaque paragraphe**
+    - Connecter les idées de manière fluide et logique.
+    - Supprimer les répétitions et rendre le texte concis.
+    - La sortie doit être en **français** et lisible dans **Obsidian**.
+    - Ne pas ajouter d’introduction ou de conclusion superflue.
+    - Ne pas entourer le contenu de blocs de code ni de citations.
+
+    Voici le texte à traiter :
+    {content}
+
+    """,
+    "synthese2_en": """
     You are an intelligent note-organizing assistant.
     the content is a synthesis recomposed from several blocks.
     your goal is to :
-        - structure the text logically, using clear paragraphs.
-        - Connect important ideas
-        - Remove superfluous or redundant details.
-        - Make sure the result is fluid and readable.
-        - Capture the author's conclusion or main argument.
-        - Synthesize the information into a concise summary.
-        - Ends with 2-3 reflection questions to explore the topic further
-        - The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-    Here is the text to process:
+        - Use a clear **Markdown** structure:
+          - Start with a `# Titre général`
+          - Use `##` for each section and `###` if needed for subtopics.
+          - Ensure **a blank line after each heading and between paragraphs**
+        - Connect ideas logically and fluidly.
+        - Remove repetitions and make the text concise.
+        - Avoid unnecessary introductions or conclusions.
+        - Do not wrap the content in code blocks or quotes.
+                        
+      Here is the text to process:
     {content}    
     """,
     "type": """
@@ -229,112 +244,27 @@ Instructions:
 4. Return your response in the format: "category/subcategory" (e.g., "programming/python").
 5. Do not include any introductory or concluding remarks, only one category and one subcategory.
 6. If the content is ambiguous or does not fit, return "uncategorized/unknown".
-
-
 """,
-    "watchlist": """
-    You are an intelligent note-organizing assistant.
-    I need help creating and organizing a comprehensive watchlist that helps me track and prioritize media I want to consume. Please help me develop a structured list with the following details for each item:
-
-- Title
-- Type of media (movie, TV show, documentary, etc.)
-- Genre
-- Current status (not started, in progress, completed)
-- Priority level
-- Personal rating (if already watched)
-- Where I can watch it (streaming platform or service)
-- Estimated time to watch
-- Brief reason for adding to the list
-
-Your task is to help me categorize and prioritize these items, suggesting an order based on my preferences, available time, and personal interests. Additionally, provide recommendations for managing and updating this watchlist efficiently.
-
-- Current watchlist items: [list your current items]
-- Personal preferences: [describe your viewing preferences]
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-           """,
-    "political": """
-    You are an intelligent assistant specialized in summarizing political articles.
-    Summarize the following political article, focusing on these key elements:
-        - structure the text logically, using clear paragraphs.
-        - Connect important ideas
-        - Remove superfluous or redundant details.
-        - Make sure the result is fluid and readable.
-        - Important facts or statistics mentioned
-        - Potential implications or consequences
-        - Any proposed solutions or policy recommendations
-        - Identify the author's thesis statement or main argument.
-        - Highlight any persuasive techniques used in the article.
-        - For opinion pieces, clearly outline the author's viewpoint and key arguments
-        - The output must be in **French**, presented in **Markdown format**.
-          
-          
-
-    Here is the text:  
-    {content}
-
-           
-            """,
-    "geopolitical": """
-    Provide a comprehensive summary of the given geopolitical article, focusing on:
-    Key events or developments described
-    Main actors involved (states, organizations, influential individuals)
-    Underlying causes or motivations for the situation
-    Potential short-term and long-term consequences
-    Regional and global implications
-    Any significant economic, military, or diplomatic factors
-    Relevant historical context
-    Current international responses or reactions
-    Possible future scenarios or outcomes
-    Analyze the article through the lens of hard power, soft power, and noopolitik. Highlight any shifts in global power dynamics or balance of power.
-    Conclude with the most critical insights and their potential impact on international relations.
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-            """,
-    "sociology": """
-    Analyze and summarize the key sociological concepts, theories, and findings presented in this article.
-    Focus on the main arguments, methodological approach, and societal implications.
-    Highlight any significant data or statistics that support the author's conclusions.
-    Conclude by discussing how this research contributes to our understanding of social structures, interactions, or phenomena
-    The output must be in **French**, presented in **Markdown format**, and must **avoid unnecessary introductory or concluding phrases**.
-            Here is the text :
-            {content}
-            """,
-    "make_file_name": """
-    You are an intelligent note-organizing assistant.
-    Here is the content of a document:
-
+    "type_en": """
+You are an assistant specialized in classifying notes based on their content.
+here the content :
 {content}
 
-    Based on the content, generate a filename in the following format:  
-    `file_name_source_date.md`  
-    - The name should describe the document's content. Replace spaces with underscores `_`. 
-    - Include the source if it is mentioned in the document (e.g., for a webpage, include only the domain or site name without "http" or extensions like ".com").
-    - Add the current date in the format `YYMMDD` (e.g., January 21, 2025, becomes `250121`).
-    - If the content is too vague, create a generic name using the word "note".
-    
-    Generate only the filename, without any additional text or comments.
-          """,
-    "gpt_reformulation": """
-    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
 
-Follow the specific instructions below:
 
-  01 - Extract key ideas and rewrite the content to improve clarity, conciseness, and logical flow while preserving the original meaning.
-  02 - Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
-  03 - Use a professional yet approachable tone.
-  04 - Remove redundancies and unnecessary details.
-  05 - Omit polite exchanges or general conversation.
-  06 - Eliminate unnecessary line breaks.
-  07 - Remove advertisements and promotional content.
-  08 - The content must be in French.
-
-Here is the text to process:
-    {content}
-  """,
-    "first_block": """
+Instructions:
+1. Read the content
+2. Identify the best **category** and only one, you can propose a new one but use as a priority an existing one in the list below :
+  {categ_dict}
+3. and propose an appropriate **subcategory** and only one.
+  you can take inspiration from this list :
+   -categories: subcategorie 1, subcategorie 2 etc...
+  {subcateg_dict}
+4. Return your response in the format: "category/subcategory" (e.g., "programming/python").
+5. Do not include any introductory or concluding remarks, only one category and one subcategory.
+6. If the content is ambiguous or does not fit, return "uncategorized/unknown".
+""",
+     "first_block": """
     You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
     This text is the first part of a larger document divided into sections. Ensure logical continuity between sections and avoid repetition of previous summaries.
 Follow the specific instructions below:
@@ -373,6 +303,27 @@ This is the final section. Ensure a coherent conclusion:
     {content}
   """,
     "middle_block": """
+    Tu es un assistant intelligent et structuré, spécialisé dans l’organisation de notes et l’amélioration de textes.
+
+Ce texte fait partie d’un document plus large divisé en sections. Assure-toi de maintenir une continuité logique avec les autres sections et d’éviter toute répétition de résumés précédents.
+
+Suis précisément les instructions suivantes :
+
+01 – Extrait les idées clés et réécris le contenu pour en améliorer la clarté, la concision et la logique, tout en préservant le sens d’origine.  
+02 – Simplifie le langage complexe, élimine le jargon inutile, et rends le texte accessible à un public non spécialiste.  
+03 – Adopte un style clair, structuré et professionnel, tout en restant naturel à la lecture.  
+04 – Supprime les redondances et les détails superflus.  
+05 – Omet les échanges polis ou les conversations générales.  
+06 – Élimine les sauts de ligne inutiles.  
+07 – Supprime toute publicité ou contenu promotionnel.  
+08 – Conserve les titres existants (`#`, `##`, `###`), en les clarifiant si nécessaire.  
+09 – Le résultat doit être rédigé en **français**, sans phrases introductives ou conclusives inutiles.
+
+Voici la section à traiter :  
+{content}
+
+  """,
+    "middle_block_en": """
     You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
     This text is a part of a larger document divided into sections. Ensure logical continuity between sections and avoid repetition of previous summaries.
 Follow the specific instructions below:
@@ -421,10 +372,159 @@ Commence directement par le contenu Markdown structuré.
 
         contenu à traiter :
         {content}
-  """ 
-   
-   
-   
-    
-    
+  """ ,
+    "glossaires": """
+    Tu es un assistant chargé d'extraire un glossaire à partir d'une section de texte.
+
+Analyse le texte ci-dessous et identifie les **termes spécifiques, techniques ou récurrents**.
+Pour chaque terme important, fournis une **brève définition claire** basée uniquement sur le contexte.
+
+**Format attendu :**
+- Terme : définition
+- Terme : définition
+
+Ne définis que les termes réellement importants ou ambigus. Ignore les termes trop génériques.
+
+Texte à analyser :
+{content}
+
+  """,
+    "glossaires_en": """
+    Tu es un assistant chargé d'extraire un glossaire à partir d'une section de texte.
+
+Analyse le texte ci-dessous et identifie les **termes spécifiques, techniques ou récurrents**.
+Pour chaque terme important, fournis une **brève définition claire** basée uniquement sur le contexte.
+
+**Format attendu :**
+- Terme : définition
+- Terme : définition
+
+Ne définis que les termes réellement importants ou ambigus. Ignore les termes trop génériques.
+
+Texte à analyser :
+{content}
+
+  """,
+    "glossaires_regroup": """
+    Tu es un assistant chargé de consolider plusieurs glossaires partiels en un seul glossaire cohérent.
+
+Voici plusieurs glossaires produits à partir de différentes sections d’un même document. Certains termes sont redondants, d'autres peuvent avoir des définitions proches ou contradictoires.
+
+**Ta mission :**
+- Fusionne les définitions identiques ou similaires
+- Garde la version la plus claire et pertinente de chaque définition
+- Trie les entrées par ordre alphabétique
+- Ignore les doublons ou les entrées trop vagues
+- le résultat ne doit pas contenir plus de 5 à 10 entrées
+
+**Format final attendu :**
+- **Terme** : définition
+- **Terme** : définition
+
+---
+
+Glossaires à fusionner :
+{content}
+""",
+    "glossaires_regroup_en": """
+    Tu es un assistant chargé de consolider plusieurs glossaires partiels en un seul glossaire cohérent.
+
+Voici plusieurs glossaires produits à partir de différentes sections d’un même document. Certains termes sont redondants, d'autres peuvent avoir des définitions proches ou contradictoires.
+
+**Ta mission :**
+- Fusionne les définitions identiques ou similaires
+- Garde la version la plus claire et pertinente de chaque définition
+- Trie les entrées par ordre alphabétique
+- Ignore les doublons ou les entrées trop vagues
+- le résultat ne doit pas contenir plus de 5 à 10 entrées
+- N'ajoute aucune phrase d'introduction ou de conclusion.
+
+**Format final attendu :**
+- **Terme**: définition
+- **Terme** : définition
+
+---
+
+Glossaires à fusionner :
+
+{content}
+""",
+    "synth_translate_en": """
+    Tu es un assistant de traduction.
+Voici une synthèse dans une autre langue.
+Traduis-la fidèlement en français, sans en modifier le sens ni le style.
+Garde la même structure (titres, paragraphes...) prête à être insérée dans un document markdown.
+
+Texte original :
+{content}
+
+""",
+    "synth_translate": """
+    Tu es un assistant de traduction.
+Voici une synthèse dans une autre langue.
+Traduis-la fidèlement en français, sans en modifier le sens ni le style.
+Garde la même structure (titres, paragraphes...) prête à être insérée dans un document markdown.
+
+Texte original :
+{content}
+
+""",
+    "add_questions": """
+    Tu es un assistant de recherche et de pensée critique, avec une sensibilité philosophique.
+
+À partir du texte ci-dessous, fournis exactement trois sections :
+
+**1. Questions de réflexion (3 à 5)**  
+- Des questions ouvertes permettant d'approfondir la compréhension du sujet, d’interroger ses fondements ou d’en explorer les implications humaines, sociales ou éthiques.
+
+**2. Axes de pensée / Concepts associés**  
+- Concepts issus de la philosophie, de la psychologie, de la sociologie, ou d’autres disciplines critiques, liés au thème.
+
+**3. Parallèles historiques ou figures philosophiques (si pertinent)**  
+- Courants de pensée, événements ou penseurs pouvant éclairer le sujet.
+
+⚠️ N’ajoute **aucune phrase d’introduction ou de conclusion**.  
+La sortie doit être en **Français** uniquement.
+
+Voici le texte de départ :
+{content}
+""",
+    "add_questions_en": """
+    You are a thoughtful research assistant with a philosophical mindset.  
+Based on the following text, generate:
+
+1. 3 to 5 **open-ended reflective questions** that help deepen the understanding of the topic, question its assumptions, or explore its human, ethical, or societal implications.
+2. A few **related concepts or areas of thought**, drawing from philosophy, psychology, sociology, human nature or critical theory.
+3. If relevant, include **historical parallels, philosophical schools, or thinkers** connected to the subject.
+
+The questions should invite contemplation, debate, or critical thinking.  
+Use a clear tone, but allow for subtlety and nuance.
+The output must be in **French**.
+
+Here is the text:
+{content}
+""",
+    "embeddings": """
+    Here is a paragraph to vectorize for semantic research.
+
+Here is the text:
+{content}
+""",
+"clean_gpt":"""
+Tu es un assistant chargé de nettoyer des conversations entre un utilisateur et une IA.
+
+Ton objectif est de préparer ce texte pour un traitement automatique (embedding).  
+Tu dois :
+1. Supprimer toutes les phrases inutiles, hésitantes, ou les digressions techniques (ex: "je teste un truc", "attends", "tu peux me refaire ça", etc.)
+2. Garder uniquement les échanges de fond : les questions claires et les réponses significatives de l'IA
+3. Organiser la conversation sous forme de blocs lisibles :
+   - **Utilisateur :** ...
+   - **Assistant :** ...
+4. Ne pas ajouter de commentaire ni de résumé.
+5. Le texte doit être clair, logique et auto-suffisant (comprendre sans voir les échanges en temps réel).
+6. La sortie doit être en **Français** et sans mise en forme Markdown.
+
+Voici la conversation à nettoyer :
+{content}
+"""
 }

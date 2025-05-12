@@ -12,7 +12,7 @@ from handlers.utils.files import hash_file_content
 from handlers.header.header_utils import hash_source
 from handlers.sql.db_get_linked_notes_utils import get_new_note_test_metadata
 
-setup_logger("db_notes_utils", logging.DEBUG)
+#setup_logger("db_notes_utils", logging.DEBUG)
 logger = logging.getLogger("db_notes_utils")
 
 def link_notes_parent_child(incoming_note_id, yaml_note_id):

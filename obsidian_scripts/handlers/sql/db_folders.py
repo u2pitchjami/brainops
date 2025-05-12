@@ -5,27 +5,33 @@ from handlers.sql.db_connection import get_db_connection
 from handlers.sql.db_utils import safe_execute
 from handlers.sql.db_categs_utils import remove_unused_category
 
-setup_logger("db_folders", logging.DEBUG)
+#setup_logger("db_folders", logging.DEBUG)
 logger = logging.getLogger("db_folders")
 
 def add_folder_to_db(folder_name, folder_path, folder_type, parent_id=None, category_id=None, subcategory_id=None):
+    logger.debug("[DEBUG] entrée add_folder_to_db")
+    
     conn = get_db_connection()
     if not conn:
         return None
     cursor = conn.cursor()
 
     # Vérif d'existence
-    result = safe_execute(cursor, "SELECT id FROM obsidian_folders WHERE path = %s", (folder_path,)).fetchone()
+    result = safe_execute(cursor, "SELECT id FROM obsidian_folders WHERE path = %s", (str(folder_path),)).fetchone()
+    logger.debug(f"[DEBUG] result : {result}")
     if result:
+        logger.debug(f"[DEBUG] dossier existant : {result}")
         return result[0]
 
+    logger.debug(f"[DEBUG] folder_name : {folder_name}, str(folder_path) : {str(folder_path)}, folder_type : {folder_type}, parent_id : {parent_id}, category_id : {category_id}, subcategory_id : {subcategory_id}")
     cursor.execute("""
         INSERT INTO obsidian_folders (name, path, folder_type, parent_id, category_id, subcategory_id)
         VALUES (%s, %s, %s, %s, %s, %s)
-    """, (folder_name, folder_path, folder_type, parent_id, category_id, subcategory_id))
+    """, (folder_name, str(folder_path), folder_type, parent_id, category_id, subcategory_id))
 
     conn.commit()
     folder_id = cursor.lastrowid
+    logger.debug(f"[DEBUG] insertion db : {folder_id}")
     conn.close()
     return folder_id
 
@@ -36,6 +42,7 @@ def delete_folder_from_db(folder_path: str) -> bool:
     et nettoie les catégories associées si elles sont devenues orphelines.
     """
     try:
+        conn = None
         path = Path(folder_path)
         if path.exists():
             # 🔒 Vérifie si le dossier contient des fichiers ou sous-dossiers

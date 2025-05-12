@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import os
 from pathlib import Path
@@ -9,8 +8,7 @@ from handlers.sql.db_get_linked_data import get_folder_linked_data
 from handlers.sql.db_get_linked_folders_utils import get_category_context_from_folder, get_folder_id
 from handlers.sql.db_categs_utils import remove_unused_category, get_or_create_category, get_or_create_subcategory
  
-setup_logger("process_folders", logging.DEBUG)
-logger = logging.getLogger("process_folders")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 
 def add_folder(folder_path, folder_type):
@@ -30,14 +28,15 @@ def add_folder(folder_path, folder_type):
     base_storage = os.getenv("Z_STORAGE_PATH", "")
     
     folder_type_inferred = folder_type
+    category, subcategory, archive, category_id, subcategory_id = None, None, None, None, None
 
     if path_is_inside(Z_STORAGE_PATH, folder_path):
+        logger.debug("[DEBUG] passage path_inside")
         relative_parts = get_relative_parts(folder_path, Z_STORAGE_PATH)
         if not relative_parts:
             return None
         
-        category, subcategory, archive = None, None, None
-        
+               
         if len(relative_parts) == 1:
             category = relative_parts[0]
         elif len(relative_parts) == 2:
@@ -52,7 +51,7 @@ def add_folder(folder_path, folder_type):
             subcategory_id = get_or_create_subcategory(subcategory, category_id)
         if archive:
             folder_type_inferred = "archive"
-
+    logger.debug("[DEBUG] prépa envoie add_folder_to_db")
     return add_folder_to_db(
         folder_name=Path(folder_path).name,
         folder_path=folder_path,
@@ -75,6 +74,7 @@ def update_folder(old_path, new_path):
     folder_id = folder["id"]
     old_cat_id = folder.get("category_id")
     old_subcat_id = folder.get("subcategory_id")
+    category_name, subcategory_name, category_id, subcategory_id = None, None, None, None
 
     category_id, subcategory_id, category_name, subcategory_name = get_category_context_from_folder(new_path)
 

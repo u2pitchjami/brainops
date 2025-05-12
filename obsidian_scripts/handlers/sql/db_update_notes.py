@@ -1,10 +1,8 @@
-from logger_setup import setup_logger
 import logging
 from handlers.sql.db_connection import get_db_connection
 
 
-setup_logger("db_update_notes", logging.DEBUG)
-logger = logging.getLogger("db_update_notes")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def update_obsidian_note(note_id, updates):
     logger.debug(f"[DEBUG] entrée update_obsidian_note note_id {note_id}")

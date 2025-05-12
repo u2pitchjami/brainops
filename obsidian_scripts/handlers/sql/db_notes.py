@@ -8,15 +8,17 @@ from handlers.sql.db_utils import safe_execute
 from handlers.header.extract_yaml_header import extract_note_metadata
 from handlers.header.header_utils import hash_source
 from handlers.utils.normalization import sanitize_created, sanitize_yaml_title
-from handlers.utils.files import hash_file_content
+from handlers.utils.files import hash_file_content, count_words
+from handlers.utils.divers import lang_detect
 
-setup_logger("db_add_notes", logging.DEBUG)
+#setup_logger("db_add_notes", logging.DEBUG)
 logger = logging.getLogger("db_add_notes")
 
 def add_note_to_db(file_path):
     """Ajoute ou met à jour une note dans la base MySQL"""
     logger.debug("[DEBUG] ===== Entrée add_note_to_db")
     
+    lang = None
     content_hash = None
     created = None
     modified_at = None
@@ -33,12 +35,16 @@ def add_note_to_db(file_path):
     project = None
     word_count = None
     folder_id = None
+    source_hash = None
     content_hash = hash_file_content(file_path)
     conn = get_db_connection()
     if not conn:
         return None
     cursor = conn.cursor()
-    logger.debug(f"[DEBUG] word_count = {word_count}")
+    word_count = count_words(filepath=file_path)
+    logger.debug(f"[DEBUG]ADD_NOTE !!! word_count = {word_count}")
+    lang = lang_detect(file_path)
+    logger.debug(f"[DEBUG] lang = {lang}")
     metadata = extract_note_metadata(file_path)
 
     # 🔹 Fallback et nettoyage
@@ -47,15 +53,18 @@ def add_note_to_db(file_path):
     subcategory = metadata.get("sub category", None)
     status = metadata.get("status", "draft")
     tags = metadata.get("tags", [])
+    created = metadata.get("created")
+    logger.debug("[DEBUG] created %s : %s", created, type(created))
     created = sanitize_created(metadata.get("created"))
+    logger.debug("[DEBUG] created %s", created)
     modified_at = metadata.get("last_modified", datetime.now().strftime('%Y-%m-%d'))
     summary = metadata.get("summary", None)
     source = metadata.get("source", None)
     author = metadata.get("author", None)
     project = metadata.get("project", None)
-    word_count = metadata.get("word_count", 0)
     logger.debug(f"[DEBUG] word_count = {word_count}")
-    source_hash = hash_source(source)
+    if source:
+        source_hash = hash_source(source)
     
     # 🔹 Dossier parent
     folder_path = str(Path(file_path).parent)
@@ -67,13 +76,13 @@ def add_note_to_db(file_path):
         INSERT INTO obsidian_notes (
             title, file_path, folder_id, category_id, subcategory_id, 
             status, created_at, modified_at,
-            summary, source, author, project, word_count, content_hash, source_hash
+            summary, source, author, project, word_count, content_hash, source_hash, lang
         )
         VALUES (
             %s, %s, %s, 
             (SELECT id FROM obsidian_categories WHERE name = %s LIMIT 1),
             (SELECT id FROM obsidian_categories WHERE name = %s LIMIT 1),
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
         )
         ON DUPLICATE KEY UPDATE
             title = VALUES(title),
@@ -89,7 +98,7 @@ def add_note_to_db(file_path):
                         """, (
         title, str(file_path), folder_id, category, subcategory,
         status, created, modified_at,
-        summary, source, author, project, word_count, content_hash, source_hash
+        summary, source, author, project, word_count, content_hash, source_hash, lang
     ))
 
     note_id = cursor.lastrowid
@@ -125,6 +134,9 @@ def delete_note_from_db(file_path):
 
         note_id, parent_id, status = result
         logger.debug(f"🔍 [DEBUG] Note {note_id} (status={status}) liée à parent {parent_id}")
+        # 🔥 Supprimer les temp_blocks associés AVANT la note
+        cursor.execute("DELETE FROM obsidian_temp_blocks WHERE note_path = %s", (file_path,))
+        logger.info(f"🏷️ [INFO] Blocks supprimés pour la note {note_id}")
 
         # 🔥 Supprimer les tags associés AVANT la note
         cursor.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))

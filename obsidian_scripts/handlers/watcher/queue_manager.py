@@ -1,5 +1,4 @@
 from queue import Queue
-from logger_setup import setup_logger
 import logging
 from threading import Lock
 from handlers.sql.db_notes_utils import file_path_exists_in_db
@@ -8,15 +7,18 @@ from handlers.header.yaml_read import test_title
 from handlers.process.new_note import new_note
 from handlers.process.update_note import update_note
 from handlers.utils.files import wait_for_file
-from handlers.watcher.queue_utils import get_lock_key
+from handlers.watcher.queue_utils import PendingNoteLockManager, get_lock_key
 
-setup_logger("process_queue", logging.DEBUG)
-logger = logging.getLogger("process_queue")
-
+logger = logging.getLogger("obsidian_notes." + __name__)
 # Création de la file d'attente unique
 event_queue = Queue()
+print(f"event_queue {event_queue}")
 pending_note_ids = set()
+print(f"pending_note_ids {pending_note_ids}")
 pending_lock = Lock()
+print(f"pending_lock {pending_lock}")
+lock_mgr = PendingNoteLockManager()
+print(f"lock_mgr {lock_mgr}")
 
 def enqueue_event(event):
     if event['type'] == 'file':
@@ -30,18 +32,17 @@ def enqueue_event(event):
 
         key = get_lock_key(note_id, file_path)
 
-        with pending_lock:
-            if key in pending_note_ids:
-                logger.debug(f"[QUEUE] 🚫 Ignoré, déjà en file : {key}")
-                return
-            pending_note_ids.add(key)
+        if not lock_mgr.acquire(key):
+            logger.debug(f"[QUEUE] 🚫 Ignoré, déjà en file : {key}")
+            return
 
     event_queue.put(event)
    
 def process_queue():
     from handlers.start.process_single_note import process_single_note
     from handlers.start.process_folder_event import process_folder_event
-
+    
+    log_event_queue()
     while True:
         try:
             psn = None
@@ -116,8 +117,7 @@ def process_queue():
         finally:
             if event['type'] == 'file':
                 key = get_lock_key(note_id, file_path)
-                with pending_lock:
-                    pending_note_ids.discard(key)
+                lock_mgr.release(key)
             event_queue.task_done()
 
 def log_event_queue():

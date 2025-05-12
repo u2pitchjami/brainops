@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import os
 import shutil
@@ -12,10 +11,10 @@ from handlers.sql.db_update_notes import update_obsidian_note
 from handlers.utils.paths import path_is_inside
 from handlers.header.yaml_read import ensure_status_in_yaml
 
-setup_logger("new_note", logging.DEBUG)
-logger = logging.getLogger("new_note")
+logger = logging.getLogger("obsidian_notes." + __name__)
+
 duplicates_logs = os.getenv("DUPLICATES_LOGS")
-duplicates_path = DUPLICATES_PATH
+duplicates_path = Path(DUPLICATES_PATH)
 def new_note(file_path):
     """Gère les événements liés aux notes (création, modification, suppression, déplacement)."""
     logger.debug(f"[DEBUG] Entrée new_note : {file_path}")

@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import time
 from handlers.utils.normalization import sanitize_yaml_title
@@ -6,8 +5,7 @@ from handlers.utils.files import safe_write, hash_file_content, read_note_conten
 from handlers.header.extract_yaml_header import extract_yaml_header
 from handlers.header.header_utils import patch_yaml_line, merge_yaml_header
 
-setup_logger("yaml_read", logging.DEBUG)
-logger = logging.getLogger("yaml_read")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 
 def test_title(file_path):

@@ -3,7 +3,7 @@ import logging
 import os
 import mysql.connector
 
-setup_logger("db_connection", logging.INFO)
+#setup_logger("db_connection", logging.INFO)
 logger = logging.getLogger("db_connection")
 
 # Configuration de la base via les variables d'environnement

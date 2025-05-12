@@ -7,7 +7,7 @@ from handlers.sql.db_utils import safe_execute
 from handlers.utils.normalization import normalize_full_path
 from handlers.utils.paths import ensure_folder_exists
 
-setup_logger("db_categs", logging.DEBUG)
+#setup_logger("db_categs", logging.DEBUG)
 logger = logging.getLogger("db_categs")
 
 def delete_category_from_db(category_name, subcategory_name=None):

@@ -3,7 +3,7 @@ import logging
 from handlers.sql.db_connection import get_db_connection
 from handlers.sql.db_utils import safe_execute
 
-setup_logger("db_get_linked_data", logging.DEBUG)
+#setup_logger("db_get_linked_data", logging.DEBUG)
 logger = logging.getLogger("db_get_linked_data")
 
 
@@ -63,6 +63,11 @@ def get_note_linked_data(note_id: int, what: str) -> dict:
         if what == "tags":
             cursor.execute("SELECT tag FROM obsidian_tags WHERE note_id = %s", (note_id,))
             return {"tags": [row["tag"] for row in cursor.fetchall()]}
+
+        # Cas 6 : temp_blocks
+        if what == "temp_blocks":
+            cursor.execute("SELECT * FROM obsidian_temp_blocks WHERE note_id = %s", (note_id,))
+            return cursor.fetchone() or {"error": f"temp_blocks introuvable"}
 
         return {"error": f"Type de donnée non reconnu : {what}"}
 

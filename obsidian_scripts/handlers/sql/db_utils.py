@@ -1,9 +1,7 @@
-from logger_setup import setup_logger
 import logging
 from handlers.sql.db_connection import get_db_connection
 
-setup_logger("db_utils", logging.DEBUG)
-logger = logging.getLogger("db_utils")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 
 def flush_cursor(cursor):

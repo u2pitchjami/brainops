@@ -2,15 +2,14 @@ import os
 import re
 from handlers.header.extract_yaml_header import extract_yaml_header
 from handlers.utils.files import safe_write
-from handlers.ollama.ollama import call_ollama_with_retry, OllamaError
+from handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
 from handlers.ollama.prompts import PROMPTS
-from logger_setup import setup_logger
 import logging
+
 root_logger = logging.getLogger()  # Logger root (sans argument)
 print(f"🔍 Niveau du root logger largenotegpt : {logging.getLevelName(root_logger.level)}")
 print(f"🔍 Nombre de handlers dans root logger largenotegpt : {len(root_logger.handlers)}")
-setup_logger("large_note_gpt", logging.DEBUG)
-logger = logging.getLogger("large_note_gpt")
+logger = logging.getLogger("obsidian_notes." + __name__)
 print(f"🔍 Niveau du root logger largenotegpt : {logging.getLevelName(root_logger.level)}")
 print(f"🔍 Nombre de handlers dans root logger largenotegpt : {len(root_logger.handlers)}")
 

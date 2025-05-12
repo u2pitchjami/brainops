@@ -2,20 +2,18 @@
     fonctions en lien avec l'entête
     """
 from datetime import datetime
-from logger_setup import setup_logger
 import logging
 from pathlib import Path
+from handlers.header.get_tags_and_summary import get_tags_from_ollama, get_summary_from_ollama
 from handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
 from handlers.sql.db_get_linked_data import get_note_linked_data
 from handlers.sql.db_get_linked_notes_utils import get_category_and_subcategory_names, get_synthesis_metadata, get_note_tags
-from handlers.ollama.ollama import get_summary_from_ollama, get_tags_from_ollama
 from handlers.utils.files import count_words, safe_write, read_note_content
 from handlers.header.extract_yaml_header import extract_yaml_header, extract_metadata
 from handlers.utils.normalization import sanitize_created, sanitize_yaml_title
 from handlers.header.header_utils import clean_yaml_spacing_in_file
 
-setup_logger("obsidian_headers", logging.DEBUG)
-logger = logging.getLogger("obsidian_headers")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 # Fonction pour ajouter ou mettre à jour les tags, résumés et commandes dans le front matter YAML
 def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None, synthesis_id=None):
@@ -30,13 +28,13 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
         metadata = extract_metadata(filepath)
         title_yaml = metadata.get("title", Path(filepath).stem)
         source_yaml = metadata.get("source", "")
+        logger.debug(f"[DEBUG] source_yaml : {source_yaml}")
         author_yaml = metadata.get("author", "ChatGPT" if "ChatGPT" in title_yaml else "")
         project_yaml = metadata.get("project", "")
         created = metadata.get("created", "")
         created_yaml = sanitize_created(created)
         category_yaml = metadata.get("category", None)
         subcategory_yaml = metadata.get("sub category", None)
-        nombre_mots = count_words(open(filepath, "r", encoding="utf-8").read())
         
         # 🔥 Extraction rapide des métadonnées table obsidian_notes
         data = get_note_linked_data(note_id, "note")
@@ -48,9 +46,9 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
         status = data.get("status") if data else status
         summary = data.get("summary") if data else summary
         source = data.get("source") if data else source_yaml
+        logger.debug(f"[DEBUG] source : {source}")
         author = data.get("author") if data else author_yaml
         project = data.get("project") if data else project_yaml
-        word_count = data.get("word_count") if data else None
         created = data.get("created_at") if data else created_yaml
 
         tags = tags or get_note_tags(note_id) or metadata.get("tags", [])
@@ -89,7 +87,6 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
             f"title: {title}\n",
             f"tags: [{', '.join(tag.replace(' ', '_') for tag in tags)}]\n",
             f"summary: |\n  {summary.replace('\n', '\n  ')}\n",
-            f"word_count: {nombre_mots}\n",
             f"category: {category}\n",
             f"sub category: {subcategory}\n",
             f"created: {created}\n",
@@ -127,8 +124,8 @@ def make_properties(filepath, note_id, status):
 
     # Récupération des tags et du résumé
     logger.debug("[DEBUG] make_pro : Récupération des tags et résumé")
-    tags = get_tags_from_ollama(content)
-    summary = get_summary_from_ollama(content)
+    tags = get_tags_from_ollama(content, note_id)
+    summary = get_summary_from_ollama(content, note_id)
 
     updates = {
     'status': status,    # Récupéré via make_properties
@@ -140,34 +137,9 @@ def make_properties(filepath, note_id, status):
     logger.debug("[DEBUG] make_pro : Mise à jour du YAML")
     add_metadata_to_yaml(note_id, filepath, tags, summary, status)
 
-    # Lecture et mise à jour en une seule passe
-    with open(filepath, "r+", encoding="utf-8") as file:
-        lines = file.readlines()
-
-        # Recalcule du nombre de mots après mise à jour complète
-        updated_content = "".join(lines)
-        nombre_mots_actuels = count_words(updated_content)
-        logger.debug("[DEBUG] make_pro : Recalcul du nombre de mots")
-
-        # Mise à jour de la ligne `word_count`
-        word_count_updated = False
-        for i, line in enumerate(lines):
-            if line.startswith("word_count:"):
-                lines[i] = f"word_count: {nombre_mots_actuels}\n"
-                word_count_updated = True
-                logger.debug("[DEBUG] make_pro : Mise à jour de word_count existant")
-                break
-
-        if not word_count_updated:
-            # Ajout du champ `word_count` s'il n'existe pas
-            logger.debug("[DEBUG] make_pro : Ajout du champ word_count pour")
-            lines.insert(3, f"word_count: {nombre_mots_actuels}\n")
-
-        # Retour au début du fichier et écriture des modifications
-        file.seek(0)
-        file.writelines(lines)
-        file.truncate()  # Supprime tout contenu restant si le nouveau contenu est plus court
-
+    nombre_mots_actuels = count_words(filepath=filepath)
+    logger.debug("[DEBUG] make_pro : Recalcul du nombre de mots")
+  
     logger.debug("[DEBUG] make_pro : Écriture réussie et fichier mis à jour")
     updates = {
     'word_count': nombre_mots_actuels

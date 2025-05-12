@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import os
 from pathlib import Path
@@ -13,8 +12,7 @@ from handlers.sql.db_get_linked_notes_utils import get_note_tags
 from handlers.process.headers import add_metadata_to_yaml
 from handlers.process.regen_utils import regen_synthese_from_archive, regen_header
 
-setup_logger("update_note", logging.DEBUG)
-logger = logging.getLogger("update_note")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 
 def update_note(note_id, dest_path, src_path=None):
@@ -122,7 +120,7 @@ def update_note(note_id, dest_path, src_path=None):
             check_synthesis_and_trigger_archive(note_id, dest_path)
         elif status =="regen":
             logger.debug("[DEBUG] Envoie vers regen_synthese_from_archive")
-            regen_synthese_from_archive(note_id, parent_id)
+            regen_synthese_from_archive(note_id, filepath=str(dest_path))
         elif status =="regen_header":
             logger.debug("[DEBUG] Envoie vers regen_synthese_from_archive")
             regen_header(note_id, dest_path, parent_id)

@@ -1,12 +1,10 @@
 import os
-from logger_setup import setup_logger
 import logging
 from handlers.sql.db_folders import delete_folder_from_db
 from handlers.process.folders import add_folder, update_folder
 
 
-setup_logger("process_folder_event", logging.DEBUG)
-logger = logging.getLogger("process_folder_event")
+logger = logging.getLogger("obsidian_notes." + __name__)
 base_path = os.getenv('BASE_PATH')
 
 def process_folder_event(event):

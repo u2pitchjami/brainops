@@ -1,12 +1,10 @@
 import re
 import yaml
 import os
-from logger_setup import setup_logger
 import logging
 from handlers.header.extract_yaml_header import extract_yaml_header
 
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 # Variables globales pour les mots-clés et leur dernier horodatage
 keywords_file = os.getenv('KEYWORDS_FILE')

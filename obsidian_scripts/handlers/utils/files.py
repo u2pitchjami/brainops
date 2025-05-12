@@ -8,7 +8,7 @@ import hashlib
 import time
 
 
-setup_logger("files", logging.DEBUG)
+#setup_logger("files", logging.DEBUG)
 logger = logging.getLogger("files")
 
 def wait_for_file(file_path, timeout=3):
@@ -125,9 +125,28 @@ def move_file_with_date(filepath, destination_folder):
     except Exception as e:
         print(f"Erreur lors du déplacement du fichier : {e}")
 
-def count_words(content):
-    logger.debug(f"[DEBUG] def count_word")
-    return len(content.split())
+def count_words(content=None, filepath=None):
+    logger.debug(f"[DEBUG] def count_words — content: {bool(content)}, filepath: {filepath}")
+    
+    if content is None and filepath is None:
+        logger.warning("[count_words] Aucun contenu ni chemin de fichier fourni.")
+        return 0
+    
+    if content is None and filepath:
+        try:
+            content = read_note_content(filepath)
+            logger.debug("[count_words] Contenu chargé depuis fichier.")
+        except Exception as e:
+            logger.error(f"[count_words] Erreur lors de la lecture du fichier : {e}")
+            return 0
+
+    if not isinstance(content, str):
+        logger.warning("[count_words] Contenu invalide, attendu str.")
+        return 0
+
+    word_count = len(content.split())
+    logger.debug(f"[count_words] Nombre de mots comptés : {word_count}")
+    return word_count
 
 def maybe_clean(content, force: bool = False) -> str:
     """
@@ -152,7 +171,7 @@ def maybe_clean(content, force: bool = False) -> str:
     return content
 
 def clean_content(content):
-    logger.debug(f"[DEBUG] clean_content : {content[:500]}")
+    logger.debug(f"[DEBUG] clean_content : ")
     """
     Nettoie le contenu avant de l'envoyer au modèle.
     - Conserve les blocs de code Markdown (``` ou ~~~).
@@ -197,7 +216,7 @@ def join_yaml_and_body(header_lines: list[str], body: str) -> str:
     yaml_header = "\n".join(header_lines).strip()
     logger.debug(f"[DEBUG] yaml_header : {yaml_header}")
     body_clean = body.strip()
-    logger.debug(f"[DEBUG] body_clean : {body_clean}")
+    logger.debug(f"[DEBUG] body_clean : {body_clean[:200]}")
 
     if yaml_header.count('---') < 2:
         # On entoure manuellement le YAML
@@ -205,5 +224,5 @@ def join_yaml_and_body(header_lines: list[str], body: str) -> str:
     else:
         # YAML déjà complet avec ses ---
         full_note = f"{yaml_header}\n\n{body_clean}\n"
-    logger.debug(f"[DEBUG] full_note : {full_note}")
+    logger.debug(f"[DEBUG] full_note : {full_note[:500]}")
     return full_note

@@ -57,7 +57,11 @@ def get_active_processes():
     """Récupère uniquement les processus interactifs de l'utilisateur."""
     try:
         command = f'ps -u {USER} -o tty,comm | grep "pts"'
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        if result.returncode != 0 or not result.stdout:
+            logger.info("ℹ️ Aucun processus interactif trouvé ou commande vide.")
+            return []
 
         processes = []
         for line in result.stdout.strip().split("\n"):
@@ -70,16 +74,26 @@ def get_active_processes():
                     processes.append({"tty": tty, "cmd": cmd})
 
         return processes
+
     except Exception as e:
         logger.error(f"❌ Erreur récupération processus interactifs : {e}")
         return []
 
+
 def track_persistent_processes(process_list):
     """Suit les processus en cours et ne garde que ceux ouverts depuis >15 min."""
     try:
+        if not process_list:
+            logger.info("🔍 Aucun processus utilisateur actif.")
+            return []
+
         if os.path.exists(TRACKING_FILE):
             with open(TRACKING_FILE, "r", encoding="utf-8") as f:
-                history = json.load(f)
+                content = f.read()
+                if not content.strip():
+                    history = {}
+                else:
+                    history = json.loads(content)
         else:
             history = {}
 
@@ -88,7 +102,6 @@ def track_persistent_processes(process_list):
 
         for proc in process_list:
             process_name = proc["cmd"].split(" ")[0]
-            
             if process_name in history:
                 updated_history[process_name] = history[process_name]
             else:
@@ -104,9 +117,13 @@ def track_persistent_processes(process_list):
         ]
 
         return persistent_processes
+
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Erreur JSON dans {TRACKING_FILE} : {e}")
     except Exception as e:
         logger.error(f"❌ Erreur suivi processus persistants : {e}")
-        return []
+
+    return []
 
 def save_json(data):
     """Ajoute les nouvelles données au fichier JSON au lieu de l'écraser."""

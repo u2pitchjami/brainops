@@ -35,15 +35,14 @@ def setup_logger(script_name: str, level=logging.DEBUG):
     :return: Logger configuré
     """
     log_dir = os.getenv('LOG_DIR', './logs')  # Dossier des logs (modifiable via .env)
-    #print ("logdir : ", log_dir)
     os.makedirs(log_dir, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
-    #log_file = os.path.join(log_dir, f"{script_name}.log")  # Pas de date dans le nom
-    log_file = os.path.join(log_dir, "obsidian_notes.log")  # 🔥 Fichier unique
-    #print ("log_file : ", log_file)
+    log_file = os.path.join(log_dir, f"{script_name}.log")  # Pas de date dans le nom
+    #log_file = os.path.join(log_dir, "obsidian_notes.log")  # 🔥 Fichier unique
+    
     logger = logging.getLogger(script_name)
     logger.setLevel(level)
-    #print ("llevel : ", level)
+    
     # Supprimer les handlers existants (évite la duplication)
     if logger.hasHandlers():
         logger.handlers.clear()

@@ -5,12 +5,11 @@ import shutil
 import json
 import os
 import re
-from logger_setup import setup_logger
 import logging
 from datetime import datetime
 from pathlib import Path
 from Levenshtein import ratio
-from handlers.ollama.ollama import call_ollama_with_retry, OllamaError
+from handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
 from handlers.header.extract_yaml_header import extract_yaml_header
 from handlers.utils.files import clean_content
 from handlers.ollama.prompts import PROMPTS
@@ -20,9 +19,9 @@ from handlers.sql.db_categs_utils import generate_categ_dictionary, generate_cat
 from handlers.sql.db_categs import get_path_safe
 from handlers.sql.db_get_linked_folders_utils import get_folder_id
 from handlers.utils.paths import ensure_folder_exists
+from handlers.utils.divers import prompt_name_and_model_selection
 
-setup_logger("get_type", logging.DEBUG)
-logger = logging.getLogger("get_type")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 similarity_warnings_log = os.getenv('SIMILARITY_WARNINGS_LOG')
 uncategorized_log = os.getenv('UNCATEGORIZED_LOG')
@@ -32,8 +31,7 @@ uncategorized_data = Path(os.getenv('UNCATEGORIZED_JSON'))
 def process_get_note_type(filepath: str, note_id: int):
     """Analyse le type de note via Llama3.2."""
     logger.debug("[DEBUG] Entrée process_get_note_type")
-    model_ollama = os.getenv('MODEL_GET_TYPE')
-
+    
     try:
         logger.debug("[DEBUG] process_get_note_type avant extract yaml")
         _, content_lines = extract_yaml_header(filepath)
@@ -43,16 +41,16 @@ def process_get_note_type(filepath: str, note_id: int):
         logger.debug("[DEBUG] process_get_note_type subcateg_dict %s", subcateg_dict)
         categ_dict = generate_categ_dictionary()
         logger.debug("[DEBUG] process_get_note_type categ_dict %s", categ_dict)
-        entry_type = "type"
-
-        prompt = PROMPTS[entry_type].format(categ_dict=categ_dict,
+        prompt_name, _ = prompt_name_and_model_selection(note_id, key="type")
+        model_ollama = "mistral:latest"
+        prompt = PROMPTS[prompt_name].format(categ_dict=categ_dict,
                     subcateg_dict=subcateg_dict, content=content_lines[:1500])
 
         logger.debug("[DEBUG] process_get_note_type : %s", prompt)
         
         try:
             llama_proposition = call_ollama_with_retry(prompt, model_ollama)
-            #llama_proposition = "Bidule/unknown"
+            #llama_proposition = "Bidule/sarkozy"
             logger.debug("[DEBUG] process_get_note_type llama_proposition : %s", llama_proposition)
         except OllamaError:
             logger.error("[ERROR] Import annulé.")

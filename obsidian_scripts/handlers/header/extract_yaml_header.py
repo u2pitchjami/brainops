@@ -1,13 +1,11 @@
 """
 Ce module extrait les en-têtes YAML des fichiers de notes Obsidian.
 """
-from logger_setup import setup_logger
 from handlers.utils.files import read_note_content, maybe_clean
 from handlers.header.header_utils import get_yaml, get_yaml_value
 import logging
 
-setup_logger("extract_yaml_header", logging.DEBUG)
-logger = logging.getLogger("extract_yaml_header")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def extract_yaml_header(filepath: str, clean: bool = True) -> tuple[list[str], str]:
     """
@@ -48,7 +46,7 @@ def extract_yaml_header(filepath: str, clean: bool = True) -> tuple[list[str], s
     
     
     logger.debug("[DEBUG] extract_yaml_header header : %s ", repr(header_lines))
-    logger.debug("[DEBUG] extract_yaml_header content : %s ", content_lines[:5])
+    logger.debug("[DEBUG] extract_yaml_header content : %s ", content_lines[:500])
     # Rejoindre content_lines pour retourner une chaîne
     return header_lines, content_lines
 

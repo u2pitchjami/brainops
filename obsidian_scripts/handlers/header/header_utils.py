@@ -1,4 +1,3 @@
-from logger_setup import setup_logger
 import logging
 import re
 import yaml
@@ -6,8 +5,7 @@ import hashlib
 from typing import Callable
 from handlers.utils.files import read_note_content, safe_write
 
-setup_logger("header_utils", logging.DEBUG)
-logger = logging.getLogger("header_utils")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def get_yaml(content: str) -> dict:
     """

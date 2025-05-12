@@ -2,16 +2,15 @@ from handlers.process.large_note import process_large_note
 from handlers.utils.paths import ensure_folder_exists
 from handlers.process.headers import make_properties
 from handlers.process.keywords import process_and_update_file
+from handlers.process.embeddings_utils import make_embeddings_synthesis
 from handlers.utils.files import copy_file_with_date, move_file_with_date, safe_write, read_note_content, clean_content
-from logger_setup import setup_logger
 import logging
 import re
 import shutil
 import os
 from pathlib import Path
 
-setup_logger("obsidian_notes", logging.DEBUG)
-logger = logging.getLogger("obsidian_notes")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def process_clean_gpt(filepath):
     logger.debug(f"[DEBUG] démarrage du process_clean_gpt pour : {filepath}")
@@ -162,7 +161,7 @@ def process_class_gpt_test(filepath, note_id):
     filename = os.path.basename(filepath)  # Extrait "fichier.txt"
     logger.debug(f"[DEBUG] filename : {filename}")
     #models_ollama = ["mixtral:8x7b-instruct-v0.1-q5_K_M", "mistral:7B-Instruct", "mixtral:latest", "mistral:latest", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:14b", "llama3.2:latest", "llama3:latest"]  # Liste des modèles à tester
-    models_ollama = ["mistral:latest", "mistral:7B-Instruct", "llama3:8b-instruct-q6_K","llama-summary-gguf:latest", "qwen2.5:14b", "llama-chat-summary-3.2-3b:latest", "llama3.2-vision:11b", "deepseek-r1:8b", "llama3.2:latest"]  # Liste des modèles à tester
+    models_ollama = ["llama3.1:8b-instruct-q8_0"]  # Liste des modèles à tester
     
     for model in models_ollama:
         logger.debug(f"[DEBUG] model : {model}")
@@ -172,13 +171,14 @@ def process_class_gpt_test(filepath, note_id):
         new_file_path = shutil.copy(filepath, destination_file)
         logger.debug(f"[DEBUG] new_file_path : {new_file_path}")
                         
-        process_large_note(new_file_path,  entry_type="test_tags_gpt", model_name=model, source="other")
+        process_large_note(note_id=note_id, filepath=new_file_path,  entry_type="clean_gpt", word_limit=500, model_name=model, source="other")
         new_new_filename = f"{os.path.splitext(new_filename)[0]}_suite{os.path.splitext(new_filename)[1]}"
         destination_file = os.path.join(destination_path, new_new_filename)
         new_file_path = shutil.copy(new_file_path, destination_file)
         
-                
-        process_large_note(new_file_path,  entry_type="middle_block", model_name=model, source="other")
+        final_response = make_embeddings_synthesis(note_id, new_file_path)
+        success = safe_write(new_file_path, content=final_response)    
+        #process_large_note(new_file_path,  entry_type="middle_block", model_name=model, source="other")
         
         # destination_path1 = "/mnt/user/Documents/Obsidian/Agora/01/"
         # shutil.copy(new_file_path, destination_path1)

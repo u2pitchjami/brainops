@@ -1,9 +1,7 @@
-from logger_setup import setup_logger
 import logging
 from pathlib import Path
 
-setup_logger("paths_utils", logging.DEBUG)
-logger = logging.getLogger("paths_utils")
+logger = logging.getLogger("obsidian_notes." + __name__)
 
 def path_contains_segment(path: str | Path, segment: str) -> bool:
     """
