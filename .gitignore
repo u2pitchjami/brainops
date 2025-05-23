@@ -1,6 +1,6 @@
 obsidian_scripts/backup/
 logs/
-__pycache__/
+/__pycache__/
 .env
 .config.cfg
 json/
@@ -13,3 +13,5 @@ orga/generate_obsidian_journal_note.py
 unused/
 obsidian_scripts/find_unused_imports.py
 obsidian_scripts/generate_module_docs.py
+*/*/__pycache__/
+*/*/*/__pycache__/

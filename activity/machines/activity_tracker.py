@@ -1,11 +1,14 @@
 import os
+import sys
 import json
 import subprocess
 import mysql.connector
 from datetime import datetime
 import pytz
 from dotenv import load_dotenv
-
+print("🧪 __file__ =", __file__)
+print("📁 cwd =", os.getcwd())
+print("📚 sys.path =", sys.path)
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
