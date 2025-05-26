@@ -26,7 +26,7 @@ echo "$response" | jq -r '.payload.listens[] |
      .listened_at] | @csv' > "$SQL_FILE"
 
 # 🔥 Import du fichier CSV dans la base (sans scrobble_type)
-mysql central_db -e "
+mysql brainops_db -e "
     LOAD DATA INFILE '$DB_FILE'
     IGNORE INTO TABLE listenbrainz_tracks
     FIELDS TERMINATED BY ',' ENCLOSED BY '\"'
@@ -36,7 +36,7 @@ mysql central_db -e "
 "
 
 # 🔄 Mise à jour des types de scrobble directement en SQL
-mysql central_db -e "
+mysql brainops_db -e "
     UPDATE listenbrainz_tracks
     SET scrobble_type = 'music'
     WHERE (artist_mbid <> '')
@@ -56,7 +56,7 @@ mysql central_db -e "
 "
 
 # 🔄 Vérification après import
-NB_LIGNES=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM listenbrainz_tracks WHERE DATE(played_at) = CURDATE();")
+NB_LIGNES=$(mysql brainops_db -N -B -e "SELECT COUNT(*) FROM listenbrainz_tracks WHERE DATE(played_at) = CURDATE();")
 echo "${DATE_LOGS} - [INFO] Nombre de scrobbles importés aujourd'hui: $NB_LIGNES" | tee -a "$LOG_FILE"
 
 # 🛠 Nettoyage
