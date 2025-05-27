@@ -1,13 +1,11 @@
 import mysql.connector
 from logger_setup import setup_logger
-import logging
 from datetime import datetime
 from garminconnect import Garmin
 from dotenv import load_dotenv
 import os
 
-setup_logger("garmin_import", logging.INFO)
-logger = logging.getLogger("garmin_import")
+logger = setup_logger("garmin_import")
 
 def connect_db():
     

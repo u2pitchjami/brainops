@@ -23,50 +23,48 @@ def find_env_file():
 
 # Charger le bon .env
 env_file = find_env_file()
-print("env_file : ", env_file)
 if env_file:
     load_dotenv(env_file)
 
-def setup_logger(script_name: str, level=logging.DEBUG):
-    """
-    Initialise un logger avec rotation journalière pour un script donné.
-    
-    :param script_name: Nom du fichier log (ex: 'beets', 'import_data', ...)
-    :return: Logger configuré
-    """
-    log_dir = os.getenv('LOG_DIR', './logs')  # Dossier des logs (modifiable via .env)
-    os.makedirs(log_dir, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
-    log_file = os.path.join(log_dir, f"{script_name}.log")  # Pas de date dans le nom
-    #log_file = os.path.join(log_dir, "obsidian_notes.log")  # 🔥 Fichier unique
-    
+def setup_logger(script_name: str, level=None):
+    """
+    Initialise un logger avec rotation journalière et support ENV.
+    - ENV=dev  → DEBUG
+    - ENV=prod → INFO (par défaut)
+    """
+    # Détermine le niveau si non fourni
+    if level is None:
+        env_mode = os.getenv("ENV", "prod").lower()
+        level = logging.DEBUG if env_mode == "dev" else logging.INFO
+
+    log_dir = os.getenv('LOG_DIR', './logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    log_file = os.path.join(log_dir, f"{script_name}.log")
     logger = logging.getLogger(script_name)
     logger.setLevel(level)
-    
-    # Supprimer les handlers existants (évite la duplication)
+
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    # 🔥 Handler avec rotation journalière
-    file_handler = TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=7, encoding="utf-8")
-    file_handler.setLevel(level)
-    file_handler.suffix = "%Y-%m-%d"  # Ajoute la date automatiquement aux archives
-    #formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(name)s] %(message)s')
+
+    file_handler = TimedRotatingFileHandler(
+        log_file, when="midnight", interval=1, backupCount=7, encoding="utf-8"
+    )
+    file_handler.setLevel(level)
+    file_handler.prefix = "%Y-%m-%d"
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
-    # 🔥 Affichage des logs dans la console aussi
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-    print(f"✅ Handlers LOGS du logger : {logger.handlers}")
-    print(f"✅ Logger LOGS créé : {logger}")  # 🔥 Vérifions si le logger est bien instancié
-    logger.propagate = False  # 🚨 Empêche les logs d'être bloqués par un logger parent
-    print(f"🔍 Niveau du logger '{script_name}': {logger.level}")
+    logger.propagate = False
 
-    for handler in logger.handlers:
-        print(f"🔍 Handler : {handler}, Niveau : {handler.level}")
-    return logger  # Retourne un logger prêt à l'emploi
+    logger.debug("🔍 Logger initialisé en mode DEBUG (env=dev)")
+    logger.info(f"✅ Logger actif pour {script_name}, niveau : {logging.getLevelName(level)}")
+    return logger

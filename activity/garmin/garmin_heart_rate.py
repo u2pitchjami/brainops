@@ -2,13 +2,11 @@ from garminconnect import Garmin
 from datetime import datetime
 import time
 from logger_setup import setup_logger
-import logging
 import mysql.connector
 from collections import defaultdict
 from garmin_client import connect_db
 
-setup_logger("garmin_import", logging.INFO)
-logger = logging.getLogger("garmin_import")
+logger = setup_logger("garmin_import")
 
 def get_garmin_heart_rate(client, date_to_check=None):
     if date_to_check is None:

@@ -1,9 +1,8 @@
-import logging
 import os
 import yaml
 from dotenv import load_dotenv
-setup_logger("obsidian_notes", logging.INFO)
-logger = logging.getLogger("obsidian_notes")
+logger = setup_logger("obsidian_notes")
+
 
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))

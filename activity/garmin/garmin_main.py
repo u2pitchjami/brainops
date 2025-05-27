@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import os
 from logger_setup import setup_logger
-import logging
 from datetime import datetime
 from garmin_client import get_garmin_client
 from garmin_summary import fetch_summary, update_summary_db, get_days_to_update
@@ -12,8 +11,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-setup_logger("garmin_import", logging.INFO)
-logger = logging.getLogger("garmin_import")
+logger = setup_logger("garmin_import")
+
 
 def main():
     client = get_garmin_client()

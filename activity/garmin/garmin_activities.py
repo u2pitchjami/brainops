@@ -5,7 +5,6 @@ import os
 from logger_setup import setup_logger
 from garminconnect import Garmin
 from datetime import datetime
-import logging
 from garmin_client import get_garmin_client, connect_db
 
 # Chemin dynamique basé sur le script en cours
@@ -13,8 +12,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-setup_logger("garmin_import", logging.INFO)
-logger = logging.getLogger("garmin_import")
+logger = setup_logger("garmin_import")
 
 def debug_activity(client):
     activities = client.get_activities(start=10, limit=1)  # Récupère 1 seule activité pour le test

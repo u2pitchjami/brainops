@@ -7,7 +7,6 @@ import shutil
 from datetime import datetime
 from dotenv import load_dotenv
 from logger_setup import setup_logger
-import logging
 
 
 # Chemin dynamique basé sur le script en cours
@@ -15,8 +14,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-setup_logger("android_import", logging.INFO)
-logger = logging.getLogger("android_import")
+logger = setup_logger("android_import")
 
 def connect_db():
     
@@ -59,9 +57,8 @@ def process_log_file(file_path):
     conn = connect_db()
     if not conn:
         return
-
     cursor = conn.cursor()
-
+       
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
         first_row = next(reader, None)  # Lire la première ligne pour choper device_name

@@ -40,9 +40,9 @@ if [ $FILES_FOUND -ge 1 ]; then
     echo "$DATE_LOGS [INFO] Importation de $FILES_FOUND fichiers en une seule exécution..." >> $LOG_FILE
 
     # 🔥 Récupérer le nombre de lignes avant l'import
-    NB_LIGNES_AVANT=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM recap;")
+    NB_LIGNES_AVANT=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM recap;")
 
-    mysql central_db -e "
+    mysql --defaults-file=$CNF_FILE brainops_db -e "
         CREATE TEMPORARY TABLE recap_temp LIKE recap;
         CREATE TEMPORARY TABLE recap_staging LIKE recap_temp;
         ALTER TABLE recap_staging DROP INDEX unique_entry;
@@ -50,7 +50,7 @@ if [ $FILES_FOUND -ge 1 ]; then
         SOURCE $PROCESS_RECAP;
     "
     # 🔥 Récupérer le nombre de lignes après l'import
-    NB_LIGNES_APRES=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM recap;")
+    NB_LIGNES_APRES=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM recap;")
 
     # 🔥 Calculer le nombre de nouvelles lignes insérées
     NB_LIGNES=$((NB_LIGNES_APRES - NB_LIGNES_AVANT))

@@ -1,15 +1,12 @@
 import mysql.connector
 from logger_setup import setup_logger
-import logging
 from datetime import datetime, timedelta, timezone
 from garminconnect import Garmin
 from garmin_client import get_garmin_client, connect_db
 import pytz
 
 LOCAL_TZ = pytz.timezone("Europe/Paris")
-
-setup_logger("garmin_import", logging.INFO)
-logger = logging.getLogger("garmin_import")
+logger = setup_logger("garmin_import")
 
 def convert_utc_to_local(utc_time_str):
     """ Convertit un timestamp UTC (GMT) en heure locale """

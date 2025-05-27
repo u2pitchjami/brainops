@@ -10,7 +10,7 @@ FILES_TO_MOVE=()  # Initialiser un tableau vide pour stocker les fichiers à dé
 # Vérifier si des fichiers existent avant la boucle
 WATCHLIST_FILES=($IMPORT_DIR/watchlist_*.csv)
 if [ -e "${WATCHLIST_FILES[0]}" ]; then
-    NB_LIGNES_AVANT_WATCHLIST=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM trakt_watchlist;")
+    NB_LIGNES_AVANT_WATCHLIST=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM trakt_watchlist;")
     for file in "${WATCHLIST_FILES[@]}"; do
         [ -f "$file" ] || continue  # Vérifie que c'est bien un fichier
         FILES_FOUND=$((FILES_FOUND + 1))
@@ -39,7 +39,7 @@ fi
 if [ $FILES_FOUND -ge 1 ]; then
     echo "$DATE_LOGS [INFO] Importation de $FILES_FOUND fichiers en une seule exécution..." >> $LOG_FILE
 
-    mysql central_db -e "
+    mysql --defaults-file=$CNF_FILE brainops_db -e "
         CREATE TEMPORARY TABLE trakt_watchlist_temp LIKE trakt_watchlist;
         $SQL_COMMAND
         INSERT INTO trakt_watchlist (type, title, prod_date, imdb_id, tmdb_id, date_add)
@@ -55,7 +55,7 @@ fi
 WATCHED_FILES=($IMPORT_DIR/watched_*.csv)
 if [ -e "${WATCHED_FILES[0]}" ]; then
     # 🔥 Récupérer le nombre de lignes avant l'import
-    NB_LIGNES_AVANT_WATCHED=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM trakt_watched;")
+    NB_LIGNES_AVANT_WATCHED=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM trakt_watched;")
     for file in "${WATCHED_FILES[@]}"; do
         [ -f "$file" ] || continue  # Vérifie que c'est bien un fichier
         FILES_FOUND=$((FILES_FOUND + 1))
@@ -80,7 +80,7 @@ if [ -e "${WATCHED_FILES[0]}" ]; then
         FILES_TO_MOVE+=("$file")
     done
 fi
-    NB_LIGNES_APRES_WATCHLIST=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM trakt_watchlist;")
+    NB_LIGNES_APRES_WATCHLIST=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM trakt_watchlist;")
     NB_LIGNES_WATCHLIST=$((NB_LIGNES_APRES_WATCHLIST - NB_LIGNES_AVANT_WATCHLIST))
 
     echo "${DATE_LOGS} - [INFO] Nouvelles lignes ajoutées: $NB_LIGNES_WATCHLIST dans trakt_watchlist" | tee -a "$LOG_FILE"
@@ -90,7 +90,7 @@ fi
 if [ $FILES_FOUND -ge 1 ]; then
     echo "$DATE_LOGS [INFO] Importation de $FILES_FOUND fichiers en une seule exécution..." >> $LOG_FILE
 
-    mysql central_db -e "
+    mysql --defaults-file=$CNF_FILE brainops_db -e "
         CREATE TEMPORARY TABLE trakt_watched_temp LIKE trakt_watched;
         CREATE TEMPORARY TABLE trakt_watchlist_temp LIKE trakt_watchlist;
         $SQL_COMMAND
@@ -111,13 +111,13 @@ if [ $FILES_FOUND -ge 1 ]; then
     # Déplacer les fichiers SEULEMENT après l'import MySQL
 
     
-    NB_LIGNES_APRES_WATCHED=$(mysql central_db -N -B -e "SELECT COUNT(*) FROM trakt_watched;")
+    NB_LIGNES_APRES_WATCHED=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT COUNT(*) FROM trakt_watched;")
     NB_LIGNES_WATCHED=$((NB_LIGNES_APRES_WATCHED - NB_LIGNES_AVANT_WATCHED))
 
 echo "${DATE_LOGS} - [INFO] Nouvelles lignes ajoutées: $NB_LIGNES_WATCHED dans trakt_watched" | tee -a "$LOG_FILE"
 
 if [[ $NB_LIGNES_WATCHED != 0 ]]; then
-    extract=$(mysql central_db -N -B -e "SELECT type, title, watched_date FROM trakt_watched ORDER BY watched_date DESC LIMIT ${NB_LIGNES_WATCHED};")
+    extract=$(mysql --defaults-file=$CNF_FILE brainops_db -N -B -e "SELECT type, title, watched_date FROM trakt_watched ORDER BY watched_date DESC LIMIT ${NB_LIGNES_WATCHED};")
 
     while IFS=$'\t' read -r type title watched_date; do
         echo "${DATE_LOGS} - [INFO] type: ${type}, Title: ${title}, Played At: ${watched_date}" | tee -a "$LOG_FILE"

@@ -10,6 +10,8 @@ from handlers.header.header_utils import hash_source
 from handlers.utils.normalization import sanitize_created, sanitize_yaml_title
 from handlers.utils.files import hash_file_content, count_words
 from handlers.utils.divers import lang_detect
+from handlers.process.folders import add_folder
+from handlers.start.process_folder_event import detect_folder_type
 
 #setup_logger("db_add_notes", logging.DEBUG)
 logger = logging.getLogger("db_add_notes")
@@ -70,6 +72,13 @@ def add_note_to_db(file_path):
     folder_path = str(Path(file_path).parent)
     folder_result = safe_execute(cursor, "SELECT id FROM obsidian_folders WHERE path = %s", (folder_path,)).fetchone()
     folder_id = folder_result[0] if folder_result else None
+    if not folder_id:
+        logger.warning(f"[WARNING] Dossier non trouvé pour {folder_path}, ajout en base")
+        logger
+        folder_type = detect_folder_type(folder_path)
+        folder_id = add_folder(folder_path, folder_type)
+        return folder_id
+
 
     # 🔹 Insertion / Mise à jour
     cursor.execute("""

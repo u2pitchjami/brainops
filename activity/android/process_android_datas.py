@@ -3,16 +3,12 @@ import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from logger_setup import setup_logger
-import logging
-
 
 # Charger les variables d'environnement
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 load_dotenv(env_path)
-setup_logger("android_process", logging.INFO)
-logger = logging.getLogger("android_process")
-
+logger = setup_logger("android_process")
 
 def process_android_datas():
 
@@ -30,6 +26,7 @@ def process_android_datas():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
+        
     except mysql.connector.Error as err:
         logger.error(f"Erreur connexion DB: {err}")
         exit()

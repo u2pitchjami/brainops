@@ -6,20 +6,16 @@ import mysql.connector
 from datetime import datetime
 import pytz
 from dotenv import load_dotenv
-print("🧪 __file__ =", __file__)
-print("📁 cwd =", os.getcwd())
-print("📚 sys.path =", sys.path)
+
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
 from logger_setup import setup_logger
-import logging
 PARIS_TZ = pytz.timezone('Europe/Paris')
 
-setup_logger("imports_vm", logging.INFO)
-logger = logging.getLogger("imports_vm")
+logger = setup_logger("imports_vm")
 
 # Nouveau chemin des JSON
 JSON_DIR = os.getenv('JSON_DIR')
@@ -30,7 +26,7 @@ TODAY = datetime.now(PARIS_TZ).strftime("%Y-%m-%d")
 JSON_FILE = os.path.join(JSON_DIR, f"activity_{TODAY}.json")
 
 # Paramètres de suivi
-WATCHED_DIRS = ["/home/pipo/bin/"]
+WATCHED_DIRS = ["/home/pipo/bin/", "/home/pipo/dev/", "/home/pipo/docker/"]
 MONITORING_PERIOD = 10
 USER = os.getenv('USER')
 TRACKING_FILE = os.getenv('TRACKING_FILE')
