@@ -12,11 +12,6 @@ logger = setup_logger("android_process")
 
 def process_android_datas():
 
-    # conn = connect_db()
-    # if not conn:
-    #     return None
-
-    #cursor = conn.cursor()
     DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "user": os.getenv("DB_USER"),
