@@ -54,9 +54,10 @@ def setup_logger(script_name: str, level=None):
         log_file, when="midnight", interval=1, backupCount=7, encoding="utf-8"
     )
     file_handler.setLevel(level)
-    file_handler.prefix = "%Y-%m-%d"
+    file_handler.suffix = "%Y-%m-%d"
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+    print(f"📝 Fichier de log : {logger.addHandler(file_handler)}")
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)

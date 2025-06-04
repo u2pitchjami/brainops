@@ -1,0 +1,40 @@
+[
+    {
+  "field": "service",
+  "pattern": ["youtube", "peertube", "twitch"],
+  "match": "contains",
+  "logic": "or",
+  "scrobble_type": "video"
+    },
+    {
+    "field": "client",
+    "pattern": "beets",
+    "match": "exact",
+    "scrobble_type": "music"
+  },
+  {
+    "field": "client",
+    "match": "not_null",
+    "scrobble_type": "music"
+  },
+  {
+    "conditions": [
+      { "field": "artist", "pattern": ["Radio Nova", "QG TV", "John Do"], "match": "contains", "logic": "or" },
+      { "field": "client", "pattern": "Pano Scrobbler", "match": "contains" }
+    ],
+    "scrobble_type": "podcast"
+  },
+  {
+    "conditions": [
+      { "field": "title", "pattern": "live", "match": "contains" },
+      { "field": "artist", "match": "not_null" }
+    ],
+    "scrobble_type": "music"
+  },
+  {
+    "field": "service",
+    "pattern": "youtube",
+    "match": "contains",
+    "scrobble_type": "video"
+  }
+]
