@@ -37,9 +37,10 @@ def get_listens_from_api():
 
 def get_listens_from_json(folder):
     listens = []
-    for file in glob.glob(os.path.join(folder, "*.json*")):
+    pattern = os.path.join(folder, "**", "*.json*")  # ** = récursif
+    for file in glob.iglob(pattern, recursive=True):
         try:
-            with open(file, "r") as f:
+            with open(file, "r", encoding="utf-8") as f:
                 for line in f:
                     try:
                         data = json.loads(line)
@@ -72,19 +73,25 @@ def insert_listens(listens):
 
         insert_query = ("""
             INSERT INTO listenbrainz_tracks
-            (artist, artist_mbid, title, album, album_mbid, track_mbid, service, client, played_at, scrobble_type)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s)
+            (recording_msid, artist, artist_mbid, title, album, album_mbid, track_mbid, service, client, played_at, scrobble_type)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s)
             ON DUPLICATE KEY UPDATE last_updated = CURRENT_TIMESTAMP
         """)
 
         count = 0
         for entry in listens:
-            print(f"Insertion écoute: {entry.get('listened_at', 'inconnue')} - {entry.get('track_metadata', {}).get('track_name', 'inconnu')}")
+            #print(f"Insertion écoute: {entry.get('listened_at', 'inconnue')} - {entry.get('track_metadata', {}).get('track_name', 'inconnu')}")
             meta = entry.get("track_metadata", {})
+            msid = (
+                meta.get("recording_msid") or
+                meta.get("additional_info", {}).get("recording_msid")
+            )
+            #print(f"  recording_msid: {msid}")
             mbids = meta.get("mbid_mapping") or {}
             info = meta.get("additional_info", {})
 
             values = (
+                msid,
                 meta.get("artist_name"),
                 mbids.get("artist_mbids", [None])[0],
                 meta.get("track_name"),
