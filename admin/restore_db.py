@@ -12,6 +12,7 @@ logger = setup_logger("db_restore")
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
+    "port": "3306",  # Port par défaut pour MySQL/MariaDB
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_NAME"),
@@ -27,13 +28,15 @@ def restore_database(dump_file):
         logger.info("Annulé par l'utilisateur.")
         return
 
-    try:
+    try:        
         logger.info(f"Restauration de {dump_file} en cours...")
         restore_cmd = [
             "mysql",
+            "--protocol=TCP",
             f"--host={DB_CONFIG['host']}",
+            f"--port={DB_CONFIG['port']}",
             f"--user={DB_CONFIG['user']}",
-            f"--password='{DB_CONFIG['password']}'",
+            f"--password={DB_CONFIG['password']}",
             DB_CONFIG['database']
         ]
         with subprocess.Popen(["gunzip", "-c", dump_file], stdout=subprocess.PIPE) as unzip_proc:

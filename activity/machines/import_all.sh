@@ -1,4 +1,8 @@
 #!/bin/bash
+set -euo pipefail
+# -e : stoppe au premier échec
+# -u : erreur si variable non définie
+# -o pipefail : propage les erreurs dans les pipes
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 source ${SCRIPT_DIR}/.config.cfg
@@ -14,7 +18,7 @@ for file in $IMPORT_DIR/recap_windows_*.csv; do
         FILE_TIME=$(stat -c %Y "$file")
         AGE=$((NOW - FILE_TIME))
 
-        if [ $AGE -le $THRESHOLD_TIME ]; then
+        #if [ $AGE -le $THRESHOLD_TIME ]; then
             FILES_FOUND=$((FILES_FOUND + 1))
             echo "$DATE_LOGS [INFO] Ajout de $file dans le process d'import..." >> $LOG_FILE
             
@@ -29,9 +33,9 @@ for file in $IMPORT_DIR/recap_windows_*.csv; do
             # Stocker le fichier pour le déplacer après
             FILES_TO_MOVE+=("$file")
             
-        else
-            echo "$DATE_LOGS [WARNING] Fichier $file trop vieux (+10 min), ignoré." >> $LOG_FILE
-        fi
+        #else
+        #    echo "$DATE_LOGS [WARNING] Fichier $file trop vieux (+10 min), ignoré." >> $LOG_FILE
+        #fi
     fi
 done
 
