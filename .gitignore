@@ -42,3 +42,4 @@ dist/
 .envrc
 config.env
 *.cfg
+z_old2/
