@@ -3,8 +3,8 @@
 
 import argparse
 import json
-from handlers.sql.db_temp_blocs import get_blocks_and_embeddings_by_note
-from handlers.process.embeddings_utils import get_embedding
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import get_blocks_and_embeddings_by_note
+from brainops.obsidian_scripts.handlers.process.embeddings_utils import get_embedding
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 

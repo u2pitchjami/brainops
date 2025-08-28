@@ -1,9 +1,9 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
 from pathlib import Path
-from handlers.sql.db_connection import get_db_connection
-from handlers.sql.db_utils import safe_execute
-from handlers.sql.db_categs_utils import remove_unused_category
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_utils import safe_execute
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import remove_unused_category
 
 #setup_logger("db_folders", logging.DEBUG)
 logger = logging.getLogger("db_folders")

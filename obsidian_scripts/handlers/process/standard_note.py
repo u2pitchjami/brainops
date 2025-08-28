@@ -1,10 +1,10 @@
 from pathlib import Path
-from handlers.ollama.ollama_call import call_ollama_with_retry
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.ollama.prompts import PROMPTS
-from handlers.utils.normalization import clean_fake_code_blocks
-from handlers.utils.files import safe_write, join_yaml_and_body, maybe_clean
-from handlers.sql.db_temp_blocs import (
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.ollama.prompts import PROMPTS
+from brainops.obsidian_scripts.handlers.utils.normalization import clean_fake_code_blocks
+from brainops.obsidian_scripts.handlers.utils.files import safe_write, join_yaml_and_body, maybe_clean
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import (
     insert_bloc,
     update_bloc_response,
     get_existing_bloc

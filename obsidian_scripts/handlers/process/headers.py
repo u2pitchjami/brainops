@@ -4,14 +4,14 @@
 from datetime import datetime
 import logging
 from pathlib import Path
-from handlers.header.get_tags_and_summary import get_tags_from_ollama, get_summary_from_ollama
-from handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
-from handlers.sql.db_get_linked_data import get_note_linked_data
-from handlers.sql.db_get_linked_notes_utils import get_category_and_subcategory_names, get_synthesis_metadata, get_note_tags
-from handlers.utils.files import count_words, safe_write, read_note_content
-from handlers.header.extract_yaml_header import extract_yaml_header, extract_metadata
-from handlers.utils.normalization import sanitize_created, sanitize_yaml_title
-from handlers.header.header_utils import clean_yaml_spacing_in_file
+from brainops.obsidian_scripts.handlers.header.get_tags_and_summary import get_tags_from_ollama, get_summary_from_ollama
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_category_and_subcategory_names, get_synthesis_metadata, get_note_tags
+from brainops.obsidian_scripts.handlers.utils.files import count_words, safe_write, read_note_content
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header, extract_metadata
+from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_created, sanitize_yaml_title
+from brainops.obsidian_scripts.handlers.header.header_utils import clean_yaml_spacing_in_file
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 

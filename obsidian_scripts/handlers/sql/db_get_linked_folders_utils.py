@@ -1,6 +1,6 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
-from handlers.sql.db_get_linked_data import get_folder_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_folder_linked_data
 
 #setup_logger("db_get_linked_folders_utils", logging.DEBUG)
 logger = logging.getLogger("db_get_folders_utils")

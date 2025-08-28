@@ -2,7 +2,7 @@ import os
 import subprocess
 from datetime import datetime
 from dotenv import load_dotenv
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 
 # Chargement des variables d'environnement
 script_dir = os.path.dirname(os.path.abspath(__file__))

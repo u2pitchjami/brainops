@@ -3,9 +3,9 @@ from watchdog.events import FileSystemEventHandler
 from datetime import datetime, timezone
 import time
 from logging.handlers import TimedRotatingFileHandler
-from handlers.utils.normalization import normalize_full_path
-from handlers.watcher.queue_manager import process_queue, enqueue_event, log_event_queue
-from handlers.watcher.queue_utils import PendingNoteLockManager
+from brainops.obsidian_scripts.handlers.utils.normalization import normalize_full_path
+from brainops.obsidian_scripts.handlers.watcher.queue_manager import process_queue, enqueue_event, log_event_queue
+from brainops.obsidian_scripts.handlers.watcher.queue_utils import PendingNoteLockManager
 import os
 import logging
 
@@ -16,7 +16,7 @@ lock_mgr = PendingNoteLockManager()
 obsidian_notes_folder = os.getenv('BASE_PATH')
 print(f"🔍 BASE_PATH défini comme : {obsidian_notes_folder}")
 # Lancement du watcher pour surveiller les modifications dans le dossier Obsidian
-def start_watcher():
+def start_watcher() -> None:
     last_purge = time.time()
     path = obsidian_notes_folder
     observer = PollingObserver()

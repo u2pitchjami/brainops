@@ -1,5 +1,5 @@
 import logging
-from handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
 
 
 logger = logging.getLogger("obsidian_notes." + __name__)

@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 from datetime import datetime
 from garmin_client import get_garmin_client
 from garmin_summary import fetch_summary, update_summary_db, get_days_to_update

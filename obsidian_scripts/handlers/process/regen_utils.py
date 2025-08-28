@@ -1,19 +1,19 @@
 import os
-from handlers.process.embeddings_utils import make_embeddings_synthesis
-from handlers.process.divers import rename_file
-from handlers.utils.divers import make_relative_link, prompt_name_and_model_selection
-from handlers.utils.files import safe_write
-from handlers.ollama.ollama_utils import large_or_standard_note
-from handlers.process_imports.import_syntheses import make_syntheses, process_import_syntheses
-from handlers.process.headers import make_properties
-from handlers.sql.db_get_linked_data import get_note_linked_data
-from handlers.sql.db_temp_blocs import delete_blocs_by_path_and_source
-from handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.process.embeddings_utils import make_embeddings_synthesis
+from brainops.obsidian_scripts.handlers.process.divers import rename_file
+from brainops.obsidian_scripts.handlers.utils.divers import make_relative_link, prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.utils.files import safe_write
+from brainops.obsidian_scripts.handlers.ollama.ollama_utils import large_or_standard_note
+from brainops.obsidian_scripts.handlers.process_imports.import_syntheses import make_syntheses, process_import_syntheses
+from brainops.obsidian_scripts.handlers.process.headers import make_properties
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import delete_blocs_by_path_and_source
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
 import logging
-from handlers.sql.db_categs_utils import categ_extract
-from handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt, get_note_lang, get_file_path
-from handlers.utils.files import safe_write
-from handlers.process_imports.import_normal import import_normal
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import categ_extract
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt, get_note_lang, get_file_path
+from brainops.obsidian_scripts.handlers.utils.files import safe_write
+from brainops.obsidian_scripts.handlers.process_imports.import_normal import import_normal
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 

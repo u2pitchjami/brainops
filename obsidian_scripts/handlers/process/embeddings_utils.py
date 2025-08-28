@@ -1,15 +1,15 @@
 import requests
 import numpy as np
-from handlers.sql.db_temp_blocs import get_blocks_and_embeddings_by_note
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import get_blocks_and_embeddings_by_note
 from sklearn.metrics.pairwise import cosine_similarity
-from handlers.ollama.ollama_utils import large_or_standard_note
-from handlers.ollama.ollama_call import call_ollama_with_retry
+from brainops.obsidian_scripts.handlers.ollama.ollama_utils import large_or_standard_note
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry
 import logging
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
-def make_embeddings_synthesis(note_id, filepath):
-    
+def make_embeddings_synthesis(note_id: int, filepath: str) -> None:
+
     results = large_or_standard_note(
             filepath=filepath, 
             source="embeddings",
@@ -31,7 +31,7 @@ def make_embeddings_synthesis(note_id, filepath):
     return final_response
     
 
-def select_top_blocks(note_id, N=None, ratio=0.3, return_scores=False):
+def select_top_blocks(note_id: int, N: int | None = None, ratio: float = 0.3, return_scores: bool = False):
     """
     Sélectionne les N blocs les plus proches pour une note donnée (via note_id).
     Embeddings récupérés depuis la base via get_blocks_and_embeddings_by_note().

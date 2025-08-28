@@ -2,7 +2,7 @@ import mysql.connector
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 
 # Charger les variables d'environnement
 script_dir = os.path.dirname(os.path.abspath(__file__))

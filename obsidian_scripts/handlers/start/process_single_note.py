@@ -1,17 +1,17 @@
 import os
-from handlers.utils.config import UNCATEGORIZED_PATH, IMPORTS_PATH, GPT_IMPORT_DIR, GPT_OUTPUT_DIR, GPT_TEST, IMPORTS_TEST, Z_STORAGE_PATH
-from handlers.process_imports.import_gpt import process_import_gpt, process_clean_gpt, process_class_gpt, process_class_gpt_test
-from handlers.process_imports.import_normal import pre_import_normal
-from handlers.process_imports.import_test import process_class_imports_test
-from handlers.process_imports.import_syntheses import process_import_syntheses
-from handlers.process.regen_utils import force_categ_from_path, regen_header, regen_synthese_from_archive
-from handlers.sql.db_update_notes import update_obsidian_note
-from handlers.sql.db_folders_utils import is_folder_included
-from handlers.sql.db_categs_utils import categ_extract
-from handlers.watcher.queue_manager import log_event_queue
-from handlers.utils.paths import path_is_inside
-from handlers.utils.divers import should_trigger_process
-from handlers.utils.files import count_words
+from brainops.obsidian_scripts.handlers.utils.config import UNCATEGORIZED_PATH, IMPORTS_PATH, GPT_IMPORT_DIR, GPT_OUTPUT_DIR, GPT_TEST, IMPORTS_TEST, Z_STORAGE_PATH
+from brainops.obsidian_scripts.handlers.process_imports.import_gpt import process_import_gpt, process_clean_gpt, process_class_gpt, process_class_gpt_test
+from brainops.obsidian_scripts.handlers.process_imports.import_normal import pre_import_normal
+from brainops.obsidian_scripts.handlers.process_imports.import_test import process_class_imports_test
+from brainops.obsidian_scripts.handlers.process_imports.import_syntheses import process_import_syntheses
+from brainops.obsidian_scripts.handlers.process.regen_utils import force_categ_from_path, regen_header, regen_synthese_from_archive
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.sql.db_folders_utils import is_folder_included
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import categ_extract
+from brainops.obsidian_scripts.handlers.watcher.queue_manager import log_event_queue
+from brainops.obsidian_scripts.handlers.utils.paths import path_is_inside
+from brainops.obsidian_scripts.handlers.utils.divers import should_trigger_process
+from brainops.obsidian_scripts.handlers.utils.files import count_words
 import logging
 
 logger = logging.getLogger("obsidian_notes." + __name__)

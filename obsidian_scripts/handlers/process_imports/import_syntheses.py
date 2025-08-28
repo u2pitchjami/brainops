@@ -1,12 +1,12 @@
-from handlers.ollama.ollama_utils import large_or_standard_note
-from handlers.process.embeddings_utils import make_embeddings_synthesis
-from handlers.process.divers import copy_to_archive
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.process.headers import make_properties
-from handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt, get_note_lang, get_parent_id, get_file_path
-from handlers.utils.files import safe_write, join_yaml_and_body
-from handlers.utils.divers import make_relative_link, prompt_name_and_model_selection
-from handlers.utils.normalization import clean_fake_code_blocks
+from brainops.obsidian_scripts.handlers.ollama.ollama_utils import large_or_standard_note
+from brainops.obsidian_scripts.handlers.process.embeddings_utils import make_embeddings_synthesis
+from brainops.obsidian_scripts.handlers.process.divers import copy_to_archive
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.process.headers import make_properties
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_subcategory_prompt, get_note_lang, get_parent_id, get_file_path
+from brainops.obsidian_scripts.handlers.utils.files import safe_write, join_yaml_and_body
+from brainops.obsidian_scripts.handlers.utils.divers import make_relative_link, prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.utils.normalization import clean_fake_code_blocks
 import logging
 import os
 

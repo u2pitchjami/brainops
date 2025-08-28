@@ -1,13 +1,13 @@
-from handlers.ollama.ollama_utils import large_or_standard_note
-from handlers.process.headers import make_properties
-from handlers.process.keywords import process_and_update_file
-from handlers.process.get_type import process_get_note_type
-from handlers.process.divers import rename_file
-from handlers.sql.db_update_notes import update_obsidian_note
-from handlers.utils.files import copy_file_with_date, read_note_content, count_words
-from handlers.sql.db_get_linked_data import get_note_linked_data
-from handlers.sql.db_get_linked_notes_utils import get_data_for_should_trigger
-from handlers.utils.divers import prompt_name_and_model_selection, should_trigger_process
+from brainops.obsidian_scripts.handlers.ollama.ollama_utils import large_or_standard_note
+from brainops.obsidian_scripts.handlers.process.headers import make_properties
+from brainops.obsidian_scripts.handlers.process.keywords import process_and_update_file
+from brainops.obsidian_scripts.handlers.process.get_type import process_get_note_type
+from brainops.obsidian_scripts.handlers.process.divers import rename_file
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.utils.files import copy_file_with_date, read_note_content, count_words
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_data_for_should_trigger
+from brainops.obsidian_scripts.handlers.utils.divers import prompt_name_and_model_selection, should_trigger_process
 import os
 import logging
 

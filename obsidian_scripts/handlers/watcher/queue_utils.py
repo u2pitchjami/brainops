@@ -4,7 +4,7 @@ import threading
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
-def get_lock_key(note_id, file_path):
+def get_lock_key(note_id, file_path) -> str:
     """
     Génère une clé unique pour le verrouillage de traitement d'une note.
     Si le note_id est disponible, il est prioritaire.
@@ -54,7 +54,7 @@ class PendingNoteLockManager:
         with self._lock:
             return key in self._locks
 
-    def purge_expired(self, timeout: int = 7200):
+    def purge_expired(self, timeout: int = 7200) -> None:
         """
         Supprime tous les verrous ayant dépassé le délai d'expiration (en secondes).
         """

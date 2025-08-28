@@ -4,11 +4,11 @@ import json
 import argparse
 from datetime import datetime
 from dotenv import load_dotenv
-from activity.listenbrainz.normalize.load_json import load_chronique_config, load_video_config, build_video_artist_index
-from activity.listenbrainz.normalize.db import get_scrobbles_from_db, inject_normalized_scrobble
-from activity.listenbrainz.normalize.podcast import normalize_france_inter_live, enrich_podcast_scrobble
-from activity.listenbrainz.normalize.video import enrich_video_scrobble
-from logger_setup import setup_logger
+from brainops.activity.listenbrainz.normalize.load_json import load_chronique_config, load_video_config, build_video_artist_index
+from brainops.activity.listenbrainz.normalize.db import get_scrobbles_from_db, inject_normalized_scrobble
+from brainops.activity.listenbrainz.normalize.podcast import normalize_france_inter_live, enrich_podcast_scrobble
+from brainops.activity.listenbrainz.normalize.video import enrich_video_scrobble
+from brainops.logger_setup import setup_logger
 logger = setup_logger("normalize_scrobbles")
 
 # Initialisation

@@ -15,12 +15,12 @@ load_dotenv(env_path)
 base_script = os.getenv('BASE_SCRIPT')
 sys.path.append(os.path.abspath(base_script))
 
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 
 setup_logger("obsidian_notes", logging.DEBUG)
 logger = logging.getLogger("obsidian_notes")
 
-from handlers.watcher.watcher import start_watcher
+from brainops.obsidian_scripts.handlers.watcher.watcher import start_watcher
 
 if __name__ == "__main__":
     start_watcher()

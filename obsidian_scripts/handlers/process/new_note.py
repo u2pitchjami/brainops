@@ -3,18 +3,16 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from handlers.sql.db_notes import add_note_to_db
-from handlers.sql.db_notes_utils import check_duplicate
-from handlers.process.headers import add_metadata_to_yaml
-from handlers.utils.config import IMPORTS_PATH, DUPLICATES_PATH
-from handlers.sql.db_update_notes import update_obsidian_note
-from handlers.utils.paths import path_is_inside
-from handlers.header.yaml_read import ensure_status_in_yaml
+from brainops.obsidian_scripts.handlers.sql.db_notes import add_note_to_db
+from brainops.obsidian_scripts.handlers.sql.db_notes_utils import check_duplicate
+from brainops.obsidian_scripts.handlers.process.headers import add_metadata_to_yaml
+from brainops.obsidian_scripts.handlers.utils.config import IMPORTS_PATH, DUPLICATES_PATH, DUPLICATES_LOGS
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.utils.paths import path_is_inside
+from brainops.obsidian_scripts.handlers.header.yaml_read import ensure_status_in_yaml
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
-duplicates_logs = os.getenv("DUPLICATES_LOGS")
-duplicates_path = Path(DUPLICATES_PATH)
 def new_note(file_path):
     """Gère les événements liés aux notes (création, modification, suppression, déplacement)."""
     logger.debug(f"[DEBUG] Entrée new_note : {file_path}")
@@ -58,14 +56,14 @@ def handle_duplicate_note(file_path: str | Path, match_info: list[dict]) -> Path
     Déplace une note vers le dossier `duplicates` et log les infos.
     """
     file_path = Path(file_path)
-    new_path = duplicates_path / file_path.name
+    new_path = Path(DUPLICATES_PATH) / file_path.name
 
     try:
         shutil.move(str(file_path), str(new_path))
         logger.warning(f"Note déplacée vers 'duplicates' : {new_path}")
 
         # Optionnel : log des infos doublon
-        with open(duplicates_logs, "a", encoding="utf-8") as log_file:
+        with open(DUPLICATES_LOGS, "a", encoding="utf-8") as log_file:
             log_file.write(f"{datetime.now()} - {file_path.name} doublon de {match_info}\n")
 
         return new_path

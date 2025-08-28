@@ -1,9 +1,9 @@
 # handlers/sql/db_temp_blocs.py
 import json
 import logging
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 from mysql.connector.errors import IntegrityError
-from handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
 
 #setup_logger("db_temp_blocs")
 logger = logging.getLogger("db_temp_blocs")

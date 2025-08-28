@@ -1,12 +1,12 @@
 import os
 import re
 import json
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
-from handlers.ollama.prompts import PROMPTS
-from handlers.utils.normalization import clean_fake_code_blocks
-from handlers.utils.files import safe_write, join_yaml_and_body, maybe_clean
-from handlers.sql.db_temp_blocs import (
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
+from brainops.obsidian_scripts.handlers.ollama.prompts import PROMPTS
+from brainops.obsidian_scripts.handlers.utils.normalization import clean_fake_code_blocks
+from brainops.obsidian_scripts.handlers.utils.files import safe_write, join_yaml_and_body, maybe_clean
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import (
     get_existing_bloc,
     insert_bloc,
     update_bloc_response,

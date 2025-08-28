@@ -1,7 +1,7 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
-from handlers.sql.db_connection import get_db_connection
-from handlers.sql.db_utils import safe_execute
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_utils import safe_execute
 
 #setup_logger("db_get_linked_data", logging.DEBUG)
 logger = logging.getLogger("db_get_linked_data")

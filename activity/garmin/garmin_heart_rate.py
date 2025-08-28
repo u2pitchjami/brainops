@@ -1,7 +1,7 @@
 from garminconnect import Garmin
 from datetime import datetime
 import time
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import mysql.connector
 from collections import defaultdict
 from garmin_client import connect_db

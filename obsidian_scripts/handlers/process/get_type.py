@@ -9,24 +9,20 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from Levenshtein import ratio
-from handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.utils.files import clean_content
-from handlers.ollama.prompts import PROMPTS
-from handlers.sql.db_folders_utils import get_path_from_classification
-from handlers.sql.db_update_notes import update_obsidian_note
-from handlers.sql.db_categs_utils import generate_categ_dictionary, generate_categ_dictionary, generate_optional_subcategories
-from handlers.sql.db_categs import get_path_safe
-from handlers.sql.db_get_linked_folders_utils import get_folder_id
-from handlers.utils.paths import ensure_folder_exists
-from handlers.utils.divers import prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.utils.files import clean_content
+from brainops.obsidian_scripts.handlers.ollama.prompts import PROMPTS
+from brainops.obsidian_scripts.handlers.sql.db_folders_utils import get_path_from_classification
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import generate_categ_dictionary, generate_categ_dictionary, generate_optional_subcategories
+from brainops.obsidian_scripts.handlers.sql.db_categs import get_path_safe
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_folders_utils import get_folder_id
+from brainops.obsidian_scripts.handlers.utils.paths import ensure_folder_exists
+from brainops.obsidian_scripts.handlers.utils.divers import prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.utils.config import UNCATEGORIZED_PATH, SIMILARITY_WARNINGS_LOG, UNCATEGORIZED_JSON
 
 logger = logging.getLogger("obsidian_notes." + __name__)
-
-similarity_warnings_log = os.getenv('SIMILARITY_WARNINGS_LOG')
-uncategorized_log = os.getenv('UNCATEGORIZED_LOG')
-uncategorized_path = Path(os.getenv('UNCATEGORIZED_PATH'))
-uncategorized_data = Path(os.getenv('UNCATEGORIZED_JSON'))
 
 def process_get_note_type(filepath: str, note_id: int):
     """Analyse le type de note via Llama3.2."""
@@ -149,11 +145,11 @@ def handle_uncategorized(
 
     filepath = Path(filepath)
     try:
-        # _, _, category_id, subcategory_id = categ_extract(uncategorized_path)
+        # _, _, category_id, subcategory_id = categ_extract(UNCATEGORIZED_PATH)
         # folder_id, _ = get_path_from_classification(category_id, subcategory_id)
         base_folder = os.path.dirname(filepath)
         folder_id = get_folder_id(base_folder)
-        new_path = uncategorized_path / filepath.name
+        new_path = Path(UNCATEGORIZED_PATH) / filepath.name
 
         shutil.move(str(filepath), str(new_path))
         logger.warning("Note déplacée vers 'uncategorized' : %s", new_path)
@@ -167,8 +163,8 @@ def handle_uncategorized(
    
 
         data = {}
-        if uncategorized_data.exists():
-            with open(uncategorized_data, "r", encoding="utf-8") as f:
+        if UNCATEGORIZED_JSON.exists():
+            with open(UNCATEGORIZED_JSON, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
         data[str(new_path)] = {
@@ -177,7 +173,7 @@ def handle_uncategorized(
             "date": current_time
         }
 
-        with open(uncategorized_data, "w", encoding="utf-8") as f:
+        with open(UNCATEGORIZED_JSON, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     except Exception as e:
@@ -228,7 +224,7 @@ def check_and_handle_similarity(name, existing_names, threshold_low=0.7, entity_
             )
             logger.warning(f"[WARN] Similitude moyenne détectée ({entity_type}) : '{name}' proche de '{closest}' (score: {score:.2f})")
             
-            with open(similarity_warnings_log, "a", encoding='utf-8') as log_file:
+            with open(SIMILARITY_WARNINGS_LOG, "a", encoding='utf-8') as log_file:
                 log_file.write(log_message)
             
             return None  # 🔥 Retourne None pour éviter la création automatique

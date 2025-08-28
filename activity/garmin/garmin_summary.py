@@ -1,5 +1,5 @@
 import mysql.connector
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 from datetime import datetime, timedelta, timezone
 from garminconnect import Garmin
 from garmin_client import get_garmin_client, connect_db

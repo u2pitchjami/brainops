@@ -1,4 +1,4 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 from utils.config import DB_CONFIG
 import os
 import mysql.connector

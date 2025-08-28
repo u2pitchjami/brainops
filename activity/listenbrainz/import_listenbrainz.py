@@ -6,7 +6,7 @@ import requests
 import mysql.connector
 from datetime import datetime
 from dotenv import load_dotenv
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 
 # Initialisation
 script_dir = os.path.dirname(os.path.abspath(__file__))

@@ -1,8 +1,8 @@
 """
 Ce module extrait les en-têtes YAML des fichiers de notes Obsidian.
 """
-from handlers.utils.files import read_note_content, maybe_clean
-from handlers.header.header_utils import get_yaml, get_yaml_value
+from brainops.obsidian_scripts.handlers.utils.files import read_note_content, maybe_clean
+from brainops.obsidian_scripts.handlers.header.header_utils import get_yaml, get_yaml_value
 import logging
 
 logger = logging.getLogger("obsidian_notes." + __name__)
@@ -50,7 +50,7 @@ def extract_yaml_header(filepath: str, clean: bool = True) -> tuple[list[str], s
     # Rejoindre content_lines pour retourner une chaîne
     return header_lines, content_lines
 
-def extract_metadata(filepath, key=None):
+def extract_metadata(filepath: str, key: str | None = None) -> dict:
     """
     Extrait toutes les métadonnées YAML d'une note.
     """
@@ -66,7 +66,7 @@ def extract_metadata(filepath, key=None):
         logger.error(f"[ERREUR] Impossible de lire l'entête du fichier {filepath} : {e}")
         return {}
 
-def extract_note_metadata(filepath, old_metadata=None):
+def extract_note_metadata(filepath: str, old_metadata: dict | None = None) -> dict:
     """
     Extrait toutes les métadonnées d'une note en une seule lecture,
     en fusionnant avec d'anciennes métadonnées si nécessaire.

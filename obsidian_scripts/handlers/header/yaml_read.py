@@ -1,14 +1,14 @@
 import logging
 import time
-from handlers.utils.normalization import sanitize_yaml_title
-from handlers.utils.files import safe_write, hash_file_content, read_note_content
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.header.header_utils import patch_yaml_line, merge_yaml_header
+from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_yaml_title
+from brainops.obsidian_scripts.handlers.utils.files import safe_write, hash_file_content, read_note_content
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.header.header_utils import patch_yaml_line, merge_yaml_header
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
 
-def test_title(file_path):
+def test_title(file_path) -> None:
     try:
         # 1. Séparation header + body
         header_lines, body = extract_yaml_header(file_path)

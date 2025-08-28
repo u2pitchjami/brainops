@@ -13,8 +13,8 @@ class OllamaError(Exception):
     pass
 
 
-    
-def call_ollama_with_retry(prompt, model_ollama, retries=5, delay=10):
+
+def call_ollama_with_retry(prompt: str, model_ollama: str, retries: int = 5, delay: int = 10) -> str | None:
     """Appelle Ollama avec 3 essais avant d'abandonner."""
     logger.debug(f"[DEBUG] entrée call_ollama_with_retry model : {model_ollama}")
     for i in range(retries):
@@ -34,7 +34,7 @@ def call_ollama_with_retry(prompt, model_ollama, retries=5, delay=10):
                 raise
 
 # Traitement pour réponse d'ollama
-def ollama_generate(prompt, model_ollama):
+def ollama_generate(prompt: str, model_ollama: str) -> str | None:
     logger.debug(f"[DEBUG] entrée fonction : ollama_generate")
     
     
@@ -89,7 +89,7 @@ def ollama_generate(prompt, model_ollama):
     except requests.exceptions.ConnectionError:
         raise OllamaError("[ERREUR] Impossible de se connecter à Ollama (Docker HS ?).")
 
-def get_embedding(prompt, model_ollama):
+def get_embedding(prompt: str, model_ollama: str) -> list[float] | None:
     logger.debug(f"[DEBUG] get_embedding : {model_ollama}")
     ollama_url_embeddings = os.getenv('OLLAMA_URL_EMBEDDINGS')
     logger.debug(f"[DEBUG] get_embedding : {ollama_url_embeddings}")

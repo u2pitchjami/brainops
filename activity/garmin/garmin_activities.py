@@ -2,7 +2,7 @@ import mysql.connector
 import json
 from dotenv import load_dotenv
 import os
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 from garminconnect import Garmin
 from datetime import datetime
 from garmin_client import get_garmin_client, connect_db

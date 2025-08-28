@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 logger = setup_logger("normalize_scrobbles")
 
 def enrich_podcast_scrobble(scrobble: dict, config: dict, not_found_logfile=None) -> dict:

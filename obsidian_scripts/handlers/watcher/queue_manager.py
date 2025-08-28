@@ -1,26 +1,22 @@
 from queue import Queue
 import logging
 from threading import Lock
-from handlers.sql.db_notes_utils import file_path_exists_in_db
-from handlers.sql.db_notes import delete_note_from_db
-from handlers.header.yaml_read import test_title
-from handlers.process.new_note import new_note
-from handlers.process.update_note import update_note
-from handlers.utils.files import wait_for_file
-from handlers.watcher.queue_utils import PendingNoteLockManager, get_lock_key
+from brainops.obsidian_scripts.handlers.sql.db_notes_utils import file_path_exists_in_db
+from brainops.obsidian_scripts.handlers.sql.db_notes import delete_note_from_db
+from brainops.obsidian_scripts.handlers.header.yaml_read import test_title
+from brainops.obsidian_scripts.handlers.process.new_note import new_note
+from brainops.obsidian_scripts.handlers.process.update_note import update_note
+from brainops.obsidian_scripts.handlers.utils.files import wait_for_file
+from brainops.obsidian_scripts.handlers.watcher.queue_utils import PendingNoteLockManager, get_lock_key
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 # Création de la file d'attente unique
 event_queue = Queue()
-print(f"event_queue {event_queue}")
 pending_note_ids = set()
-print(f"pending_note_ids {pending_note_ids}")
 pending_lock = Lock()
-print(f"pending_lock {pending_lock}")
 lock_mgr = PendingNoteLockManager()
-print(f"lock_mgr {lock_mgr}")
 
-def enqueue_event(event):
+def enqueue_event(event) -> None:
     if event['type'] == 'file':
         note_id = None
         file_path = event.get("path")
@@ -38,9 +34,9 @@ def enqueue_event(event):
 
     event_queue.put(event)
    
-def process_queue():
-    from handlers.start.process_single_note import process_single_note
-    from handlers.start.process_folder_event import process_folder_event
+def process_queue() -> None:
+    from brainops.obsidian_scripts.handlers.start.process_single_note import process_single_note
+    from brainops.obsidian_scripts.handlers.start.process_folder_event import process_folder_event
     
     log_event_queue()
     while True:
@@ -120,6 +116,6 @@ def process_queue():
                 lock_mgr.release(key)
             event_queue.task_done()
 
-def log_event_queue():
+def log_event_queue() -> None:
     """Affiche le contenu de la file d'attente"""
     logger.debug(f"[DEBUG] Contenu de la file d'attente : {list(event_queue.queue)}")

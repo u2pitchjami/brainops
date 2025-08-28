@@ -1,6 +1,6 @@
 import json
 import os
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 logger = setup_logger("normalize_scrobbles")
 
 def load_chronique_config():

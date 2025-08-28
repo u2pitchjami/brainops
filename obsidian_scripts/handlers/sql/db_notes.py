@@ -1,17 +1,17 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from handlers.sql.db_connection import get_db_connection
-from handlers.sql.db_utils import safe_execute
-from handlers.header.extract_yaml_header import extract_note_metadata
-from handlers.header.header_utils import hash_source
-from handlers.utils.normalization import sanitize_created, sanitize_yaml_title
-from handlers.utils.files import hash_file_content, count_words
-from handlers.utils.divers import lang_detect
-from handlers.process.folders import add_folder
-from handlers.start.process_folder_event import detect_folder_type
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_utils import safe_execute
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_note_metadata
+from brainops.obsidian_scripts.handlers.header.header_utils import hash_source
+from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_created, sanitize_yaml_title
+from brainops.obsidian_scripts.handlers.utils.files import hash_file_content, count_words
+from brainops.obsidian_scripts.handlers.utils.divers import lang_detect
+from brainops.obsidian_scripts.handlers.process.folders import add_folder
+from brainops.obsidian_scripts.handlers.start.process_folder_event import detect_folder_type
 
 #setup_logger("db_add_notes", logging.DEBUG)
 logger = logging.getLogger("db_add_notes")

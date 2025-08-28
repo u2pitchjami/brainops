@@ -2,18 +2,18 @@ import logging
 import shutil
 from pathlib import Path
 from datetime import datetime
-from handlers.process.new_note import new_note
-from handlers.utils.paths import build_archive_path, ensure_folder_exists
-from handlers.sql.db_update_notes import update_obsidian_note
-from handlers.sql.db_get_linked_data import get_note_linked_data
-from handlers.sql.db_notes import add_note_to_db
-from handlers.process.folders import add_folder
-from handlers.utils.normalization import sanitize_filename
+from brainops.obsidian_scripts.handlers.process.new_note import new_note
+from brainops.obsidian_scripts.handlers.utils.paths import build_archive_path, ensure_folder_exists
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_notes import add_note_to_db
+from brainops.obsidian_scripts.handlers.process.folders import add_folder
+from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_filename
 
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
-def rename_file(filepath, note_id):
+def rename_file(filepath: str, note_id: int) -> Path | None:
     """
     Renomme un fichier avec un nouveau nom tout en conservant son dossier d'origine.
     """

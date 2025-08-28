@@ -19,7 +19,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 PARIS_TZ = pytz.timezone('Europe/Paris')
 
 logger = setup_logger("imports_windows")

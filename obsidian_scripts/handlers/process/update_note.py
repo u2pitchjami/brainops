@@ -2,15 +2,15 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
-from handlers.sql.db_notes_utils import check_synthesis_and_trigger_archive
-from handlers.sql.db_folders_utils import get_path_from_classification
-from handlers.sql.db_categs_utils import categ_extract
-from handlers.header.extract_yaml_header import extract_note_metadata
-from handlers.sql.db_get_linked_data import get_note_linked_data
-from handlers.sql.db_get_linked_notes_utils import get_note_tags
-from handlers.process.headers import add_metadata_to_yaml
-from handlers.process.regen_utils import regen_synthese_from_archive, regen_header
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
+from brainops.obsidian_scripts.handlers.sql.db_notes_utils import check_synthesis_and_trigger_archive
+from brainops.obsidian_scripts.handlers.sql.db_folders_utils import get_path_from_classification
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import categ_extract
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_note_metadata
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_note_tags
+from brainops.obsidian_scripts.handlers.process.headers import add_metadata_to_yaml
+from brainops.obsidian_scripts.handlers.process.regen_utils import regen_synthese_from_archive, regen_header
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 

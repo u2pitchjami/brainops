@@ -1,9 +1,9 @@
 import os
 import re
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.utils.files import safe_write
-from handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
-from handlers.ollama.prompts import PROMPTS
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.utils.files import safe_write
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry, OllamaError
+from brainops.obsidian_scripts.handlers.ollama.prompts import PROMPTS
 import logging
 
 root_logger = logging.getLogger()  # Logger root (sans argument)

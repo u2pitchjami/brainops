@@ -1,9 +1,9 @@
-from handlers.process.large_note import process_large_note
-from handlers.utils.paths import ensure_folder_exists
-from handlers.process.headers import make_properties
-from handlers.process.keywords import process_and_update_file
-from handlers.process.embeddings_utils import make_embeddings_synthesis
-from handlers.utils.files import copy_file_with_date, move_file_with_date, safe_write, read_note_content, clean_content
+from brainops.obsidian_scripts.handlers.process.large_note import process_large_note
+from brainops.obsidian_scripts.handlers.utils.paths import ensure_folder_exists
+from brainops.obsidian_scripts.handlers.process.headers import make_properties
+from brainops.obsidian_scripts.handlers.process.keywords import process_and_update_file
+from brainops.obsidian_scripts.handlers.process.embeddings_utils import make_embeddings_synthesis
+from brainops.obsidian_scripts.handlers.utils.files import copy_file_with_date, move_file_with_date, safe_write, read_note_content, clean_content
 import logging
 import re
 import shutil

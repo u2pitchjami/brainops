@@ -2,7 +2,7 @@ import re
 import yaml
 import os
 import logging
-from handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 

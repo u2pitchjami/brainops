@@ -1,16 +1,16 @@
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
 import os
 import re
 from pathlib import Path
 from difflib import SequenceMatcher
 import shutil
-from handlers.sql.db_connection import get_db_connection
-from handlers.sql.db_utils import safe_execute
-from handlers.utils.paths import ensure_folder_exists
-from handlers.utils.files import hash_file_content
-from handlers.header.header_utils import hash_source
-from handlers.sql.db_get_linked_notes_utils import get_new_note_test_metadata
+from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
+from brainops.obsidian_scripts.handlers.sql.db_utils import safe_execute
+from brainops.obsidian_scripts.handlers.utils.paths import ensure_folder_exists
+from brainops.obsidian_scripts.handlers.utils.files import hash_file_content
+from brainops.obsidian_scripts.handlers.header.header_utils import hash_source
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_new_note_test_metadata
 
 #setup_logger("db_notes_utils", logging.DEBUG)
 logger = logging.getLogger("db_notes_utils")
@@ -50,7 +50,7 @@ def check_synthesis_and_trigger_archive(note_id, dest_path):
     """
     Si une `synthesis` est modifiée, force un recheck de l'archive associée.
     """
-    from handlers.process.headers import add_metadata_to_yaml
+    from brainops.obsidian_scripts.handlers.process.headers import add_metadata_to_yaml
     
     conn = get_db_connection()
     if not conn:

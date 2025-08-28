@@ -1,7 +1,7 @@
 import logging
-from handlers.process.large_note import process_large_note
-from handlers.process.standard_note import process_standard_note
-from handlers.utils.divers import prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.process.large_note import process_large_note
+from brainops.obsidian_scripts.handlers.process.standard_note import process_standard_note
+from brainops.obsidian_scripts.handlers.utils.divers import prompt_name_and_model_selection
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 

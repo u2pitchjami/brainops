@@ -1,7 +1,7 @@
 import os
 import logging
-from handlers.sql.db_folders import delete_folder_from_db
-from handlers.process.folders import add_folder, update_folder
+from brainops.obsidian_scripts.handlers.sql.db_folders import delete_folder_from_db
+from brainops.obsidian_scripts.handlers.process.folders import add_folder, update_folder
 
 
 logger = logging.getLogger("obsidian_notes." + __name__)

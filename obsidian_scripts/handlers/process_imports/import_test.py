@@ -1,7 +1,7 @@
-from handlers.process.large_note import process_large_note
-from handlers.process.standard_note import process_standard_note
-from handlers.header.extract_yaml_header import extract_yaml_header
-from handlers.utils.files import safe_write, join_yaml_and_body
+from brainops.obsidian_scripts.handlers.process.large_note import process_large_note
+from brainops.obsidian_scripts.handlers.process.standard_note import process_standard_note
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
+from brainops.obsidian_scripts.handlers.utils.files import safe_write, join_yaml_and_body
 import logging
 import re
 import shutil

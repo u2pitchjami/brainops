@@ -1,17 +1,17 @@
 import logging
 import os
 from pathlib import Path
-from handlers.utils.config import Z_STORAGE_PATH
-from handlers.utils.paths import path_is_inside, get_relative_parts
-from handlers.sql.db_folders import add_folder_to_db, update_folder_in_db
-from handlers.sql.db_get_linked_data import get_folder_linked_data
-from handlers.sql.db_get_linked_folders_utils import get_category_context_from_folder, get_folder_id
-from handlers.sql.db_categs_utils import remove_unused_category, get_or_create_category, get_or_create_subcategory
+from brainops.obsidian_scripts.handlers.utils.config import Z_STORAGE_PATH
+from brainops.obsidian_scripts.handlers.utils.paths import path_is_inside, get_relative_parts
+from brainops.obsidian_scripts.handlers.sql.db_folders import add_folder_to_db, update_folder_in_db
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_folder_linked_data
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_folders_utils import get_category_context_from_folder, get_folder_id
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import remove_unused_category, get_or_create_category, get_or_create_subcategory
  
 logger = logging.getLogger("obsidian_notes." + __name__)
 
 
-def add_folder(folder_path, folder_type):
+def add_folder(folder_path: str | Path, folder_type: str) -> int | None:
     """
     Prépare un dossier pour l'ajout en base :
     - déduit parent_id, category_id, subcategory_id
@@ -61,7 +61,7 @@ def add_folder(folder_path, folder_type):
         subcategory_id=subcategory_id
     )
 
-def update_folder(old_path, new_path):
+def update_folder(old_path: str | Path, new_path: str | Path) -> None:
     """
     Met à jour un dossier : nouveau chemin, nouvelles catégories,
     et nettoyage des anciennes si inutilisées.

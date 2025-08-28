@@ -1,16 +1,20 @@
 import re
 import os
-from handlers.ollama.prompts import PROMPTS
-from handlers.ollama.ollama_call import call_ollama_with_retry
-from handlers.utils.divers import prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.ollama.prompts import PROMPTS
+from brainops.obsidian_scripts.handlers.ollama.ollama_call import call_ollama_with_retry
+from brainops.obsidian_scripts.handlers.utils.divers import prompt_name_and_model_selection
 import json
 import logging
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
+# Define OllamaError if not already imported
+class OllamaError(Exception):
+    pass
+
 
 # Fonction pour interroger Ollama et générer des tags à partir du contenu d'une note
-def get_tags_from_ollama(content, note_id):
+def get_tags_from_ollama(content: str, note_id: int) -> None:
     logger.debug(f"[DEBUG] tags ollama : lancement fonction")
         
     try:
@@ -52,8 +56,9 @@ def get_tags_from_ollama(content, note_id):
                         tags = ["Error parsing JSON"]
                 else:
                     logger.warning("[WARN] Aucun JSON ou tableau trouvé dans la réponse.")
-                    tags = ["No tags found"]
-
+        except OllamaError:
+            logger.error("[ERROR] Import annulé.")
+            return None
             logger.debug(f"[DEBUG] tags ollama : tags extraits : {tags}")
             return tags
         except OllamaError:
@@ -63,7 +68,7 @@ def get_tags_from_ollama(content, note_id):
         logger.error("[ERREUR] prompt est invalide, impossible d'appeler Ollama")
             
 # Fonction pour générer un résumé automatique avec Ollama
-def get_summary_from_ollama(content, note_id):
+def get_summary_from_ollama(content: str, note_id: int) -> str | None:
     logger.debug(f"[DEBUG] résumé ollama : lancement fonction")
     prompt_name, _ = prompt_name_and_model_selection(note_id, key="summary")
     model_ollama = "cognitivetech/obook_summary:latest"

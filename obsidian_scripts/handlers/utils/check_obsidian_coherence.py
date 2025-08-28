@@ -26,7 +26,7 @@ logger = logging.getLogger("coherence_checker")
 errors = []
 
 # === Vérification des dossiers ===
-def check_folders(conn):
+def check_folders(conn) -> None:
     logger.info("\n📁 Vérification des dossiers...")
     cursor = conn.cursor(dictionary=True)
 
@@ -77,7 +77,7 @@ def check_folders(conn):
 
 
 # === Vérification des notes ===
-def check_notes(conn):
+def check_notes(conn) -> None:
     logger.info("\n📝 Vérification des notes...")
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, file_path FROM obsidian_notes")
@@ -107,7 +107,7 @@ def check_notes(conn):
 
 
 # === Vérification des tags ===
-def check_tags(conn):
+def check_tags(conn) -> None:
     logger.info("\n🏷️  Vérification des tags...")
     cursor = conn.cursor()
     cursor.execute("""
@@ -122,7 +122,7 @@ def check_tags(conn):
 
 
 # === Export CSV ===
-def export_to_csv():
+def export_to_csv() -> None:
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = os.path.join(LOG_DIR, f"coherence_errors_{date_str}.csv")
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
@@ -134,7 +134,7 @@ def export_to_csv():
 
 
 # === MAIN ===
-def main():
+def main() -> None:
     logger.info("=== DÉMARRAGE DE L'AUDIT COHÉRENCE OBSIDIAN ===")
     try:
         conn = get_db_connection()

@@ -6,7 +6,7 @@ import os
 import shutil
 from datetime import datetime
 from dotenv import load_dotenv
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 
 
 # Chemin dynamique basé sur le script en cours

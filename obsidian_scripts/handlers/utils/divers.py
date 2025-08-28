@@ -1,8 +1,8 @@
 from pathlib import Path
 from langdetect import detect
-from logger_setup import setup_logger
-from handlers.utils.files import read_note_content, count_words
-from handlers.sql.db_get_linked_notes_utils import get_note_lang, get_data_for_should_trigger
+from brainops.logger_setup import setup_logger
+from brainops.obsidian_scripts.handlers.utils.files import read_note_content, count_words
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_note_lang, get_data_for_should_trigger
 import logging
 import os
 

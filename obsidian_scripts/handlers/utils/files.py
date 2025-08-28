@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 from datetime import datetime
-from logger_setup import setup_logger
+from brainops.logger_setup import setup_logger
 import logging
 import hashlib
 import time
