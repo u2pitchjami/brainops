@@ -1,42 +1,82 @@
 # handlers/sql/db_temp_blocs.py
 import json
 import logging
-from brainops.logger_setup import setup_logger
+
 from mysql.connector.errors import IntegrityError
+
 from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
 
-#setup_logger("db_temp_blocs")
+# setup_logger("db_temp_blocs")
 logger = logging.getLogger("db_temp_blocs")
 
-def get_existing_bloc(note_id, filepath, block_index, prompt, model, split_method, word_limit, source):
+
+def get_existing_bloc(
+    note_id, filepath, block_index, prompt, model, split_method, word_limit, source
+):
     """
     Retourne (response, status) pour un bloc existant, ou None.
     """
     conn = get_db_connection()
     with conn.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT response, status FROM obsidian_temp_blocks
             WHERE note_id = %s AND note_path = %s AND block_index = %s
             AND prompt = %s AND model_ollama = %s AND split_method = %s
             AND word_limit = %s AND source = %s
-        """, (note_id, str(filepath), block_index, prompt, model, split_method, word_limit, source))
+        """,
+            (
+                note_id,
+                str(filepath),
+                block_index,
+                prompt,
+                model,
+                split_method,
+                word_limit,
+                source,
+            ),
+        )
         return cursor.fetchone()
 
-def insert_bloc(note_id, filepath, block_index, content, prompt, model, split_method, word_limit, source):
+
+def insert_bloc(
+    note_id,
+    filepath,
+    block_index,
+    content,
+    prompt,
+    model,
+    split_method,
+    word_limit,
+    source,
+):
     """
     Insère un nouveau bloc avec statut 'waiting'.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO obsidian_temp_blocks (
                     note_id, note_path, block_index, content,
                     prompt, model_ollama, split_method, word_limit, source,
                     status
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'waiting')
-            """, (note_id, str(filepath), block_index, content, prompt, model, split_method, word_limit, source))
+            """,
+                (
+                    note_id,
+                    str(filepath),
+                    block_index,
+                    content,
+                    prompt,
+                    model,
+                    split_method,
+                    word_limit,
+                    source,
+                ),
+            )
             conn.commit()
     except IntegrityError:
         logger.warning(
@@ -46,24 +86,34 @@ def insert_bloc(note_id, filepath, block_index, content, prompt, model, split_me
         logger.error(f"[ERROR] Insertion bloc échouée : {e}")
         raise
 
-def update_bloc_response(note_id, filepath, block_index, response, source, status="processed"):
+
+def update_bloc_response(
+    note_id, filepath, block_index, response, source, status="processed"
+):
     """
-    Met à jour un bloc avec la réponse et le statut associé (par défaut : 'processed').
+    Met à jour un bloc avec la réponse et le statut associé (par défaut :
+
+    'processed').
     """
     conn = get_db_connection()
     with conn.cursor() as cursor:
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE obsidian_temp_blocks
             SET response = %s, status = %s
             WHERE note_id = %s AND note_path = %s AND source = %s AND block_index = %s
-        """, (response.strip(), status, note_id, str(filepath), source, block_index))
+        """,
+            (response.strip(), status, note_id, str(filepath), source, block_index),
+        )
         conn.commit()
+
 
 def mark_bloc_as_error(note_id, filepath, block_index):
     """
     Marque un bloc comme ayant échoué ('error').
     """
     update_bloc_response(note_id, filepath, block_index, "", status="error")
+
 
 def delete_blocs_by_path_and_source(note_id, file_path: str, source: str) -> None:
     """
@@ -76,35 +126,46 @@ def delete_blocs_by_path_and_source(note_id, file_path: str, source: str) -> Non
     try:
         with conn.cursor() as cursor:
             if source == "all":
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM obsidian_temp_blocks
                     WHERE note_id = %s
-                """, (note_id,))
+                """,
+                    (note_id,),
+                )
 
             elif "*" in source:
                 like_pattern = source.replace("*", "%")
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM obsidian_temp_blocks
                     WHERE note_path = %s AND source LIKE %s
-                """, (str(file_path), like_pattern))
+                """,
+                    (str(file_path), like_pattern),
+                )
 
             else:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM obsidian_temp_blocks
                     WHERE note_path = %s AND source = %s
-                """, (str(file_path), source))
+                """,
+                    (str(file_path), source),
+                )
 
             conn.commit()
-            logger.info("[DELETE] Blocs supprimés pour %s (source=%s)", file_path, source)
+            logger.info(
+                "[DELETE] Blocs supprimés pour %s (source=%s)", file_path, source
+            )
 
     except Exception as e:
         logger.error(f"[ERROR] Suppression échouée pour {file_path} : {e}")
         raise
 
+
 def get_blocks_and_embeddings_by_note(note_id):
     """
-    Charge les blocs de texte et leurs embeddings (stockés dans `response`)
-    pour une note donnée identifiée par note_id.
+    Charge les blocs de texte et leurs embeddings (stockés dans `response`) pour une note donnée identifiée par note_id.
     """
     logger.debug("[DEBUG] get_blocks_and_embeddings_by_note")
     conn = get_db_connection()
@@ -139,8 +200,12 @@ def get_blocks_and_embeddings_by_note(note_id):
                 blocks.append(row["content"])
                 embeddings.append(embedding)
             else:
-                logging.warning(f"[DB LOAD] Embedding vide au bloc {row['block_index']}")
+                logging.warning(
+                    f"[DB LOAD] Embedding vide au bloc {row['block_index']}"
+                )
         except Exception as e:
-            logging.error(f"[DB LOAD] Erreur parsing embedding bloc {row['block_index']} : {e}")
+            logging.error(
+                f"[DB LOAD] Erreur parsing embedding bloc {row['block_index']} : {e}"
+            )
 
     return blocks, embeddings

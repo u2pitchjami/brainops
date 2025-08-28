@@ -1,9 +1,9 @@
-from brainops.logger_setup import setup_logger
 import logging
 import os
+
 import mysql.connector
 
-#setup_logger("db_connection", logging.INFO)
+# setup_logger("db_connection", logging.INFO)
 logger = logging.getLogger("db_connection")
 
 # Configuration de la base via les variables d'environnement
@@ -14,8 +14,11 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME"),
 }
 
+
 def get_db_connection():
-    """ Établit une connexion à MySQL en utilisant les variables d'environnement """
+    """
+    Établit une connexion à MySQL en utilisant les variables d'environnement.
+    """
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         return conn

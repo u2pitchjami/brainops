@@ -1,11 +1,12 @@
 import argparse
-import os
-import json
 import glob
-import requests
+import json
+import os
+
 import mysql.connector
-from datetime import datetime
+import requests
 from dotenv import load_dotenv
+
 from brainops.logger_setup import setup_logger
 
 # Initialisation
@@ -26,7 +27,9 @@ LISTENBRAINZ_USER = os.getenv("LISTENBRAINZ_USER")
 
 def get_listens_from_api():
     try:
-        url = f"https://api.listenbrainz.org/1/user/{LISTENBRAINZ_USER}/listens?count=50"
+        url = (
+            f"https://api.listenbrainz.org/1/user/{LISTENBRAINZ_USER}/listens?count=50"
+        )
         response = requests.get(url)
         response.raise_for_status()
         return response.json().get("payload", {}).get("listens", [])
@@ -40,7 +43,7 @@ def get_listens_from_json(folder):
     pattern = os.path.join(folder, "**", "*.json*")  # ** = récursif
     for file in glob.iglob(pattern, recursive=True):
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         data = json.loads(line)
@@ -60,8 +63,9 @@ def determine_scrobble_type(artist_mbid, client, service, album):
         return "music"
     if client == "Web Scrobbler" and service == "YouTube":
         return "video"
-    if (client == "Web Scrobbler" and service == "Radio France") or \
-       (client == "Pano Scrobbler" and not artist_mbid and album):
+    if (client == "Web Scrobbler" and service == "Radio France") or (
+        client == "Pano Scrobbler" and not artist_mbid and album
+    ):
         return "podcast"
     return "unknown"
 
@@ -71,22 +75,21 @@ def insert_listens(listens):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
-        insert_query = ("""
+        insert_query = """
             INSERT INTO listenbrainz_tracks
-            (recording_msid, artist, artist_mbid, title, album, album_mbid, track_mbid, service, client, played_at, scrobble_type)
+            (recording_msid, artist, artist_mbid, title, album, album_mbid,\
+                track_mbid, service, client, played_at, scrobble_type)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s)
             ON DUPLICATE KEY UPDATE last_updated = CURRENT_TIMESTAMP
-        """)
+        """
 
         count = 0
         for entry in listens:
-            #print(f"Insertion écoute: {entry.get('listened_at', 'inconnue')} - {entry.get('track_metadata', {}).get('track_name', 'inconnu')}")
             meta = entry.get("track_metadata", {})
-            msid = (
-                meta.get("recording_msid") or
-                meta.get("additional_info", {}).get("recording_msid")
+            msid = meta.get("recording_msid") or meta.get("additional_info", {}).get(
+                "recording_msid"
             )
-            #print(f"  recording_msid: {msid}")
+            # print(f"  recording_msid: {msid}")
             mbids = meta.get("mbid_mapping") or {}
             info = meta.get("additional_info", {})
 
@@ -105,8 +108,8 @@ def insert_listens(listens):
                     mbids.get("artist_mbids", [None])[0],
                     info.get("submission_client"),
                     info.get("music_service_name"),
-                    meta.get("release_name")
-                )
+                    meta.get("release_name"),
+                ),
             )
             try:
                 cursor.execute(insert_query, values)

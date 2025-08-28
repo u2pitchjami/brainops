@@ -1,7 +1,9 @@
+import argparse
 import os
 import subprocess
-import argparse
+
 from dotenv import load_dotenv
+
 from brainops.logger_setup import setup_logger
 
 # Chargement des variables d'environnement
@@ -18,17 +20,24 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME"),
 }
 
+
 def restore_database(dump_file):
     if not os.path.exists(dump_file):
         logger.error(f"Fichier introuvable: {dump_file}")
         return
 
-    confirm = input(f"⚠️  Cette opération écrasera la base '{DB_CONFIG['database']}'. Continuer ? (oui/non) : ").strip().lower()
+    confirm = (
+        input(
+            f"⚠️  Cette opération écrasera la base '{DB_CONFIG['database']}'. Continuer ? (oui/non) : "
+        )
+        .strip()
+        .lower()
+    )
     if confirm != "oui":
         logger.info("Annulé par l'utilisateur.")
         return
 
-    try:        
+    try:
         logger.info(f"Restauration de {dump_file} en cours...")
         restore_cmd = [
             "mysql",
@@ -37,13 +46,16 @@ def restore_database(dump_file):
             f"--port={DB_CONFIG['port']}",
             f"--user={DB_CONFIG['user']}",
             f"--password={DB_CONFIG['password']}",
-            DB_CONFIG['database']
+            DB_CONFIG["database"],
         ]
-        with subprocess.Popen(["gunzip", "-c", dump_file], stdout=subprocess.PIPE) as unzip_proc:
+        with subprocess.Popen(
+            ["gunzip", "-c", dump_file], stdout=subprocess.PIPE
+        ) as unzip_proc:
             subprocess.run(restore_cmd, stdin=unzip_proc.stdout)
         logger.info("✅ Restauration terminée avec succès.")
     except Exception as e:
         logger.error(f"Erreur durant la restauration : {e}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

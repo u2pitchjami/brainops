@@ -3,10 +3,14 @@
 
 import argparse
 import json
-from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import get_blocks_and_embeddings_by_note
-from brainops.obsidian_scripts.handlers.process.embeddings_utils import get_embedding
+
 from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+
+from brainops.obsidian_scripts.handlers.process.embeddings_utils import get_embedding
+from brainops.obsidian_scripts.handlers.sql.db_temp_blocs import (
+    get_blocks_and_embeddings_by_note,
+)
+
 
 def search_blocks_by_semantic(query_text: str, note_id: int = None, top_n: int = 5):
     if note_id:
@@ -29,10 +33,16 @@ def search_blocks_by_semantic(query_text: str, note_id: int = None, top_n: int =
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Recherche sémantique IA locale sur Obsidian")
+    parser = argparse.ArgumentParser(
+        description="Recherche sémantique IA locale sur Obsidian"
+    )
     parser.add_argument("--query", required=True, help="Texte ou question à chercher")
-    parser.add_argument("--note_id", type=int, required=True, help="ID de la note cible")
-    parser.add_argument("--top", type=int, default=5, help="Nombre de blocs à retourner")
+    parser.add_argument(
+        "--note_id", type=int, required=True, help="ID de la note cible"
+    )
+    parser.add_argument(
+        "--top", type=int, default=5, help="Nombre de blocs à retourner"
+    )
     parser.add_argument("--out", type=str, help="Fichier de sortie (.md ou .json)")
     args = parser.parse_args()
 
@@ -44,7 +54,9 @@ def main():
                 json.dump(results, f, indent=2, ensure_ascii=False)
             else:
                 for i, r in enumerate(results):
-                    f.write(f"## Bloc {i+1} (score {r['score']:.2f})\n{r['text']}\n\n")
+                    f.write(
+                        f"## Bloc {i +1 } (score {r['score']:.2f})\n{r['text']}\n\n"
+                    )
         print(f"[OK] Résultats écrits dans : {args.out}")
     else:
         for r in results:

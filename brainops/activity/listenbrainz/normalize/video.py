@@ -1,6 +1,3 @@
-import os
-import sys
-import json
 from brainops.logger_setup import setup_logger
 
 logger = setup_logger("normalize_scrobbles")

@@ -1,20 +1,21 @@
-from garminconnect import Garmin
-from datetime import datetime
-import time
-from brainops.logger_setup import setup_logger
-import mysql.connector
 from collections import defaultdict
+from datetime import datetime
+
+import mysql.connector
 from garmin_client import connect_db
 
+from brainops.logger_setup import setup_logger
+
 logger = setup_logger("garmin_import")
+
 
 def get_garmin_heart_rate(client, date_to_check=None):
     if date_to_check is None:
         date_to_check = datetime.now().strftime("%Y-%m-%d")
     last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     heart_rate_dict = defaultdict(list)
-    
+
     try:
         # Récupération des données de fréquence cardiaque
         heart_rates = client.get_heart_rates(date_to_check).get("heartRateValues", [])
@@ -26,7 +27,9 @@ def get_garmin_heart_rate(client, date_to_check=None):
             timestamp_ms, heart_rate = entry
             if heart_rate is not None:  # Vérifier que la valeur est valide
                 timestamp_sec = timestamp_ms // 1000  # Conversion en secondes
-                time_human = datetime.fromtimestamp(timestamp_sec).strftime("%H:%M")  # Format HH:MM
+                time_human = datetime.fromtimestamp(timestamp_sec).strftime(
+                    "%H:%M"
+                )  # Format HH:MM
 
                 # Arrondir aux 10 minutes les plus proches
                 minute = int(time_human.split(":")[1])
@@ -35,27 +38,29 @@ def get_garmin_heart_rate(client, date_to_check=None):
 
                 # Ajouter la FC à la bonne plage horaire
                 heart_rate_dict[rounded_time].append(heart_rate)
-                  
+
     except Exception as e:
         logger.error(f"Erreur récupération heart_rate: {e}")
         return None
-    
+
     # 🔥 Si le dictionnaire est vide, on ne tente pas d'insérer en base
     if not heart_rate_dict:
-        logger.warning(f"⚠️ Aucune donnée de fréquence cardiaque disponible pour {date_to_check}.")
+        logger.warning(
+            f"⚠️ Aucune donnée de fréquence cardiaque disponible pour {date_to_check}."
+        )
         return
-    
-     # Connexion à la base de données
+
+    # Connexion à la base de données
     conn = connect_db()
     if not conn:
         return
     try:
         cursor = conn.cursor()
-    
+
         # Insérer les moyennes en base
         for time_slot, values in heart_rate_dict.items():
             avg_hr = round(sum(values) / len(values))  # Moyenne arrondie
-            #print(f"🕒 {time_slot} → 💓 Moyenne FC : {avg_hr}")  # Debug avant d'insérer
+            # print(f"🕒 {time_slot} → 💓 Moyenne FC : {avg_hr}")  # Debug avant d'insérer
 
             insert_query = """
             INSERT INTO garmin_heart_rate (date, time_slot, avg_heart_rate)

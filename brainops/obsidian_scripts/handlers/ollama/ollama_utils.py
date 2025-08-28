@@ -1,9 +1,15 @@
 import logging
+
 from brainops.obsidian_scripts.handlers.process.large_note import process_large_note
-from brainops.obsidian_scripts.handlers.process.standard_note import process_standard_note
-from brainops.obsidian_scripts.handlers.utils.divers import prompt_name_and_model_selection
+from brainops.obsidian_scripts.handlers.process.standard_note import (
+    process_standard_note,
+)
+from brainops.obsidian_scripts.handlers.utils.divers import (
+    prompt_name_and_model_selection,
+)
 
 logger = logging.getLogger("obsidian_notes." + __name__)
+
 
 def large_or_standard_note(
     filepath,
@@ -20,17 +26,25 @@ def large_or_standard_note(
     resume_if_possible=True,
     source="normal",
     process_mode="large_note",
-    prompt_name=None
+    prompt_name=None,
 ):
     try:
-        logger.debug(f"[DEBUG] large_or_standard_note model_ollama envoyé : {model_ollama}")
+        logger.debug(
+            f"[DEBUG] large_or_standard_note model_ollama envoyé : {model_ollama}"
+        )
         if not prompt_name:
             if prompt_key:
                 key = prompt_key
-                prompt_name, model_ollama = prompt_name_and_model_selection(note_id, key=key)
-                logger.debug(f"[DEBUG] large_or_standard_note model_ollama : {model_ollama}")
+                prompt_name, model_ollama = prompt_name_and_model_selection(
+                    note_id, key=key
+                )
+                logger.debug(
+                    f"[DEBUG] large_or_standard_note model_ollama : {model_ollama}"
+                )
             else:
-                logger.error("[ERREUR] Aucun prompt_name, prompt_key ou note_id fourni. Impossible de continuer.")
+                logger.error(
+                    "[ERREUR] Aucun prompt_name, prompt_key ou note_id fourni. Impossible de continuer."
+                )
                 return ""
 
         if process_mode == "large_note":
@@ -46,10 +60,12 @@ def large_or_standard_note(
                 custom_prompts=custom_prompts,
                 persist_blocks=persist_blocks,
                 resume_if_possible=resume_if_possible,
-                source=source
+                source=source,
             )
         elif process_mode == "standard_note":
-            logger.debug(f"[DEBUG] large_or_standard_note, envoie standard_note : model_ollama : {model_ollama}")
+            logger.debug(
+                f"[DEBUG] large_or_standard_note, envoie standard_note : model_ollama : {model_ollama}"
+            )
             return process_standard_note(
                 note_id=note_id,
                 filepath=filepath,
@@ -58,7 +74,7 @@ def large_or_standard_note(
                 prompt_name=prompt_name,
                 source=source,
                 write_file=write_file,
-                resume_if_possible=resume_if_possible
+                resume_if_possible=resume_if_possible,
             )
         else:
             logger.error(f"[ERREUR] Mode de traitement inconnu : {process_mode}")

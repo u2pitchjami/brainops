@@ -1,15 +1,18 @@
+import hashlib
 import logging
 import re
+from collections.abc import Callable
+
 import yaml
-import hashlib
-from typing import Callable
 from handlers.utils.files import read_note_content, safe_write
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
+
 def get_yaml(content: str) -> dict:
     """
     Extrait et parse l'en-tête YAML d'un fichier Markdown Obsidian.
+
     Retourne un dictionnaire, ou {} si rien trouvé.
     """
     try:
@@ -20,9 +23,11 @@ def get_yaml(content: str) -> dict:
         print(f"[extract_yaml_header] Erreur parsing YAML : {e}")
     return {}
 
+
 def get_yaml_value(content: str, key: str, default=None):
     yaml_data = get_yaml(content)
     return yaml_data.get(key, default)
+
 
 def update_yaml_header(content: str, new_metadata: dict) -> str:
     """
@@ -40,16 +45,18 @@ def update_yaml_header(content: str, new_metadata: dict) -> str:
     match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
     if match:
         # Remplace l'en-tête existante
-        content_wo_yaml = content[len(match.group(0)):]
+        content_wo_yaml = content[len(match.group(0)) :]
     else:
         # Pas d'en-tête détectée → tout le contenu est conservé
         content_wo_yaml = content
 
     return new_yaml + content_wo_yaml
 
+
 def merge_yaml_header(content: str, new_metadata: dict) -> str:
     """
     Fusionne de nouvelles métadonnées dans l'en-tête YAML du fichier.
+
     Conserve les champs existants non concernés.
     """
     try:
@@ -57,7 +64,7 @@ def merge_yaml_header(content: str, new_metadata: dict) -> str:
         if match:
             existing_yaml_str = match.group(1)
             existing_metadata = yaml.safe_load(existing_yaml_str) or {}
-            content_wo_yaml = content[len(match.group(0)):]
+            content_wo_yaml = content[len(match.group(0)) :]
         else:
             existing_metadata = {}
             content_wo_yaml = content
@@ -68,7 +75,9 @@ def merge_yaml_header(content: str, new_metadata: dict) -> str:
         return new_yaml + content_wo_yaml
 
     except Exception as e:
-        logger.exception(f"[ERROR] merge_yaml_header: problème lors de la mise à jour du YAML : {e}")
+        logger.exception(
+            f"[ERROR] merge_yaml_header: problème lors de la mise à jour du YAML : {e}"
+        )
         return content
 
 
@@ -84,14 +93,15 @@ def patch_yaml_line(yaml_text: str, key: str, patch_func: Callable[[str], str]) 
     Returns:
         str: Le YAML modifié avec la ligne patchée, ou inchangé si clé non trouvée.
     """
-    pattern = rf'^({re.escape(key)}\s*:\s*)(.+)$'
+    pattern = rf"^({re.escape(key)}\s*:\s*)(.+)$"
     logger.debug(f"[DEBUG] patch_yaml_line pattern : {pattern}")
     return re.sub(
         pattern,
         lambda m: f"{m.group(1)}{patch_func(m.group(2))}",
         yaml_text,
-        flags=re.MULTILINE
+        flags=re.MULTILINE,
     )
+
 
 def clean_yaml_spacing_in_file(file_path: str) -> bool:
     """
@@ -99,7 +109,7 @@ def clean_yaml_spacing_in_file(file_path: str) -> bool:
     Écrit directement le fichier nettoyé.
     """
     try:
-        logger.debug(f"[DEBUG] clean_yaml_spacing_in_file")
+        logger.debug("[DEBUG] clean_yaml_spacing_in_file")
         content = read_note_content(file_path)
         lines = content.splitlines()
         inside_yaml = False
@@ -121,11 +131,7 @@ def clean_yaml_spacing_in_file(file_path: str) -> bool:
         while body_start < len(lines) and lines[body_start].strip() == "":
             body_start += 1
 
-        new_lines = (
-            lines[:yaml_end_index + 1] +
-            [""] +
-            lines[body_start:]
-        )
+        new_lines = lines[: yaml_end_index + 1] + [""] + lines[body_start:]
         logger.debug(f"[DEBUG] new_lines : {new_lines}")
         new_content = "\n".join(new_lines).strip() + "\n"
         logger.debug(f"[DEBUG] new_content : {new_content}")
@@ -134,6 +140,7 @@ def clean_yaml_spacing_in_file(file_path: str) -> bool:
     except Exception as e:
         print(f"[ERREUR] clean_yaml_spacing_in_file: {e}")
         return False
+
 
 def hash_source(source: str) -> str:
     return hashlib.sha256(source.strip().lower().encode("utf-8")).hexdigest()

@@ -1,18 +1,22 @@
+import inspect
 import logging
 import os
-from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+
 from dotenv import load_dotenv
-import inspect
+
 
 def find_env_file():
     """
     Trouve le fichier .env en fonction du script appelant.
+
     Cherche d'abord dans son dossier, puis remonte dans la hiérarchie.
     """
-    caller_script = inspect.stack()[2].filename  # Récupère le chemin du script qui appelle setup_logger()
+    caller_script = inspect.stack()[
+        2
+    ].filename  # Récupère le chemin du script qui appelle setup_logger()
     script_dir = os.path.dirname(os.path.abspath(caller_script))
-    
+
     while script_dir != "/":
         env_path = os.path.join(script_dir, ".env")
         if os.path.exists(env_path):
@@ -20,6 +24,7 @@ def find_env_file():
         script_dir = os.path.dirname(script_dir)  # Remonte d'un niveau
 
     return None  # Aucun .env trouvé
+
 
 # Charger le bon .env
 env_file = find_env_file()
@@ -30,6 +35,7 @@ if env_file:
 def setup_logger(script_name: str, level=None):
     """
     Initialise un logger avec rotation journalière et support ENV.
+
     - ENV=dev  → DEBUG
     - ENV=prod → INFO (par défaut)
     """
@@ -38,7 +44,7 @@ def setup_logger(script_name: str, level=None):
         env_mode = os.getenv("ENV", "prod").lower()
         level = logging.DEBUG if env_mode == "dev" else logging.INFO
 
-    log_dir = os.getenv('LOG_DIR', './logs')
+    log_dir = os.getenv("LOG_DIR", "./logs")
     os.makedirs(log_dir, exist_ok=True)
 
     log_file = os.path.join(log_dir, f"{script_name}.log")
@@ -48,7 +54,9 @@ def setup_logger(script_name: str, level=None):
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(name)s] %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - [%(name)s] %(message)s"
+    )
 
     file_handler = TimedRotatingFileHandler(
         log_file, when="midnight", interval=1, backupCount=7, encoding="utf-8"
@@ -67,5 +75,7 @@ def setup_logger(script_name: str, level=None):
     logger.propagate = False
 
     logger.debug("🔍 Logger initialisé en mode DEBUG (env=dev)")
-    logger.info(f"✅ Logger actif pour {script_name}, niveau : {logging.getLevelName(level)}")
+    logger.info(
+        f"✅ Logger actif pour {script_name}, niveau : {logging.getLevelName(level)}"
+    )
     return logger

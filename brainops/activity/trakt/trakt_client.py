@@ -1,20 +1,24 @@
-import os
-import requests
 import json
+import os
 from pathlib import Path
+
+import requests
 
 API_URL = "https://api.trakt.tv"
 JSON_DIR = Path(os.getenv("JSON_DIR", "./json_dir"))
 
+
 class TraktClient:
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update({
-            "Content-Type": "application/json",
-            "User-Agent": "Trakt_JSON_Importer/1.0",
-            "trakt-api-key": os.getenv("API_KEY"),
-            "trakt-api-version": "2"
-        })
+        self.session.headers.update(
+            {
+                "Content-Type": "application/json",
+                "User-Agent": "Trakt_JSON_Importer/1.0",
+                "trakt-api-key": os.getenv("API_KEY"),
+                "trakt-api-version": "2",
+            }
+        )
 
     def refresh_access_token(self):
         print("🔄 Rafraîchissement du token...")
@@ -23,7 +27,7 @@ class TraktClient:
             "client_id": os.getenv("API_KEY"),
             "client_secret": os.getenv("API_SECRET"),
             "redirect_uri": os.getenv("REDIRECT_URI"),
-            "grant_type": "refresh_token"
+            "grant_type": "refresh_token",
         }
         r = requests.post(f"{API_URL}/oauth/token", json=data)
         r.raise_for_status()

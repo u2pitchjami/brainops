@@ -1,7 +1,9 @@
 import os
 import subprocess
 from datetime import datetime
+
 from dotenv import load_dotenv
+
 from brainops.logger_setup import setup_logger
 
 # Chargement des variables d'environnement
@@ -35,9 +37,13 @@ def backup_database():
         logger.info("Sauvegarde de la base en cours...")
         with open(backup_file, "wb") as f:
             dump_cmd = [
-                "docker", "run", "--rm",
-                "--network", NETWORK,
-                "--entrypoint", "mysqldump",
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                NETWORK,
+                "--entrypoint",
+                "mysqldump",
                 IMAGE_NAME,
                 f"-h{DB_CONFIG['host']}",
                 f"-P{DB_CONFIG['port']}",
@@ -51,13 +57,13 @@ def backup_database():
             proc_gzip.communicate()
 
         logger.info(f"Sauvegarde effectuée: {backup_file}")
-        
+
         result = subprocess.run(["gzip", "-t", backup_file], capture_output=True)
         if result.returncode == 0:
             logger.info("Archive gzip valide ✅")
         else:
             logger.error("Archive corrompue ❌")
-        
+
         with subprocess.Popen(["zcat", backup_file], stdout=subprocess.PIPE) as proc:
             head = [next(proc.stdout).decode("utf-8") for _ in range(20)]
         if any("CREATE TABLE" in line or "INSERT INTO" in line for line in head):
@@ -65,7 +71,6 @@ def backup_database():
         else:
             logger.error("Le dump semble vide ou incomplet ❌")
 
-        
     except Exception as e:
         logger.error(f"Erreur lors de la sauvegarde: {e}")
 

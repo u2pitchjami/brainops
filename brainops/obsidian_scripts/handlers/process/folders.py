@@ -1,19 +1,36 @@
 import logging
 import os
 from pathlib import Path
+
+from brainops.obsidian_scripts.handlers.sql.db_categs_utils import (
+    get_or_create_category,
+    get_or_create_subcategory,
+    remove_unused_category,
+)
+from brainops.obsidian_scripts.handlers.sql.db_folders import (
+    add_folder_to_db,
+    update_folder_in_db,
+)
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import (
+    get_folder_linked_data,
+)
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_folders_utils import (
+    get_category_context_from_folder,
+    get_folder_id,
+)
 from brainops.obsidian_scripts.handlers.utils.config import Z_STORAGE_PATH
-from brainops.obsidian_scripts.handlers.utils.paths import path_is_inside, get_relative_parts
-from brainops.obsidian_scripts.handlers.sql.db_folders import add_folder_to_db, update_folder_in_db
-from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_folder_linked_data
-from brainops.obsidian_scripts.handlers.sql.db_get_linked_folders_utils import get_category_context_from_folder, get_folder_id
-from brainops.obsidian_scripts.handlers.sql.db_categs_utils import remove_unused_category, get_or_create_category, get_or_create_subcategory
- 
+from brainops.obsidian_scripts.handlers.utils.paths import (
+    get_relative_parts,
+    path_is_inside,
+)
+
 logger = logging.getLogger("obsidian_notes." + __name__)
 
 
 def add_folder(folder_path: str | Path, folder_type: str) -> int | None:
     """
     Prépare un dossier pour l'ajout en base :
+
     - déduit parent_id, category_id, subcategory_id
     - appelle insert_folder_db()
     """
@@ -25,18 +42,22 @@ def add_folder(folder_path: str | Path, folder_type: str) -> int | None:
     parent_path = "/".join(folder_path.split("/")[:-1]) if "/" in folder_path else None
     parent_id = get_folder_id(parent_path) if parent_path else None
     logger.debug("[DEBUG] parent_id : %s ,parent_path : %s", parent_id, parent_path)
-    base_storage = os.getenv("Z_STORAGE_PATH", "")
-    
+
     folder_type_inferred = folder_type
-    category, subcategory, archive, category_id, subcategory_id = None, None, None, None, None
+    category, subcategory, archive, category_id, subcategory_id = (
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
 
     if path_is_inside(Z_STORAGE_PATH, folder_path):
         logger.debug("[DEBUG] passage path_inside")
         relative_parts = get_relative_parts(folder_path, Z_STORAGE_PATH)
         if not relative_parts:
             return None
-        
-               
+
         if len(relative_parts) == 1:
             category = relative_parts[0]
         elif len(relative_parts) == 2:
@@ -58,13 +79,13 @@ def add_folder(folder_path: str | Path, folder_type: str) -> int | None:
         folder_type=folder_type_inferred,
         parent_id=parent_id,
         category_id=category_id,
-        subcategory_id=subcategory_id
+        subcategory_id=subcategory_id,
     )
+
 
 def update_folder(old_path: str | Path, new_path: str | Path) -> None:
     """
-    Met à jour un dossier : nouveau chemin, nouvelles catégories,
-    et nettoyage des anciennes si inutilisées.
+    Met à jour un dossier : nouveau chemin, nouvelles catégories, et nettoyage des anciennes si inutilisées.
     """
     folder = get_folder_linked_data(old_path, "folder")
     if "error" in folder:
@@ -74,11 +95,20 @@ def update_folder(old_path: str | Path, new_path: str | Path) -> None:
     folder_id = folder["id"]
     old_cat_id = folder.get("category_id")
     old_subcat_id = folder.get("subcategory_id")
-    category_name, subcategory_name, category_id, subcategory_id = None, None, None, None
+    category_name, subcategory_name, category_id, subcategory_id = (
+        None,
+        None,
+        None,
+        None,
+    )
 
-    category_id, subcategory_id, category_name, subcategory_name = get_category_context_from_folder(new_path)
+    category_id, subcategory_id, category_name, subcategory_name = (
+        get_category_context_from_folder(new_path)
+    )
 
-    logger.info(f"[FOLDER] Mise à jour dossier ID {folder_id} : categ={category_name}, subcateg={subcategory_name}")
+    logger.info(
+        f"[FOLDER] Mise à jour dossier ID {folder_id} : categ={category_name}, subcateg={subcategory_name}"
+    )
 
     update_folder_in_db(folder_id, new_path, category_id, subcategory_id)
 

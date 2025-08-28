@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 import json
-import mysql.connector
 from datetime import datetime
 from pathlib import Path
+
+import mysql.connector
 
 # --- CONFIG ---
 DB_CONFIG = {
     "host": "localhost",
     "user": "ton_user",
     "password": "ton_mdp",
-    "database": "brainops_db"
+    "database": "brainops_db",
 }
+
 
 # --- DB ---
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
+
 
 def insert_watched(cursor, entry, type_):
     if type_ == "movie":
@@ -41,7 +44,8 @@ def insert_watched(cursor, entry, type_):
     rating = entry.get("rating")  # déjà fusionné plus bas
     last_updated = datetime.now()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO trakt_watched
         (type, title, prod_date, episode_title, num_season, num_episode,
          imdb_id, tmdb_id, watched_date, rating, last_updated)
@@ -50,10 +54,22 @@ def insert_watched(cursor, entry, type_):
             rating=VALUES(rating),
             watched_date=VALUES(watched_date),
             last_updated=VALUES(last_updated);
-    """, (
-        type_, title, prod_date, episode_title, num_season, num_episode,
-        imdb_id, tmdb_id, watched_date, rating, last_updated
-    ))
+    """,
+        (
+            type_,
+            title,
+            prod_date,
+            episode_title,
+            num_season,
+            num_episode,
+            imdb_id,
+            tmdb_id,
+            watched_date,
+            rating,
+            last_updated,
+        ),
+    )
+
 
 def load_and_merge(history_file, ratings_file, type_):
     """Charge un historique et fusionne avec les notes"""
@@ -83,6 +99,7 @@ def load_and_merge(history_file, ratings_file, type_):
             h["rating"] = None
     return history
 
+
 def main():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -91,7 +108,7 @@ def main():
     movies = load_and_merge(
         "/chemin/vers/USERNAME-history_movies.json",
         "/chemin/vers/USERNAME-ratings_movies.json",
-        "movie"
+        "movie",
     )
     for entry in movies:
         insert_watched(cursor, entry, "movie")
@@ -100,7 +117,7 @@ def main():
     shows = load_and_merge(
         "/chemin/vers/USERNAME-history_shows.json",
         "/chemin/vers/USERNAME-ratings_episodes.json",
-        "show"
+        "show",
     )
     for entry in shows:
         insert_watched(cursor, entry, "show")
@@ -109,6 +126,7 @@ def main():
     cursor.close()
     conn.close()
     print("✅ Import JSON → MariaDB terminé")
+
 
 if __name__ == "__main__":
     main()

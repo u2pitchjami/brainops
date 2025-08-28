@@ -1,9 +1,19 @@
 import logging
 import time
+
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import (
+    extract_yaml_header,
+)
+from brainops.obsidian_scripts.handlers.header.header_utils import (
+    merge_yaml_header,
+    patch_yaml_line,
+)
+from brainops.obsidian_scripts.handlers.utils.files import (
+    hash_file_content,
+    read_note_content,
+    safe_write,
+)
 from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_yaml_title
-from brainops.obsidian_scripts.handlers.utils.files import safe_write, hash_file_content, read_note_content
-from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header
-from brainops.obsidian_scripts.handlers.header.header_utils import patch_yaml_line, merge_yaml_header
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
@@ -22,28 +32,30 @@ def test_title(file_path) -> None:
             new_content = f"{corrected_yaml_text}\n{body}"
             success = safe_write(file_path, new_content)
             if not success:
-                logger.error(f"[main] Problème lors de l’écriture sécurisée de {file_path}")
+                logger.error(
+                    f"[main] Problème lors de l’écriture sécurisée de {file_path}"
+                )
             logger.info(f"[INFO] Titre corrigé dans : {file_path}")
 
     except Exception as e:
         logger.error(f"❌ [ERREUR] Erreur dans test_title : {e}")
 
-     
+
 def ensure_status_in_yaml(file_path: str, status: str = "draft") -> None:
     """
     Vérifie et insère ou met à jour le champ 'note_id' dans le YAML d'un fichier Markdown.
     - Ne modifie rien si le note_id est déjà correct.
     - Gère proprement l'ajout et la mise à jour du frontmatter.
     """
-    
+
     content = read_note_content(file_path)
-    
-    
+
     new_content = merge_yaml_header(content, {"status": status})
 
-        
     if content == new_content:
-        logger.debug("🔄 [DEBUG] Le fichier %s est déjà à jour, pas d'écriture", file_path)
+        logger.debug(
+            "🔄 [DEBUG] Le fichier %s est déjà à jour, pas d'écriture", file_path
+        )
         return
 
     logger.debug("💾 [DEBUG] Écriture du fichier %s (status mis à jour)", file_path)
@@ -60,7 +72,10 @@ def ensure_status_in_yaml(file_path: str, status: str = "draft") -> None:
     post_sleep_hash = hash_file_content(file_path)
 
     if post_write_hash != post_sleep_hash:
-        logger.critical("⚠️ Contenu du fichier modifié entre écriture et vérification : %s", file_path)
+        logger.critical(
+            "⚠️ Contenu du fichier modifié entre écriture et vérification : %s",
+            file_path,
+        )
         logger.debug("Hash écrit : %s", post_write_hash)
         logger.debug("Hash 1s après : %s", post_sleep_hash)
     else:

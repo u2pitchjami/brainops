@@ -1,25 +1,38 @@
-from brainops.logger_setup import setup_logger
 import logging
 import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import (
+    extract_note_metadata,
+)
+from brainops.obsidian_scripts.handlers.header.header_utils import hash_source
+from brainops.obsidian_scripts.handlers.process.folders import add_folder
 from brainops.obsidian_scripts.handlers.sql.db_connection import get_db_connection
 from brainops.obsidian_scripts.handlers.sql.db_utils import safe_execute
-from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_note_metadata
-from brainops.obsidian_scripts.handlers.header.header_utils import hash_source
-from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_created, sanitize_yaml_title
-from brainops.obsidian_scripts.handlers.utils.files import hash_file_content, count_words
+from brainops.obsidian_scripts.handlers.start.process_folder_event import (
+    detect_folder_type,
+)
 from brainops.obsidian_scripts.handlers.utils.divers import lang_detect
-from brainops.obsidian_scripts.handlers.process.folders import add_folder
-from brainops.obsidian_scripts.handlers.start.process_folder_event import detect_folder_type
+from brainops.obsidian_scripts.handlers.utils.files import (
+    count_words,
+    hash_file_content,
+)
+from brainops.obsidian_scripts.handlers.utils.normalization import (
+    sanitize_created,
+    sanitize_yaml_title,
+)
 
-#setup_logger("db_add_notes", logging.DEBUG)
+# setup_logger("db_add_notes", logging.DEBUG)
 logger = logging.getLogger("db_add_notes")
 
+
 def add_note_to_db(file_path):
-    """Ajoute ou met à jour une note dans la base MySQL"""
+    """
+    Ajoute ou met à jour une note dans la base MySQL.
+    """
     logger.debug("[DEBUG] ===== Entrée add_note_to_db")
-    
+
     lang = None
     content_hash = None
     created = None
@@ -29,8 +42,8 @@ def add_note_to_db(file_path):
     note_id = None
     category = None
     subcategory = None
-    category_id = None
-    subcategory_id = None
+    # category_id = None
+    # subcategory_id = None
     summary = None
     source = None
     author = None
@@ -54,12 +67,12 @@ def add_note_to_db(file_path):
     category = metadata.get("category", None)
     subcategory = metadata.get("sub category", None)
     status = metadata.get("status", "draft")
-    tags = metadata.get("tags", [])
+    # tags = metadata.get("tags", [])
     created = metadata.get("created")
     logger.debug("[DEBUG] created %s : %s", created, type(created))
     created = sanitize_created(metadata.get("created"))
     logger.debug("[DEBUG] created %s", created)
-    modified_at = metadata.get("last_modified", datetime.now().strftime('%Y-%m-%d'))
+    modified_at = metadata.get("last_modified", datetime.now().strftime("%Y-%m-%d"))
     summary = metadata.get("summary", None)
     source = metadata.get("source", None)
     author = metadata.get("author", None)
@@ -67,28 +80,32 @@ def add_note_to_db(file_path):
     logger.debug(f"[DEBUG] word_count = {word_count}")
     if source:
         source_hash = hash_source(source)
-    
+
     # 🔹 Dossier parent
     folder_path = str(Path(file_path).parent)
-    folder_result = safe_execute(cursor, "SELECT id FROM obsidian_folders WHERE path = %s", (folder_path,)).fetchone()
+    folder_result = safe_execute(
+        cursor, "SELECT id FROM obsidian_folders WHERE path = %s", (folder_path,)
+    ).fetchone()
     folder_id = folder_result[0] if folder_result else None
     if not folder_id:
-        logger.warning(f"[WARNING] Dossier non trouvé pour {folder_path}, ajout en base")
+        logger.warning(
+            f"[WARNING] Dossier non trouvé pour {folder_path}, ajout en base"
+        )
         logger
         folder_type = detect_folder_type(folder_path)
         folder_id = add_folder(folder_path, folder_type)
         return folder_id
 
-
     # 🔹 Insertion / Mise à jour
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO obsidian_notes (
-            title, file_path, folder_id, category_id, subcategory_id, 
+            title, file_path, folder_id, category_id, subcategory_id,
             status, created_at, modified_at,
             summary, source, author, project, word_count, content_hash, source_hash, lang
         )
         VALUES (
-            %s, %s, %s, 
+            %s, %s, %s,
             (SELECT id FROM obsidian_categories WHERE name = %s LIMIT 1),
             (SELECT id FROM obsidian_categories WHERE name = %s LIMIT 1),
             %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
@@ -104,16 +121,30 @@ def add_note_to_db(file_path):
             author = VALUES(author),
             project = VALUES(project),
             word_count = VALUES(word_count)
-                        """, (
-        title, str(file_path), folder_id, category, subcategory,
-        status, created, modified_at,
-        summary, source, author, project, word_count, content_hash, source_hash, lang
-    ))
+                        """,
+        (
+            title,
+            str(file_path),
+            folder_id,
+            category,
+            subcategory,
+            status,
+            created,
+            modified_at,
+            summary,
+            source,
+            author,
+            project,
+            word_count,
+            content_hash,
+            source_hash,
+            lang,
+        ),
+    )
 
     note_id = cursor.lastrowid
     logger.debug(f"[DEBUG] add_note_to_db note_id = {note_id}")
-    
-    
+
     # # 🔹 MàJ des tags
     # if note_id:
     #     cursor.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
@@ -122,11 +153,14 @@ def add_note_to_db(file_path):
 
     conn.commit()
     conn.close()
-    
+
     return note_id
 
+
 def delete_note_from_db(file_path):
-    """Supprime une note et ses tags associés de MySQL."""
+    """
+    Supprime une note et ses tags associés de MySQL.
+    """
     logger.debug("delete_note_from_db")
     conn = get_db_connection()
     if not conn:
@@ -135,16 +169,26 @@ def delete_note_from_db(file_path):
 
     try:
         # 🔍 Trouver le `note_id`, `parent_id` et `status` AVANT suppression
-        result = safe_execute(cursor, "SELECT id, parent_id, status FROM obsidian_notes WHERE file_path = %s", (file_path,)).fetchone()
-        
+        result = safe_execute(
+            cursor,
+            "SELECT id, parent_id, status FROM obsidian_notes WHERE file_path = %s",
+            (file_path,),
+        ).fetchone()
+
         if not result:
-            logger.warning(f"⚠️ [WARNING] Aucune note trouvée pour {file_path}, suppression annulée")
+            logger.warning(
+                f"⚠️ [WARNING] Aucune note trouvée pour {file_path}, suppression annulée"
+            )
             return
 
         note_id, parent_id, status = result
-        logger.debug(f"🔍 [DEBUG] Note {note_id} (status={status}) liée à parent {parent_id}")
+        logger.debug(
+            f"🔍 [DEBUG] Note {note_id} (status={status}) liée à parent {parent_id}"
+        )
         # 🔥 Supprimer les temp_blocks associés AVANT la note
-        cursor.execute("DELETE FROM obsidian_temp_blocks WHERE note_path = %s", (file_path,))
+        cursor.execute(
+            "DELETE FROM obsidian_temp_blocks WHERE note_path = %s", (file_path,)
+        )
         logger.info(f"🏷️ [INFO] Blocks supprimés pour la note {note_id}")
 
         # 🔥 Supprimer les tags associés AVANT la note
@@ -155,8 +199,12 @@ def delete_note_from_db(file_path):
         if status == "synthesis" and parent_id:
             try:
                 # 1. Récupération du chemin du fichier à supprimer
-                result = safe_execute(cursor, "SELECT file_path FROM obsidian_notes WHERE id = %s", (parent_id,)).fetchone()
-                
+                result = safe_execute(
+                    cursor,
+                    "SELECT file_path FROM obsidian_notes WHERE id = %s",
+                    (parent_id,),
+                ).fetchone()
+
                 if result:
                     file_path = result[0]
                     if os.path.isfile(file_path):
@@ -165,10 +213,14 @@ def delete_note_from_db(file_path):
                     else:
                         logger.warning(f"⚠️ [FILE] Fichier introuvable : {file_path}")
                 else:
-                    logger.warning(f"⚠️ [DB] Aucun chemin de fichier trouvé pour ID {parent_id}")
+                    logger.warning(
+                        f"⚠️ [DB] Aucun chemin de fichier trouvé pour ID {parent_id}"
+                    )
 
             except Exception as e:
-                logger.error(f"❌ [ERROR] Échec de suppression du fichier associé à {parent_id} : {e}")
+                logger.error(
+                    f"❌ [ERROR] Échec de suppression du fichier associé à {parent_id} : {e}"
+                )
 
             # 2. Suppression dans la base de données
             logger.info(f"🗑️ [INFO] Suppression de l'archive associée : {parent_id}")
@@ -178,8 +230,12 @@ def delete_note_from_db(file_path):
 
         # 🔥 Cas 2 : Suppression d'une `archive` → Met `parent_id = NULL` dans la `synthesis` (si parent existe)
         elif status == "archive" and parent_id:
-            logger.info(f"🔄 [INFO] Dissociation de la `synthesis` {parent_id} (plus d'archive liée)")
-            cursor.execute("UPDATE obsidian_notes SET parent_id = NULL WHERE id = %s", (parent_id,))
+            logger.info(
+                f"🔄 [INFO] Dissociation de la `synthesis` {parent_id} (plus d'archive liée)"
+            )
+            cursor.execute(
+                "UPDATE obsidian_notes SET parent_id = NULL WHERE id = %s", (parent_id,)
+            )
 
         # 🔥 Suppression de la note actuelle en base
         cursor.execute("DELETE FROM obsidian_notes WHERE id = %s", (note_id,))
@@ -187,7 +243,9 @@ def delete_note_from_db(file_path):
         logger.info(f"🗑️ [INFO] Note {note_id} supprimée avec succès")
 
     except Exception as e:
-        logger.error(f"❌ [ERROR] Erreur lors de la suppression de la note {file_path} : {e}")
+        logger.error(
+            f"❌ [ERROR] Erreur lors de la suppression de la note {file_path} : {e}"
+        )
         conn.rollback()
     finally:
         cursor.close()

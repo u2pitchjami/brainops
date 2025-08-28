@@ -1,24 +1,27 @@
-import os
-import sys
 import json
+import os
 import subprocess
-import mysql.connector
 from datetime import datetime
+
+import mysql.connector
 import pytz
 from dotenv import load_dotenv
+
+from brainops.logger_setup import setup_logger
 
 # Chemin dynamique basé sur le script en cours
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 # Charger le fichier .env
 load_dotenv(env_path)
-from brainops.logger_setup import setup_logger
-PARIS_TZ = pytz.timezone('Europe/Paris')
+
+
+PARIS_TZ = pytz.timezone("Europe/Paris")
 
 logger = setup_logger("imports_vm")
 
 # Nouveau chemin des JSON
-JSON_DIR = os.getenv('JSON_DIR')
+JSON_DIR = os.getenv("JSON_DIR")
 os.makedirs(JSON_DIR, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
 # Génération du nom de fichier avec la date
@@ -28,32 +31,47 @@ JSON_FILE = os.path.join(JSON_DIR, f"activity_{TODAY}.json")
 # Paramètres de suivi
 WATCHED_DIRS = ["/home/pipo/bin/", "/home/pipo/dev/", "/home/pipo/docker/"]
 MONITORING_PERIOD = 10
-USER = os.getenv('USER')
-TRACKING_FILE = os.getenv('TRACKING_FILE')
+USER = os.getenv("USER")
+TRACKING_FILE = os.getenv("TRACKING_FILE")
 IGNORED_PROCESSES = {"ps", "grep", "migration", "watchdog", "idle"}
 EXCLUDED_PATTERNS = [".git", ".log", ".tmp", "__pycache__"]
 
+
 def get_recent_file_changes():
-    """Récupère les fichiers modifiés récemment en excluant les fichiers cachés et non pertinents."""
+    """
+    Récupère les fichiers modifiés récemment en excluant les fichiers cachés et non pertinents.
+    """
     try:
         recent_files = []
 
         # Construire la commande avec exclusions
-        exclude_cmd = " ".join([f"! -path '*/{pattern}/*'" for pattern in EXCLUDED_PATTERNS])
-        command = f'find {" ".join(WATCHED_DIRS)} -type f -mmin -{MONITORING_PERIOD} {exclude_cmd} -printf "%p | %TY-%Tm-%Td %TH:%TM:%TS\\n"'
-        
+        exclude_cmd = " ".join(
+            [f"! -path '*/{pattern}/*'" for pattern in EXCLUDED_PATTERNS]
+        )
+        command = f'find {" ".join(WATCHED_DIRS)} -type f \
+            -mmin -{MONITORING_PERIOD} {exclude_cmd} -printf "%p | %TY-%Tm-%Td %TH:%TM:%TS\\n"'
+
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
         files = result.stdout.strip().split("\n")
-        recent_files.extend([{"file": f.split(" | ")[0], "timestamp": f.split(" | ")[1]} for f in files if " | " in f])
+        recent_files.extend(
+            [
+                {"file": f.split(" | ")[0], "timestamp": f.split(" | ")[1]}
+                for f in files
+                if " | " in f
+            ]
+        )
 
         return recent_files
     except Exception as e:
         logger.error(f"❌ Erreur récupération fichiers modifiés : {e}")
         return []
 
+
 def get_active_processes():
-    """Récupère uniquement les processus interactifs de l'utilisateur."""
+    """
+    Récupère uniquement les processus interactifs de l'utilisateur.
+    """
     try:
         command = f'ps -u {USER} -o tty,comm | grep "pts"'
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -80,14 +98,16 @@ def get_active_processes():
 
 
 def track_persistent_processes(process_list):
-    """Suit les processus en cours et ne garde que ceux ouverts depuis >15 min."""
+    """
+    Suit les processus en cours et ne garde que ceux ouverts depuis >15 min.
+    """
     try:
         if not process_list:
             logger.info("🔍 Aucun processus utilisateur actif.")
             return []
 
         if os.path.exists(TRACKING_FILE):
-            with open(TRACKING_FILE, "r", encoding="utf-8") as f:
+            with open(TRACKING_FILE, encoding="utf-8") as f:
                 content = f.read()
                 if not content.strip():
                     history = {}
@@ -112,7 +132,8 @@ def track_persistent_processes(process_list):
         persistent_processes = [
             {"process": p, "start_time": updated_history[p]}
             for p in updated_history
-            if (now - datetime.fromisoformat(updated_history[p])).total_seconds() / 60 > 15
+            if (now - datetime.fromisoformat(updated_history[p])).total_seconds() / 60
+            > 15
         ]
 
         return persistent_processes
@@ -124,13 +145,16 @@ def track_persistent_processes(process_list):
 
     return []
 
+
 def save_json(data):
-    """Ajoute les nouvelles données au fichier JSON au lieu de l'écraser."""
+    """
+    Ajoute les nouvelles données au fichier JSON au lieu de l'écraser.
+    """
     json_file = f"{JSON_DIR}activity_{datetime.now().strftime('%Y-%m-%d')}.json"
 
     # Charger l'ancien contenu s'il existe
     if os.path.exists(json_file):
-        with open(json_file, "r", encoding="utf-8") as f:
+        with open(json_file, encoding="utf-8") as f:
             try:
                 existing_data = json.load(f)
                 if isinstance(existing_data, list):
@@ -148,43 +172,74 @@ def save_json(data):
 
     logger.info(f"✅ Données ajoutées dans {json_file}")
 
+
 def insert_data_into_db(data):
-    """Insère les données dans MariaDB en évitant les doublons intelligemment."""
+    """
+    Insère les données dans MariaDB en évitant les doublons intelligemment.
+    """
     DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
-}
+        "host": os.getenv("DB_HOST"),
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASSWORD"),
+        "database": os.getenv("DB_NAME"),
+    }
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         check_query = """
-        SELECT COUNT(*) FROM activity_vm 
+        SELECT COUNT(*) FROM activity_vm
         WHERE hostname = %s AND record_timestamp = %s AND (modified_file_path = %s OR process_name = %s)
         """
 
         insert_query = """
-        INSERT INTO activity_vm 
+        INSERT INTO activity_vm
         (hostname, record_timestamp, process_name, process_start_time, modified_file_path, modified_file_timestamp)
         VALUES (%s, %s, %s, %s, %s, %s)
         """
 
-        record_timestamp = datetime.fromisoformat(data["timestamp"]).replace(tzinfo=None)
+        record_timestamp = datetime.fromisoformat(data["timestamp"]).replace(
+            tzinfo=None
+        )
         hostname = data["hostname"]
         process_list = data.get("persistent_apps", [])
         modified_files = data.get("modified_files", [])
 
         for file in modified_files:
-            cursor.execute(check_query, (hostname, record_timestamp, file["file"], None))
+            cursor.execute(
+                check_query, (hostname, record_timestamp, file["file"], None)
+            )
             if cursor.fetchone()[0] == 0:  # Si aucune ligne existante
-                cursor.execute(insert_query, (hostname, record_timestamp, None, None, file["file"], datetime.fromisoformat(file["timestamp"]).replace(tzinfo=None)))
+                cursor.execute(
+                    insert_query,
+                    (
+                        hostname,
+                        record_timestamp,
+                        None,
+                        None,
+                        file["file"],
+                        datetime.fromisoformat(file["timestamp"]).replace(tzinfo=None),
+                    ),
+                )
 
         for process in process_list:
-            cursor.execute(check_query, (hostname, record_timestamp, None, process["process"]))
+            cursor.execute(
+                check_query, (hostname, record_timestamp, None, process["process"])
+            )
             if cursor.fetchone()[0] == 0:  # Si aucune ligne existante
-                cursor.execute(insert_query, (hostname, record_timestamp, process["process"], datetime.fromisoformat(process["start_time"]).replace(tzinfo=None), None, None))
+                cursor.execute(
+                    insert_query,
+                    (
+                        hostname,
+                        record_timestamp,
+                        process["process"],
+                        datetime.fromisoformat(process["start_time"]).replace(
+                            tzinfo=None
+                        ),
+                        None,
+                        None,
+                    ),
+                )
 
         conn.commit()
         cursor.close()
@@ -194,10 +249,15 @@ def insert_data_into_db(data):
     except Exception as e:
         logger.error(f"❌ Erreur lors de l'insertion en base MariaDB : {e}")
 
+
 def cleanup_old_json():
-    """Supprime les fichiers JSON de plus de 15 jours."""
+    """
+    Supprime les fichiers JSON de plus de 15 jours.
+    """
     try:
-        threshold = datetime.now(PARIS_TZ).timestamp() - (15 * 86400)  # 15 jours en secondes
+        threshold = datetime.now(PARIS_TZ).timestamp() - (
+            15 * 86400
+        )  # 15 jours en secondes
         for filename in os.listdir(JSON_DIR):
             file_path = os.path.join(JSON_DIR, filename)
             if os.path.isfile(file_path) and filename.startswith("activity_"):
@@ -221,7 +281,7 @@ if __name__ == "__main__":
         "hostname": os.uname().nodename,
         "timestamp": datetime.now(PARIS_TZ).isoformat(),
         "persistent_apps": persistent_processes,
-        "modified_files": recent_files
+        "modified_files": recent_files,
     }
 
     if persistent_processes or recent_files:
@@ -232,4 +292,3 @@ if __name__ == "__main__":
         logger.info("⚠️ Aucune activité détectée.")
 
     logger.info("✅ Fin du script.")
-

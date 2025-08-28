@@ -1,8 +1,9 @@
-import os
-import logging
-import mysql.connector
 import csv
+import logging
+import os
 from datetime import datetime
+
+import mysql.connector
 from dotenv import load_dotenv
 
 # === Chargement des variables d'environnement ===
@@ -10,20 +11,25 @@ load_dotenv()
 BASE_PATH = os.getenv("BASE_PATH")
 LOG_DIR = os.getenv("LOG_DIR", ".")
 
+
 # === Connexion DB ===
 def get_db_connection():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME"),
     )
 
+
 # === Setup logging ===
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("coherence_checker")
 
 errors = []
+
 
 # === Vérification des dossiers ===
 def check_folders(conn) -> None:
@@ -37,9 +43,13 @@ def check_folders(conn) -> None:
             full_path = os.path.join(root, d)
             physical_dirs.add(os.path.abspath(full_path))
 
-    cursor.execute("SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
+    cursor.execute(
+        "SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders"
+    )
     db_folders = cursor.fetchall()
-    db_paths = set(os.path.abspath(os.path.join(BASE_PATH, row['path'])) for row in db_folders)
+    db_paths = set(
+        os.path.abspath(os.path.join(BASE_PATH, row["path"])) for row in db_folders
+    )
 
     missing_in_db = physical_dirs - db_paths
     ghost_in_db = db_paths - physical_dirs
@@ -53,12 +63,12 @@ def check_folders(conn) -> None:
         logger.info(f"  - {path}")
 
     cursor.execute("SELECT id FROM obsidian_categories")
-    categories = set(row['id'] for row in cursor.fetchall())
+    categories = set(row["id"] for row in cursor.fetchall())
 
     for folder in db_folders:
-        ftype = folder['folder_type']
-        cat_id = folder['category_id']
-        subcat_id = folder['subcategory_id']
+        ftype = folder["folder_type"]
+        cat_id = folder["category_id"]
+        subcat_id = folder["subcategory_id"]
 
         if ftype in ("archive", "storage") and cat_id is None:
             msg = f"{folder['path']} ({ftype}) devrait avoir une category_id"
@@ -85,7 +95,7 @@ def check_notes(conn) -> None:
 
     notes_missing_file = []
     for note in notes:
-        fpath = os.path.abspath(note['file_path'])
+        fpath = os.path.abspath(note["file_path"])
         if not os.path.isfile(fpath):
             notes_missing_file.append(fpath)
             errors.append(["note_missing_file", fpath])
@@ -98,7 +108,7 @@ def check_notes(conn) -> None:
             if f.endswith(".md"):
                 all_md_files.add(os.path.abspath(os.path.join(root, f)))
 
-    db_note_paths = set(os.path.abspath(note['file_path']) for note in notes)
+    db_note_paths = set(os.path.abspath(note["file_path"]) for note in notes)
     md_files_missing_in_db = all_md_files - db_note_paths
 
     for f in sorted(md_files_missing_in_db):
@@ -110,11 +120,13 @@ def check_notes(conn) -> None:
 def check_tags(conn) -> None:
     logger.info("\n🏷️  Vérification des tags...")
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT t.note_id FROM obsidian_tags t
         LEFT JOIN obsidian_notes n ON t.note_id = n.id
         WHERE n.id IS NULL
-    """)
+    """
+    )
     rows = cursor.fetchall()
     for (note_id,) in rows:
         errors.append(["tag_orphan", note_id])

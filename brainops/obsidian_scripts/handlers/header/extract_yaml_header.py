@@ -1,20 +1,29 @@
 """
 Ce module extrait les en-têtes YAML des fichiers de notes Obsidian.
 """
-from brainops.obsidian_scripts.handlers.utils.files import read_note_content, maybe_clean
-from brainops.obsidian_scripts.handlers.header.header_utils import get_yaml, get_yaml_value
+
 import logging
 
+from brainops.obsidian_scripts.handlers.header.header_utils import (
+    get_yaml,
+    get_yaml_value,
+)
+from brainops.obsidian_scripts.handlers.utils.files import (
+    maybe_clean,
+    read_note_content,
+)
+
 logger = logging.getLogger("obsidian_notes." + __name__)
+
 
 def extract_yaml_header(filepath: str, clean: bool = True) -> tuple[list[str], str]:
     """
     Extrait l'entête YAML d'un texte s'il existe.
-    
+
     Args:
         text (str): Le texte à analyser.
         clean=True → nettoie automatiquement le corps
-    
+
     Returns:
         tuple: (header_lines, content_lines)
             - header_lines : Liste contenant les lignes de l'entête YAML.
@@ -23,32 +32,34 @@ def extract_yaml_header(filepath: str, clean: bool = True) -> tuple[list[str], s
     logger.debug("[DEBUG] entrée extract_yaml_header")
     content = read_note_content(filepath)
     lines = content.strip().splitlines()
-    
+
     header_lines = []
     content_lines = []
 
     if lines and lines[0].strip() == "---":
         try:
             logger.debug("[DEBUG] extract_yaml_header line 0 : ---")
-            yaml_end = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
-            header_lines = lines[:yaml_end + 1]
-            content_lines = lines[yaml_end + 1:]
+            yaml_end = next(
+                i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"
+            )
+            header_lines = lines[: yaml_end + 1]
+            content_lines = lines[yaml_end + 1 :]
         except StopIteration:
             logger.warning("[WARN] En-tête YAML ouvert mais jamais fermé.")
             content_lines = lines  # On ne touche pas
     else:
         content_lines = lines
-        
+
     if clean:
         content_lines = maybe_clean("\n".join(content_lines))
     else:
-        content_lines = "\n".join(content_lines)   
-    
-    
+        content_lines = "\n".join(content_lines)
+
     logger.debug("[DEBUG] extract_yaml_header header : %s ", repr(header_lines))
     logger.debug("[DEBUG] extract_yaml_header content : %s ", content_lines[:500])
     # Rejoindre content_lines pour retourner une chaîne
     return header_lines, content_lines
+
 
 def extract_metadata(filepath: str, key: str | None = None) -> dict:
     """
@@ -57,14 +68,17 @@ def extract_metadata(filepath: str, key: str | None = None) -> dict:
     try:
         content = read_note_content(filepath)
         logger.debug(f"[DEBUG] extract_metadata : {content[:500]}")
-        
+
         metadata = get_yaml(content) if not key else get_yaml_value(content, key)
-        
+
         return metadata or {}
 
     except Exception as e:
-        logger.error(f"[ERREUR] Impossible de lire l'entête du fichier {filepath} : {e}")
+        logger.error(
+            f"[ERREUR] Impossible de lire l'entête du fichier {filepath} : {e}"
+        )
         return {}
+
 
 def extract_note_metadata(filepath: str, old_metadata: dict | None = None) -> dict:
     """
@@ -90,13 +104,17 @@ def extract_note_metadata(filepath: str, old_metadata: dict | None = None) -> di
         "created": None,
         "last_modified": None,
         "project": None,
-        "note_id": None
+        "note_id": None,
     }
 
     # 🔥 Fusion avec `old_metadata` et application des valeurs par défaut
     if old_metadata:
-        default_values.update(old_metadata)  # 🔄 Priorité aux anciennes valeurs si existantes
-    default_values.update({k: v for k, v in metadata.items() if v})  # 🔄 Ajout des nouvelles valeurs si elles existent
+        default_values.update(
+            old_metadata
+        )  # 🔄 Priorité aux anciennes valeurs si existantes
+    default_values.update(
+        {k: v for k, v in metadata.items() if v}
+    )  # 🔄 Ajout des nouvelles valeurs si elles existent
 
     logger.debug(f"[DEBUG] Métadonnées finales : {default_values}")
     return default_values

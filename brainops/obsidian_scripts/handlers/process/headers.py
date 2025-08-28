@@ -1,41 +1,72 @@
 """
-    fonctions en lien avec l'entête
-    """
-from datetime import datetime
+Fonctions en lien avec l'entête.
+"""
+
 import logging
+from datetime import datetime
 from pathlib import Path
-from brainops.obsidian_scripts.handlers.header.get_tags_and_summary import get_tags_from_ollama, get_summary_from_ollama
-from brainops.obsidian_scripts.handlers.sql.db_update_notes import update_obsidian_note, update_obsidian_tags
-from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import get_note_linked_data
-from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import get_category_and_subcategory_names, get_synthesis_metadata, get_note_tags
-from brainops.obsidian_scripts.handlers.utils.files import count_words, safe_write, read_note_content
-from brainops.obsidian_scripts.handlers.header.extract_yaml_header import extract_yaml_header, extract_metadata
-from brainops.obsidian_scripts.handlers.utils.normalization import sanitize_created, sanitize_yaml_title
-from brainops.obsidian_scripts.handlers.header.header_utils import clean_yaml_spacing_in_file
+
+from brainops.obsidian_scripts.handlers.header.extract_yaml_header import (
+    extract_metadata,
+    extract_yaml_header,
+)
+from brainops.obsidian_scripts.handlers.header.get_tags_and_summary import (
+    get_summary_from_ollama,
+    get_tags_from_ollama,
+)
+from brainops.obsidian_scripts.handlers.header.header_utils import (
+    clean_yaml_spacing_in_file,
+)
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_data import (
+    get_note_linked_data,
+)
+from brainops.obsidian_scripts.handlers.sql.db_get_linked_notes_utils import (
+    get_category_and_subcategory_names,
+    get_note_tags,
+    get_synthesis_metadata,
+)
+from brainops.obsidian_scripts.handlers.sql.db_update_notes import (
+    update_obsidian_note,
+    update_obsidian_tags,
+)
+from brainops.obsidian_scripts.handlers.utils.files import (
+    count_words,
+    read_note_content,
+    safe_write,
+)
+from brainops.obsidian_scripts.handlers.utils.normalization import (
+    sanitize_created,
+    sanitize_yaml_title,
+)
 
 logger = logging.getLogger("obsidian_notes." + __name__)
 
+
 # Fonction pour ajouter ou mettre à jour les tags, résumés et commandes dans le front matter YAML
-def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None, synthesis_id=None):
+def add_metadata_to_yaml(
+    note_id, filepath, tags=None, summary=None, status=None, synthesis_id=None
+):
     """
     Ajoute ou met à jour l'entête YAML d'un fichier Markdown.
     """
 
     try:
         logger.debug("[DEBUG] add_yaml : démarrage pour %s", filepath)
-        logger.debug(f"[DEBUG] synthesis_id : {synthesis_id}")     
+        logger.debug(f"[DEBUG] synthesis_id : {synthesis_id}")
         # 🔥 Extraction rapide des métadonnées entête
         metadata = extract_metadata(filepath)
         title_yaml = metadata.get("title", Path(filepath).stem)
         source_yaml = metadata.get("source", "")
         logger.debug(f"[DEBUG] source_yaml : {source_yaml}")
-        author_yaml = metadata.get("author", "ChatGPT" if "ChatGPT" in title_yaml else "")
+        author_yaml = metadata.get(
+            "author", "ChatGPT" if "ChatGPT" in title_yaml else ""
+        )
         project_yaml = metadata.get("project", "")
         created = metadata.get("created", "")
         created_yaml = sanitize_created(created)
-        category_yaml = metadata.get("category", None)
-        subcategory_yaml = metadata.get("sub category", None)
-        
+        # category_yaml = metadata.get("category", None)
+        # subcategory_yaml = metadata.get("sub category", None)
+
         # 🔥 Extraction rapide des métadonnées table obsidian_notes
         data = get_note_linked_data(note_id, "note")
         logger.debug(f"[DEBUG] data : {data}")
@@ -53,15 +84,26 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
 
         tags = tags or get_note_tags(note_id) or metadata.get("tags", [])
         tags = tags if isinstance(tags, list) else []
- 
-        logger.debug(f"[DEBUG] category_id, subcategory_id {category_id}, {subcategory_id}")
+
+        logger.debug(
+            f"[DEBUG] category_id, subcategory_id {category_id}, {subcategory_id}"
+        )
         category, subcategory = get_category_and_subcategory_names(note_id)
         logger.debug(f"[DEBUG] category, subcategory {category}, {subcategory}")
-        
-        if synthesis_id:
-            logger.debug(f"[SYNC] Archive liée à la synthesis {synthesis_id}, synchronisation des métadonnées")
 
-            title_syn, source_syn, author_syn, created_syn, category_id_syn, sub_category_id_syn = get_synthesis_metadata(synthesis_id)
+        if synthesis_id:
+            logger.debug(
+                f"[SYNC] Archive liée à la synthesis {synthesis_id}, synchronisation des métadonnées"
+            )
+
+            (
+                title_syn,
+                source_syn,
+                author_syn,
+                created_syn,
+                category_id_syn,
+                sub_category_id_syn,
+            ) = get_synthesis_metadata(synthesis_id)
             logger.debug(f"[DEBUG] author_syn : {author_syn}")
             title = title_syn or title
             source_yaml = source_syn or source_yaml
@@ -71,15 +113,22 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
         # 🔥 Suppression de l'ancienne entête YAML
         content = read_note_content(filepath)
         lines = content.splitlines(True)  # conserve les sauts de ligne
-        
+
         yaml_start, yaml_end = -1, -1
         if lines and lines[0].strip() == "---":
             yaml_start = 0
-            yaml_end = next((i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"), -1)
+            yaml_end = next(
+                (
+                    i
+                    for i, line in enumerate(lines[1:], start=1)
+                    if line.strip() == "---"
+                ),
+                -1,
+            )
 
         if yaml_start != -1 and yaml_end != -1:
             logger.debug("[DEBUG] Suppression de l'ancienne entête YAML")
-            lines = lines[yaml_end + 1:]  # Supprime l'entête YAML existante
+            lines = lines[yaml_end + 1 :]  # Supprime l'entête YAML existante
 
         # 🔥 Création de la nouvelle entête YAML
         yaml_block = [
@@ -95,29 +144,31 @@ def add_metadata_to_yaml(note_id, filepath, tags=None, summary=None, status=None
             f"author: {author}\n",
             f"status: {status}\n",
             f"project: {project}\n",
-            "---\n\n"
+            "---\n\n",
         ]
 
         # 🔥 Sauvegarde sécurisée dans un fichier temporaire
         success = safe_write(filepath, content=yaml_block + lines)
         if not success:
             logger.error(f"[main] Problème lors de l’écriture sécurisée de {filepath}")
-       
-        clean_yaml_spacing_in_file(filepath)
-        logger.info("[INFO] Génération de l'entête terminée avec succès pour %s", filepath)
 
-    except FileNotFoundError as e:
+        clean_yaml_spacing_in_file(filepath)
+        logger.info(
+            "[INFO] Génération de l'entête terminée avec succès pour %s", filepath
+        )
+
+    except FileNotFoundError:
         logger.error("Erreur : fichier non trouvé %s", filepath)
     except Exception as e:
         logger.error("[ERREUR] Problème lors de l'ajout du YAML : %s", e, exc_info=True)
+
 
 def make_properties(filepath, note_id, status):
     """
     Génère les entêtes et met à jour les métadonnées.
     """
     logger.debug("[DEBUG] make_pro : Entrée de la fonction")
-    
-    
+
     # Extraction de l'entête YAML
     _, content_lines = extract_yaml_header(filepath)
     content = content_lines
@@ -128,8 +179,8 @@ def make_properties(filepath, note_id, status):
     summary = get_summary_from_ollama(content, note_id)
 
     updates = {
-    'status': status,    # Récupéré via make_properties
-    'summary': summary   # Récupéré via make_properties
+        "status": status,  # Récupéré via make_properties
+        "summary": summary,  # Récupéré via make_properties
     }
     update_obsidian_note(note_id, updates)
     update_obsidian_tags(note_id, tags)
@@ -139,29 +190,36 @@ def make_properties(filepath, note_id, status):
 
     nombre_mots_actuels = count_words(filepath=filepath)
     logger.debug("[DEBUG] make_pro : Recalcul du nombre de mots")
-  
+
     logger.debug("[DEBUG] make_pro : Écriture réussie et fichier mis à jour")
-    updates = {
-    'word_count': nombre_mots_actuels
-    }
+    updates = {"word_count": nombre_mots_actuels}
     update_obsidian_note(note_id, updates)
+
 
 def check_type_header(filepath):
     """
-    récupération du type synthèse ou archive.
+    Récupération du type synthèse ou archive.
     """
     try:
         logger.debug("[DEBUG] check_type démarrage fonction")
-        with open(filepath, "r", encoding="utf-8") as file:
+        with open(filepath, encoding="utf-8") as file:
             lines = file.readlines()
         # Vérification de l'entête YAML
         yaml_start, yaml_end = -1, -1
         if lines[0].strip() == "---":
             yaml_start = 0
-            yaml_end = next((i for i, line in enumerate(lines[1:], start=1)
-                             if line.strip() == "---"), -1)
+            yaml_end = next(
+                (
+                    i
+                    for i, line in enumerate(lines[1:], start=1)
+                    if line.strip() == "---"
+                ),
+                -1,
+            )
             if yaml_end != -1:
-                logger.debug("[DEBUG] add_yaml : entête détectée %s à %s", yaml_start, yaml_end)
+                logger.debug(
+                    "[DEBUG] add_yaml : entête détectée %s à %s", yaml_start, yaml_end
+                )
                 yaml_header = lines[1:yaml_end]
                 # Récupérer les données existantes
                 for line in yaml_header:
@@ -169,13 +227,17 @@ def check_type_header(filepath):
                         note_type = line.split(":", 1)[1].strip()
                         return note_type
     except FileNotFoundError as e:
-        logger.error("Erreur lors du traitement de l'entête YAML pour %s : %s",filepath, e)
+        logger.error(
+            "Erreur lors du traitement de l'entête YAML pour %s : %s", filepath, e
+        )
     return None
+
 
 # Fonction pour lire l'entête d'un fichier et récupérer category/subcategory
 def extract_category_and_subcategory(filepath):
     """
-    Lit l'entête d'un fichier pour extraire la catégorie et la sous-catégorie.
+    Lit l'entête d'un fichier pour extraire la catégorie et la sous- catégorie.
+
     On suppose que les lignes sont au format :
     category: valeur
     subcategory: valeur
@@ -183,7 +245,7 @@ def extract_category_and_subcategory(filepath):
     category = None
     subcategory = None
     try:
-        with open(filepath, 'r', encoding="utf-8") as file:
+        with open(filepath, encoding="utf-8") as file:
             for line in file:
                 if line.startswith("category:"):
                     category = line.split(":")[1].strip()
@@ -191,6 +253,7 @@ def extract_category_and_subcategory(filepath):
                     subcategory = line.split(":")[1].strip()
             return category, subcategory
     except FileNotFoundError as e:
-        logger.error("[ERREUR] Impossible de lire l'entête du fichier %s : %s",filepath, e)
+        logger.error(
+            "[ERREUR] Impossible de lire l'entête du fichier %s : %s", filepath, e
+        )
         return None, None
-

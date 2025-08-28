@@ -1,18 +1,21 @@
-import os
 import json
-import mysql.connector
-from pathlib import Path
+import os
 from datetime import datetime
+from pathlib import Path
+
+import mysql.connector
 
 JSON_DIR = Path(os.getenv("JSON_DIR"))
+
 
 def get_db_connection():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME"),
     )
+
 
 def insert_watched(cursor, entry, type_):
     if type_ == "movie":
@@ -39,7 +42,8 @@ def insert_watched(cursor, entry, type_):
     rating = entry.get("rating")
     last_updated = datetime.now()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO trakt_watched
         (type, title, prod_date, episode_title, num_season, num_episode,
          imdb_id, tmdb_id, watched_date, rating, last_updated)
@@ -48,15 +52,26 @@ def insert_watched(cursor, entry, type_):
             rating=VALUES(rating),
             watched_date=VALUES(watched_date),
             last_updated=VALUES(last_updated);
-    """, (
-        type_, title, prod_date, episode_title, num_season, num_episode,
-        imdb_id, tmdb_id, watched_date, rating, last_updated
-    ))
+    """,
+        (
+            type_,
+            title,
+            prod_date,
+            episode_title,
+            num_season,
+            num_episode,
+            imdb_id,
+            tmdb_id,
+            watched_date,
+            rating,
+            last_updated,
+        ),
+    )
+
 
 def load_and_merge(history_path, ratings_path, type_):
     """
-    Fusionne un JSON d'historique et un JSON de notes pour produire
-    une liste d'entrées enrichies.
+    Fusionne un JSON d'historique et un JSON de notes pour produire une liste d'entrées enrichies.
 
     :param history_path: Path du fichier JSON d'historique
     :param ratings_path: Path du fichier JSON des notes
@@ -74,12 +89,17 @@ def load_and_merge(history_path, ratings_path, type_):
     ratings_map = {}
     if type_ == "movie":
         ratings_map = {
-            r["movie"]["ids"].get("tmdb") or r["movie"]["ids"].get("imdb"): r.get("rating")
+            r["movie"]["ids"].get("tmdb")
+            or r["movie"]["ids"].get("imdb"): r.get("rating")
             for r in ratings
         }
     elif type_ == "show":
         ratings_map = {
-            (r["show"]["ids"].get("tmdb"), r["episode"]["season"], r["episode"]["number"]): r.get("rating")
+            (
+                r["show"]["ids"].get("tmdb"),
+                r["episode"]["season"],
+                r["episode"]["number"],
+            ): r.get("rating")
             for r in ratings
         }
 
@@ -96,8 +116,6 @@ def load_and_merge(history_path, ratings_path, type_):
             entry["rating"] = ratings_map.get(key)
     return history
 
-from datetime import datetime
-import json
 
 def parse_trakt_date(date_str):
     if not date_str:
@@ -107,11 +125,15 @@ def parse_trakt_date(date_str):
     except ValueError:
         return None
 
+
 def insert_entry(cursor, entry, entry_type):
-    """Insère ou met à jour une entrée dans la table trakt_watched_test"""
+    """
+    Insère ou met à jour une entrée dans la table trakt_watched_test.
+    """
     if entry_type == "movie":
         watched_date = parse_trakt_date(entry.get("watched_at"))
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO trakt_watched_test
             (type, title, prod_date, episode_title, num_season, num_episode,
              imdb_id, tmdb_id, watched_date, rating, last_updated)
@@ -120,20 +142,25 @@ def insert_entry(cursor, entry, entry_type):
                 rating=VALUES(rating),
                 watched_date=VALUES(watched_date),
                 last_updated=NOW();
-        """, (
-            "movie",
-            entry["movie"]["title"],
-            entry["movie"]["year"],
-            None, None, None,
-            entry["movie"]["ids"].get("imdb"),
-            entry["movie"]["ids"].get("tmdb"),
-            watched_date,
-            entry.get("rating"),
-        ))
+        """,
+            (
+                "movie",
+                entry["movie"]["title"],
+                entry["movie"]["year"],
+                None,
+                None,
+                None,
+                entry["movie"]["ids"].get("imdb"),
+                entry["movie"]["ids"].get("tmdb"),
+                watched_date,
+                entry.get("rating"),
+            ),
+        )
 
     elif entry_type == "show":
         watched_date = parse_trakt_date(entry.get("watched_at"))
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO trakt_watched_test
             (type, title, prod_date, episode_title, num_season, num_episode,
              imdb_id, tmdb_id, watched_date, rating, last_updated)
@@ -142,18 +169,20 @@ def insert_entry(cursor, entry, entry_type):
                 rating=VALUES(rating),
                 watched_date=VALUES(watched_date),
                 last_updated=NOW();
-        """, (
-            "show",
-            entry["show"]["title"],
-            entry["show"]["year"],
-            entry["episode"]["title"],
-            entry["episode"]["season"],
-            entry["episode"]["number"],
-            entry["show"]["ids"].get("imdb"),
-            entry["show"]["ids"].get("tmdb"),
-            watched_date,
-            entry.get("rating"),
-        ))
+        """,
+            (
+                "show",
+                entry["show"]["title"],
+                entry["show"]["year"],
+                entry["episode"]["title"],
+                entry["episode"]["season"],
+                entry["episode"]["number"],
+                entry["show"]["ids"].get("imdb"),
+                entry["show"]["ids"].get("tmdb"),
+                watched_date,
+                entry.get("rating"),
+            ),
+        )
 
     return cursor.rowcount  # 1 = insert, 2 = update
 
@@ -167,15 +196,18 @@ def import_all(mode="normal", debug=False):
 
     # --- Movies
     movies = load_and_merge(
-        JSON_DIR / "history_movies.json",
-        JSON_DIR / "ratings_movies.json",
-        "movie"
+        JSON_DIR / "history_movies.json", JSON_DIR / "ratings_movies.json", "movie"
     )
 
     if mode == "complet":
-        ratings_movies = json.loads((JSON_DIR / "ratings_movies.json").read_text()) if (JSON_DIR / "ratings_movies.json").exists() else []
+        ratings_movies = (
+            json.loads((JSON_DIR / "ratings_movies.json").read_text())
+            if (JSON_DIR / "ratings_movies.json").exists()
+            else []
+        )
         ratings_map = {
-            r["movie"]["ids"].get("tmdb") or r["movie"]["ids"].get("imdb"): r.get("rating")
+            r["movie"]["ids"].get("tmdb")
+            or r["movie"]["ids"].get("imdb"): r.get("rating")
             for r in ratings_movies
         }
         watched_movies = json.loads((JSON_DIR / "watched_movies.json").read_text())
@@ -184,7 +216,7 @@ def import_all(mode="normal", debug=False):
             entry = {
                 "watched_at": wm.get("last_watched_at"),
                 "rating": ratings_map.get(tmdb_id),
-                "movie": wm["movie"]
+                "movie": wm["movie"],
             }
             movies.append(entry)
 
@@ -195,13 +227,13 @@ def import_all(mode="normal", debug=False):
         elif rowcount == 2:
             updated_movies += 1
         if debug:
-            print(f"🎬 {entry['movie']['title']} → {'Ajouté' if rowcount == 1 else 'Mis à jour'}")
+            print(
+                f"🎬 {entry['movie']['title']} → {'Ajouté' if rowcount == 1 else 'Mis à jour'}"
+            )
 
     # --- Shows
     shows = load_and_merge(
-        JSON_DIR / "history_shows.json",
-        JSON_DIR / "ratings_episodes.json",
-        "show"
+        JSON_DIR / "history_shows.json", JSON_DIR / "ratings_episodes.json", "show"
     )
 
     for entry in shows:
@@ -211,7 +243,10 @@ def import_all(mode="normal", debug=False):
         elif rowcount == 2:
             updated_shows += 1
         if debug:
-            print(f"📺 {entry['show']['title']} S{entry['episode']['season']}E{entry['episode']['number']} → {'Ajouté' if rowcount == 1 else 'Mis à jour'}")
+            print(
+                f"📺 {entry['show']['title']} S{entry['episode']['season']}E{entry['episode']['number']}\
+                    → {'Ajouté' if rowcount == 1 else 'Mis à jour'}"
+            )
 
     conn.commit()
     cursor.close()
@@ -220,5 +255,6 @@ def import_all(mode="normal", debug=False):
     print("✅ Import JSON → MariaDB terminé")
     print(f"🎬 Movies : {inserted_movies} ajoutés / {updated_movies} mis à jour")
     print(f"📺 Shows : {inserted_shows} ajoutés / {updated_shows} mis à jour")
-    print(f"📊 Total : {inserted_movies + inserted_shows} ajoutés / {updated_movies + updated_shows} mis à jour")
-
+    print(
+        f"📊 Total : {inserted_movies + inserted_shows} ajoutés / {updated_movies + updated_shows} mis à jour"
+    )

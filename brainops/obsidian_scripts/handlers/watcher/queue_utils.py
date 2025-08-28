@@ -1,8 +1,9 @@
 import logging
-import time
 import threading
+import time
 
 logger = logging.getLogger("obsidian_notes." + __name__)
+
 
 def get_lock_key(note_id, file_path) -> str:
     """
@@ -22,11 +23,11 @@ class PendingNoteLockManager:
 
     Chaque clé est horodatée à l'acquisition pour permettre une purge automatique.
     """
-    
+
     def __init__(self):
         self._locks = {}  # stocke key: timestamp
         self._lock = threading.Lock()  # protège l'accès concurrent
-        
+
     def acquire(self, key: str) -> bool:
         """
         Tente de poser un verrou sur la clé donnée.
@@ -71,7 +72,7 @@ class PendingNoteLockManager:
         """
         with self._lock:
             return len(self._locks)
-    
+
     def get_all_locks(self) -> dict:
         """
         Retourne une copie des locks actifs avec leurs timestamps.

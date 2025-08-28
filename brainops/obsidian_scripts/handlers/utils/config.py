@@ -85,13 +85,14 @@ def get_int(key: str, default: int = 0) -> int:
         print(f"[CONFIG ERROR] La variable {key} doit être un entier.")
         sys.exit(1)
 
-BASE_PATH = get_required('BASE_PATH')
-BASE_SCRIPT = get_required('BASE_SCRIPT')
+
+BASE_PATH = get_required("BASE_PATH")
+BASE_SCRIPT = get_required("BASE_SCRIPT")
 UNCATEGORIZED_PATH = get_required("UNCATEGORIZED_PATH")
 IMPORTS_PATH = get_required("IMPORTS_PATH")
 Z_STORAGE_PATH = get_required("Z_STORAGE_PATH")
-SAV_PATH = get_required('SAV_PATH')
-PROJECT_PATH = get_required('PROJECT_PATH')
+SAV_PATH = get_required("SAV_PATH")
+PROJECT_PATH = get_required("PROJECT_PATH")
 DUPLICATES_PATH = get_required("DUPLICATES_PATH")
 GPT_IMPORT_DIR = get_required("GPT_IMPORT_DIR")
 GPT_OUTPUT_DIR = get_required("GPT_OUTPUT_DIR")
