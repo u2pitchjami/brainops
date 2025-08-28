@@ -1,26 +1,9 @@
-.env
-.config.cfg
-json/
-*.json
-obsidian_scripts/handlers/utils/note_paths.json.lock
-activity/machines/extract_2_centraldb/config.env
-orga/extract_gpt.py
-orga/generate_obsidian_journal_from_blocks.py
-orga/generate_obsidian_journal_note.py
-unused/
-obsidian_scripts/find_unused_imports.py
-obsidian_scripts/generate_module_docs.py
-
-.envrc
-*/__*
-.coverage
-*.audit-logs
-.pytest_cache
-z_old/
-tools/fix_imports.py
 
 # Python
-__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -54,3 +37,8 @@ dist/
 # Jupyter / Dev
 .ipynb_checkpoints/
 *.ipynb
+
+# custom
+.envrc
+config.env
+*.cfg
