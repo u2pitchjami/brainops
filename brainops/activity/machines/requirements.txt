@@ -1,2 +1,0 @@
-mysql_connector_python==9.2.0
-garminconnect==0.2.25
