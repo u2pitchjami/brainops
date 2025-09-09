@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any
 
 
 class FolderType(str, Enum):
@@ -33,13 +34,13 @@ class Folder:
         subcategory_id: FK sous-catégorie (ou None).
     """
 
-    id: Optional[int] = None
+    id: int | None = None
     name: str
     path: str
     folder_type: FolderType
-    parent_id: Optional[int] = None
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
+    parent_id: int | None = None
+    category_id: int | None = None
+    subcategory_id: int | None = None
 
     def __post_init__(self) -> None:
         """# Normalise le chemin en absolu POSIX"""
@@ -52,7 +53,7 @@ class Folder:
     # --- Helpers pratiques -----------------------------------------------------
 
     @property
-    def parent_path(self) -> Optional[str]:
+    def parent_path(self) -> str | None:
         """Chemin absolu POSIX du parent, ou None si racine."""
         p = Path(self.path)
         par = p.parent
@@ -60,7 +61,7 @@ class Folder:
 
     def to_upsert_params(
         self,
-    ) -> Tuple[str, str, str, Optional[int], Optional[int], Optional[int]]:
+    ) -> tuple[str, str, str, int | None, int | None, int | None]:
         """
         Paramètres prêts pour un INSERT ... ON DUPLICATE KEY UPDATE.
         Ordre: name, path, folder_type, parent_id, category_id, subcategory_id
@@ -74,7 +75,7 @@ class Folder:
             self.subcategory_id,
         )
 
-    def with_new_path(self, new_path: str) -> "Folder":
+    def with_new_path(self, new_path: str) -> Folder:
         """
         Retourne une nouvelle instance avec un nouveau chemin (et name mis à jour).
         parent_id/category/subcategory doivent être recalculés par le service.
@@ -91,7 +92,7 @@ class Folder:
         )
 
     @classmethod
-    def from_row(cls, row: Mapping[str, Any]) -> "Folder":
+    def from_row(cls, row: Mapping[str, Any]) -> Folder:
         """
         Construit depuis un DictCursor (row['id'], ...).
         """
@@ -100,15 +101,7 @@ class Folder:
             name=str(row["name"]),
             path=str(row["path"]),
             folder_type=FolderType(str(row["folder_type"])),
-            parent_id=(
-                int(row["parent_id"]) if row.get("parent_id") is not None else None
-            ),
-            category_id=(
-                int(row["category_id"]) if row.get("category_id") is not None else None
-            ),
-            subcategory_id=(
-                int(row["subcategory_id"])
-                if row.get("subcategory_id") is not None
-                else None
-            ),
+            parent_id=(int(row["parent_id"]) if row.get("parent_id") is not None else None),
+            category_id=(int(row["category_id"]) if row.get("category_id") is not None else None),
+            subcategory_id=(int(row["subcategory_id"]) if row.get("subcategory_id") is not None else None),
         )

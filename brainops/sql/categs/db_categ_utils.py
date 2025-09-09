@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -12,7 +10,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def categ_extract(
     base_folder: str, *, logger: LoggerProtocol | None = None
-) -> Tuple[Optional[str], Optional[str], Optional[int], Optional[int]]:
+) -> tuple[str | None, str | None, int | None, int | None]:
     """
     Retourne (category_name, subcategory_name, category_id, subcategory_id) pour un dossier.
     Utilise des curseurs bufferisés pour éviter 'Unread result found'.
@@ -36,8 +34,8 @@ def categ_extract(
             logger.warning("[CATEG] Aucun dossier trouvé pour: %s", base_folder)
             return None, None, None, None
 
-        category_id: Optional[int] = int(row[0]) if row[0] is not None else None
-        subcategory_id: Optional[int] = int(row[1]) if row[1] is not None else None
+        category_id: int | None = int(row[0]) if row[0] is not None else None
+        subcategory_id: int | None = int(row[1]) if row[1] is not None else None
         logger.debug(
             "[CATEG] Dossier: %s | cat_id=%s | subcat_id=%s",
             base_folder,
@@ -46,8 +44,8 @@ def categ_extract(
         )
 
         # 2) Résout les noms (séparément, curseur bufferisé)
-        category_name: Optional[str] = None
-        subcategory_name: Optional[str] = None
+        category_name: str | None = None
+        subcategory_name: str | None = None
 
         with conn.cursor(buffered=True) as cur:
             if category_id is not None:
@@ -58,9 +56,7 @@ def categ_extract(
                     logger=logger,
                 ).fetchone()
                 category_name = str(r[0]) if r else None
-                logger.debug(
-                    "[CATEG] Catégorie trouvée: %s (id=%s)", category_name, category_id
-                )
+                logger.debug("[CATEG] Catégorie trouvée: %s (id=%s)", category_name, category_id)
 
             if subcategory_id is not None:
                 r = safe_execute(
@@ -85,10 +81,10 @@ def categ_extract(
 @with_child_logger
 def get_prompt_name(
     category: str,
-    subcategory: Optional[str] = None,
+    subcategory: str | None = None,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[str]:
+) -> str | None:
     """
     Retourne `prompt_name` en priorité depuis la sous-catégorie, sinon depuis la catégorie.
     """
@@ -142,12 +138,10 @@ def generate_classification_dictionary(*, logger: LoggerProtocol | None = None) 
         return ""
     try:
         with conn.cursor(dictionary=True) as cur:
-            cur.execute(
-                "SELECT id, name, description FROM obsidian_categories WHERE parent_id IS NULL"
-            )
+            cur.execute("SELECT id, name, description FROM obsidian_categories WHERE parent_id IS NULL")
             categories = cur.fetchall()
 
-            lines: List[str] = ["Classification Dictionary:"]
+            lines: list[str] = ["Classification Dictionary:"]
             for cat in categories:
                 description = cat["description"] or "No description available."
                 lines.append(f'- "{cat["name"]}": {description}')
@@ -185,14 +179,14 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
             )
             results = cur.fetchall()
 
-        groups: Dict[str, List[str]] = {}
+        groups: dict[str, list[str]] = {}
         for row in results:
             groups.setdefault(row["category_name"], []).append(row["subcategory_name"])
 
         if not groups:
             return ""
 
-        lines: List[str] = ["Optional Subcategories:"]
+        lines: list[str] = ["Optional Subcategories:"]
         for cat, subs in groups.items():
             lines.append(f'- "{cat}": {", ".join(sorted(subs))}')
         return "\n".join(lines)
@@ -211,9 +205,7 @@ def generate_categ_dictionary(*, logger: LoggerProtocol | None = None) -> str:
         return ""
     try:
         with conn.cursor(dictionary=True) as cur:
-            cur.execute(
-                "SELECT name, description FROM obsidian_categories WHERE parent_id IS NULL"
-            )
+            cur.execute("SELECT name, description FROM obsidian_categories WHERE parent_id IS NULL")
             categories = cur.fetchall()
         lines = ["Categ Dictionary:"]
         for cat in categories:
@@ -269,9 +261,7 @@ def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -
 
 
 @with_child_logger
-def get_or_create_subcategory(
-    name: str, parent_id: int, *, logger: LoggerProtocol | None = None
-) -> int:
+def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtocol | None = None) -> int:
     """
     get_or_create_subcategory _summary_
 
@@ -313,9 +303,7 @@ def get_or_create_subcategory(
 
 
 @with_child_logger
-def remove_unused_category(
-    category_id: int, *, logger: LoggerProtocol | None = None
-) -> bool:
+def remove_unused_category(category_id: int, *, logger: LoggerProtocol | None = None) -> bool:
     """
     Supprime une catégorie si plus utilisée dans `obsidian_folders`
     (category_id ou subcategory_id). Retourne True si supprimée.
@@ -342,9 +330,7 @@ def remove_unused_category(
                 conn.commit()
                 logger.info("[CLEAN] Catégorie supprimée (id=%s)", category_id)
                 return True
-            logger.debug(
-                "[CLEAN] Catégorie conservée (id=%s) encore référencée", category_id
-            )
+            logger.debug("[CLEAN] Catégorie conservée (id=%s) encore référencée", category_id)
             return False
     finally:
         conn.close()

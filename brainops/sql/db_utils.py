@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Protocol, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -12,7 +13,7 @@ class CursorProtocol(Protocol):
 
     def nextset(
         self,
-    ) -> Optional[bool]:  # True s'il reste un jeu de résultats, sinon None/False
+    ) -> bool | None:  # True s'il reste un jeu de résultats, sinon None/False
         """
         nextset _summary_
 
@@ -23,9 +24,7 @@ class CursorProtocol(Protocol):
         """
         ...
 
-    def execute(
-        self, operation: str, params: Optional[Sequence[Any] | Mapping[str, Any]] = ...
-    ) -> None:
+    def execute(self, operation: str, params: Sequence[Any] | Mapping[str, Any] | None = ...) -> None:
         """
         execute _summary_
 
@@ -50,7 +49,7 @@ def flush_cursor(cursor: CursorProtocol, logger: LoggerProtocol | None = None) -
     try:
         while cursor.nextset():
             pass
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # On ignore volontairement : certains drivers lèvent quand il n'y a rien à nettoyer.
         logger.debug("flush_cursor: ignore exception while draining cursor: %s", exc)
 
@@ -59,7 +58,7 @@ def flush_cursor(cursor: CursorProtocol, logger: LoggerProtocol | None = None) -
 def safe_execute(
     cursor: CursorProtocol,
     query: str,
-    params: Optional[Sequence[Any] | Mapping[str, Any]] = None,
+    params: Sequence[Any] | Mapping[str, Any] | None = None,
     logger: LoggerProtocol | None = None,
 ) -> CursorProtocol:
     """

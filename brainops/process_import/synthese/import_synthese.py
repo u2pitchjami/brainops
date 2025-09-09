@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.header.headers import make_properties
@@ -52,13 +51,9 @@ def process_import_syntheses(
         else:
             archive_path = get_file_path(parent_id, logger=logger)
             if not archive_path:
-                logger.error(
-                    "[ERROR] archive_path introuvable pour parent_id=%s", parent_id
-                )
+                logger.error("[ERROR] archive_path introuvable pour parent_id=%s", parent_id)
                 return
-            final_response = make_embeddings_synthesis(
-                note_id, archive_path, logger=logger
-            )
+            final_response = make_embeddings_synthesis(note_id, archive_path, logger=logger)
 
         if not final_response:
             logger.error("[ERROR] ❌ final_response None: abandon synthèse.")
@@ -88,7 +83,7 @@ def process_import_syntheses(
             logger.error("[ERROR] ❌ Génération des questions.")
         logger.info("[SYNTH] 👌 Questions OK : (id=%s)", note_id)
 
-        translate_synth: Optional[str] = None
+        translate_synth: str | None = None
         note_lang = get_note_lang(note_id, logger=logger)
         if note_lang and note_lang != "fr":
             logger.debug("[DEBUG] Traduction synthèse (lang=%s → fr)…", note_lang)
@@ -119,9 +114,7 @@ def process_import_syntheses(
 
 
 @with_child_logger
-def make_translate(
-    filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def make_translate(filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None) -> str | None:
     """
     make_translate _summary_
 
@@ -152,9 +145,9 @@ def make_translate(
 def make_questions(
     filepath: str | Path,
     note_id: int,
-    content: Optional[str],
+    content: str | None,
     logger: LoggerProtocol | None = None,
-) -> Optional[str]:
+) -> str | None:
     """
     make_questions _summary_
 
@@ -184,9 +177,7 @@ def make_questions(
 
 
 @with_child_logger
-def make_glossary(
-    filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None
-) -> str:
+def make_glossary(filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None) -> str:
     """
     make_glossary _summary_
 
@@ -236,11 +227,11 @@ def make_syntheses(
     filepath: str | Path,
     note_id: int,
     original_path: str,
-    translate_synth: Optional[str] = None,
-    glossary: Optional[str] = None,
-    questions: Optional[str] = None,
-    header_lines: Optional[list[str]] = None,
-    content_lines: Optional[str] = None,
+    translate_synth: str | None = None,
+    glossary: str | None = None,
+    questions: str | None = None,
+    header_lines: list[str] | None = None,
+    content_lines: str | None = None,
     logger: LoggerProtocol | None = None,
 ) -> None:
     """
@@ -293,7 +284,7 @@ def make_syntheses(
         logger.exception("[ERREUR] make_syntheses(%s) : %s", path, exc)
 
 
-def format_optional_block(title: str, content: Optional[str]) -> str:
+def format_optional_block(title: str, content: str | None) -> str:
     """
     Ajoute un titre markdown si le contenu est présent et non vide.
     """

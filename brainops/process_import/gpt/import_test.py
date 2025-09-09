@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import re
 import shutil
-from pathlib import Path
-from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.process_import.utils.large_note import process_large_note
@@ -16,9 +15,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def process_class_imports_test(
-    filepath: str | Path, note_id: int, *, logger: Optional[LoggerProtocol] = None
-) -> None:
+def process_class_imports_test(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
     """
     Duplique un fichier source dans un répertoire de tests, applique plusieurs
     passes (reformulations/synthèses), puis assemble la dernière sortie avec le YAML existant.
@@ -105,9 +102,7 @@ def process_class_imports_test(
 
             body_content = response.strip()
             final_content = join_yaml_and_body(header_lines, body_content)
-            logger.debug(
-                "[DEBUG] Contenu final généré (%s) : %s", dst3.name, final_content[:800]
-            )
+            logger.debug("[DEBUG] Contenu final généré (%s) : %s", dst3.name, final_content[:800])
 
             ok = safe_write(dst3.as_posix(), content=final_content, logger=logger)
             if not ok:

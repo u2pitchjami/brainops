@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.process_folders.folders import add_folder
 from brainops.process_import.utils.paths import build_archive_path, ensure_folder_exists
@@ -15,8 +14,8 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 @with_child_logger
 def link_synthesis_and_archive(
-    original_path: Path, synthese_id: int, *, logger: Optional[LoggerProtocol] = None
-) -> Optional[int]:
+    original_path: Path, synthese_id: int, *, logger: LoggerProtocol | None = None
+) -> int | None:
     """
     Crée une note 'archive' depuis original_path et associe parent_id dans les deux sens.
     Retourne l'ID de l'archive créée (ou None).
@@ -32,9 +31,7 @@ def link_synthesis_and_archive(
         update_obsidian_note(archive_id, {"parent_id": synthese_id}, logger=logger)
         update_obsidian_note(synthese_id, {"parent_id": archive_id}, logger=logger)
 
-        logger.info(
-            "[LINK] Liens posés : archive %s ⇄ synthèse %s", archive_id, synthese_id
-        )
+        logger.info("[LINK] Liens posés : archive %s ⇄ synthèse %s", archive_id, synthese_id)
         return archive_id
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[LINK] Erreur lors de la liaison archive/synthèse : %s", exc)
@@ -42,9 +39,7 @@ def link_synthesis_and_archive(
 
 
 @with_child_logger
-def copy_to_archive(
-    original_path: str | Path, note_id: int, *, logger: Optional[LoggerProtocol] = None
-) -> Path:
+def copy_to_archive(original_path: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> Path:
     """
     Copie le fichier vers son sous-dossier 'Archives', crée la note archivée en base,
     et relie archive ↔ synthèse via parent_id. Retourne le Path de l'archive.
@@ -58,9 +53,7 @@ def copy_to_archive(
 
     archive_path = build_archive_path(src)
     ensure_folder_exists(archive_path.parent, logger=logger)
-    add_folder(
-        Path(archive_path.parent).as_posix(), folder_type_hint="archive", logger=logger
-    )
+    add_folder(Path(archive_path.parent).as_posix(), folder_type_hint="archive", logger=logger)
 
     try:
         # Copie vers Archives

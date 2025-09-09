@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from queue import Queue
-from typing import Literal, NotRequired, Optional, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 from brainops.header.yaml_read import test_title
 from brainops.process_folders.process_folder_event import process_folder_event
@@ -57,11 +57,12 @@ class Event(TypedDict, total=True):
     path: str
     # Clés optionnelles selon action/type
     src_path: NotRequired[str]
-    note_id: NotRequired[Optional[int]]
+    note_id: NotRequired[int | None]
+    new_path: NotRequired[str]  # legacy (si jamais encore utilisé)
 
 
 # File d’attente unique et lock manager
-event_queue: "Queue[Event]" = Queue()
+event_queue: Queue[Event] = Queue()
 lock_mgr = PendingNoteLockManager()
 
 
@@ -72,12 +73,10 @@ def enqueue_event(event: Event) -> None:
     - Si le lock existe déjà, l'événement est ignoré (dé-bounce de travail).
     """
     if event["type"] == "file":
-        file_path: str = event.get("path")  # always present (TypedDict total)
-        src_path: Optional[str] = event.get("src_path")
+        file_path: str = event["path"]  # always present (TypedDict total)
+        src_path: str | None = event.get("src_path")
 
-        note_id: Optional[int] = file_path_exists_in_db(
-            file_path, src_path, logger=logger
-        )
+        note_id: int | None = file_path_exists_in_db(file_path, src_path, logger=logger)
         event["note_id"] = note_id  # enrichit l’événement
 
         key = get_lock_key(note_id, file_path)
@@ -96,17 +95,17 @@ def process_queue() -> None:
     """
     log_event_queue()
     while True:
-        event: Optional[Event] = None
-        file_path: Optional[str] = None
-        src_path: Optional[str] = None
-        note_id: Optional[int] = None
+        event: Event | None = None
+        file_path: str | None = None
+        src_path: str | None = None
+        note_id: int | None = None
         locked: bool = False
 
         try:
             event = event_queue.get()
 
             logger.debug("[DEBUG] ===== PROCESS QUEUE EVENT RECUP : %s", event)
-            file_path = event.get("path")
+            file_path = event["path"]
             src_path = event.get("src_path")
             note_id = event.get("note_id")  # peut être déjà renseigné par enqueue_event
 
@@ -116,25 +115,19 @@ def process_queue() -> None:
             # Fichiers: attendre la présence (sauf 'deleted')
             if etype == "file":
                 if action != "deleted":
-                    if not wait_for_file(file_path, logger=logger):  # type: ignore[arg-type]
+                    if not wait_for_file(file_path, logger=logger):
                         logger.warning("⚠️ Fichier introuvable, skip : %s", file_path)
                         continue  # passe à l'événement suivant
 
                 # Assure un note_id si absent
                 if note_id is None:
-                    note_id = file_path_exists_in_db(file_path, src_path, logger=logger)  # type: ignore[arg-type]
+                    note_id = file_path_exists_in_db(file_path, src_path, logger=logger)
                     if not note_id:
                         logger.debug("[DEBUG] ===== Test Title")
-                        test_title(file_path, logger=logger)  # type: ignore[arg-type]
-                        logger.debug(
-                            f"[DEBUG] {file_path} innexistant dans obsidian_notes"
-                        )
-                        note_id = new_note(
-                            file_path, logger=logger
-                        )  # 🔥 Gère les événements des notes
-                        logger.info(
-                            "[INFO] Note créée : (id=%s) %s", note_id, file_path
-                        )
+                        test_title(file_path, logger=logger)
+                        logger.debug(f"[DEBUG] {file_path} innexistant dans obsidian_notes")
+                        note_id = new_note(file_path, logger=logger)  # 🔥 Gère les événements des notes
+                        logger.info("[INFO] Note créée : (id=%s) %s", note_id, file_path)
 
                 # Pose le lock si pas encore fait par enqueue_event
                 key = get_lock_key(note_id, file_path)
@@ -142,11 +135,9 @@ def process_queue() -> None:
                     locked = True
 
                 if action == "deleted":
-                    deleted = delete_note_by_path(file_path, logger=logger)  # type: ignore[arg-type]
+                    deleted = delete_note_by_path(file_path, logger=logger)
                     if deleted:
-                        logger.info(
-                            "[SUPPR] ✅ Note Supprimée: (id=%s) %s", note_id, file_path
-                        )
+                        logger.info("[SUPPR] ✅ Note Supprimée: (id=%s) %s", note_id, file_path)
                     else:
                         logger.warning("[SUPPR] Rien à supprimer pour: %s", file_path)
                     continue
@@ -160,9 +151,7 @@ def process_queue() -> None:
                     continue
 
                 if action == "moved":
-                    logger.debug(
-                        "[BUSY] Déplacement fichier : %s -> %s", src_path, file_path
-                    )
+                    logger.debug("[BUSY] Déplacement fichier : %s -> %s", src_path, file_path)
                     processed = process_single_note(file_path, note_id, src_path=src_path, logger=logger)  # type: ignore[arg-type]
                     if not processed:
                         update_note(note_id, file_path, src_path)  # type: ignore[arg-type]
@@ -205,7 +194,7 @@ def process_queue() -> None:
 def log_event_queue() -> None:
     """Logge un aperçu de la file en DEBUG."""
     try:
-        items = list(event_queue.queue)  # type: ignore[attr-defined]
+        items = list(event_queue.queue)
         logger.debug("[DEBUG] Contenu file d'attente : %s", items)
     except Exception:  # queue interne peut changer pendant l’itération
         logger.debug("[DEBUG] Contenu file d'attente : <non disponible>")

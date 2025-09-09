@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from datetime import datetime
 import hashlib
 import os
+from pathlib import Path
 import re
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Union
 
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -20,7 +21,7 @@ def wait_for_file(
     file_path: StrOrPath,
     timeout: float = 3.0,
     *,
-    logger: Optional[LoggerProtocol] = None,
+    logger: LoggerProtocol | None = None,
 ) -> bool:
     """
     Attend que le fichier existe jusqu'à `timeout` secondes.
@@ -36,7 +37,7 @@ def wait_for_file(
     return True
 
 
-def hash_file_content(filepath: StrOrPath) -> Optional[str]:
+def hash_file_content(filepath: StrOrPath) -> str | None:
     """
     SHA-256 du fichier, None en cas d'erreur.
     """
@@ -51,10 +52,10 @@ def hash_file_content(filepath: StrOrPath) -> Optional[str]:
 @with_child_logger
 def safe_write(
     file_path: StrOrPath,
-    content: Union[str, Iterable[str]],
+    content: str | Iterable[str],
     *,
-    verify_contains: Optional[list[str]] = None,
-    logger: Optional[LoggerProtocol] = None,
+    verify_contains: list[str] | None = None,
+    logger: LoggerProtocol | None = None,
 ) -> bool:
     """
     Écrit de façon sûre :
@@ -81,9 +82,7 @@ def safe_write(
             written = p.read_text(encoding="utf-8")
             for needle in verify_contains:
                 if needle not in written:
-                    logger.warning(
-                        "[safe_write] Champ manquant '%s' dans %s", needle, p
-                    )
+                    logger.warning("[safe_write] Champ manquant '%s' dans %s", needle, p)
                     return False
         return True
     except Exception as exc:  # pylint: disable=broad-except
@@ -96,8 +95,8 @@ def copy_file_with_date(
     filepath: StrOrPath,
     destination_folder: StrOrPath,
     *,
-    logger: Optional[LoggerProtocol] = None,
-) -> Optional[Path]:
+    logger: LoggerProtocol | None = None,
+) -> Path | None:
     """
     Copie un fichier en préfixant par la date 'yymmdd_'.
     Retourne le chemin de destination ou None en cas d'erreur.
@@ -123,8 +122,8 @@ def move_file_with_date(
     filepath: StrOrPath,
     destination_folder: StrOrPath,
     *,
-    logger: Optional[LoggerProtocol] = None,
-) -> Optional[Path]:
+    logger: LoggerProtocol | None = None,
+) -> Path | None:
     """
     Déplace un fichier en préfixant par la date 'yymmdd_'.
     Retourne le nouveau chemin ou None en cas d'erreur.
@@ -147,8 +146,8 @@ def move_file_with_date(
 @with_child_logger
 def count_words(
     *,
-    content: Optional[str] = None,
-    filepath: Optional[StrOrPath] = None,
+    content: str | None = None,
+    filepath: StrOrPath | None = None,
     logger: LoggerProtocol | None = None,
 ) -> int:
     """
@@ -173,7 +172,7 @@ def count_words(
     return wc
 
 
-def maybe_clean(content: Union[str, list[str]], *, force: bool = False) -> str:
+def maybe_clean(content: str | list[str], *, force: bool = False) -> str:
     """
     Nettoie *si nécessaire* :
     - list -> join + clean
@@ -192,7 +191,7 @@ def maybe_clean(content: Union[str, list[str]], *, force: bool = False) -> str:
     return content if isinstance(content, str) else "\n".join(map(str, content))
 
 
-def clean_content(content: Union[str, list[str]]) -> str:
+def clean_content(content: str | list[str]) -> str:
     """
     Nettoyage doux (pré-LLM) en conservant les blocs Markdown.
     """
@@ -208,9 +207,7 @@ def clean_content(content: Union[str, list[str]]) -> str:
 
 
 @with_child_logger
-def read_note_content(
-    filepath: StrOrPath, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     Lit le contenu d'une note (UTF-8). None en cas d'erreur.
     """

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.models.folders import Folder
 from brainops.process_folders.folders_context import (
@@ -37,7 +36,7 @@ def add_folder(
     folder_type_hint: str,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[int]:
+) -> int | None:
     """
     add_folder _summary_
 
@@ -57,10 +56,7 @@ def add_folder(
     logger.debug(f"Normalized path: {p_str}")
 
     # ignore cachés/temp
-    if (
-        "untitled" in Path(p_str).name.lower()
-        or "sans titre" in Path(p_str).name.lower()
-    ):
+    if "untitled" in Path(p_str).name.lower() or "sans titre" in Path(p_str).name.lower():
         logger.debug(f"[DEBUG] Dossier ignoré (temp/caché) : {p_str}")
         logger.info("[FOLDER] Dossier ignoré (temp/caché) : %s", p_str)
         return None
@@ -83,9 +79,7 @@ def add_folder(
 
 
 @with_child_logger
-def update_folder(
-    old_path: str | Path, new_path: str | Path, *, logger: LoggerProtocol | None = None
-) -> None:
+def update_folder(old_path: str | Path, new_path: str | Path, *, logger: LoggerProtocol | None = None) -> None:
     """
     update_folder _summary_
 
@@ -107,8 +101,8 @@ def update_folder(
         return
 
     folder_id: int = folder["id"]
-    old_cat_id: Optional[int] = folder.get("category_id")
-    old_subcat_id: Optional[int] = folder.get("subcategory_id")
+    old_cat_id: int | None = folder.get("category_id")
+    old_subcat_id: int | None = folder.get("subcategory_id")
 
     ctx = add_folder_context(new_p)
 

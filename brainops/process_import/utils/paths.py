@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
 
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -39,8 +38,8 @@ def get_relative_parts(
     folder_path: str | Path,
     base_path: str | Path,
     *,
-    logger: Optional[LoggerProtocol] = None,
-) -> Optional[Tuple[str, ...]]:
+    logger: LoggerProtocol | None = None,
+) -> tuple[str, ...] | None:
     """
     Renvoie les parties relatives de `folder_path` par rapport à `base_path`
     (None si folder_path n'est pas dans base_path).
@@ -65,9 +64,7 @@ def build_archive_path(original_path: str | Path) -> Path:
 
 
 @with_child_logger
-def ensure_folder_exists(
-    folder_path: str | Path, *, logger: Optional[LoggerProtocol] = None
-) -> None:
+def ensure_folder_exists(folder_path: str | Path, *, logger: LoggerProtocol | None = None) -> None:
     """
     Crée le dossier physiquement (mkdir -p) si besoin.
     """

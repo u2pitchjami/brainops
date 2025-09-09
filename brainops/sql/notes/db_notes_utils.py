@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from difflib import SequenceMatcher
 import os
+from pathlib import Path
 import re
 import shutil
-from difflib import SequenceMatcher
-from pathlib import Path
-from typing import Optional
 
 from brainops.header.header_utils import hash_source
 from brainops.process_import.utils.paths import ensure_folder_exists
@@ -111,9 +110,7 @@ def check_synthesis_and_trigger_archive(
                 new_archive_path = archive_folder / f"{synthesis_name} (archive).md"
                 if current_archive_path != new_archive_path:
                     if new_archive_path.exists():
-                        logger.warning(
-                            "[SYNC] Fichier existe déjà: %s", new_archive_path
-                        )
+                        logger.warning("[SYNC] Fichier existe déjà: %s", new_archive_path)
                     else:
                         shutil.move(str(current_archive_path), str(new_archive_path))
                         safe_execute(
@@ -134,9 +131,7 @@ def check_synthesis_and_trigger_archive(
             else:
                 logger.warning("[SYNC] Aucune archive liée à la synthesis %s", note_id)
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[SYNC] check_synthesis_and_trigger_archive(%s) : %s", note_id, exc
-        )
+        logger.exception("[SYNC] check_synthesis_and_trigger_archive(%s) : %s", note_id, exc)
     finally:
         conn.close()
 
@@ -144,10 +139,10 @@ def check_synthesis_and_trigger_archive(
 @with_child_logger
 def file_path_exists_in_db(
     file_path: str,
-    src_path: Optional[str] = None,
+    src_path: str | None = None,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[int]:
+) -> int | None:
     """
     Retourne note_id si file_path (ou src_path) existe, sinon None.
     """
@@ -207,9 +202,7 @@ def check_duplicate(
                     logger=logger,
                 ).fetchall()
                 for existing_id, existing_title in rows:
-                    similarity = SequenceMatcher(
-                        None, title_cleaned, existing_title or ""
-                    ).ratio()
+                    similarity = SequenceMatcher(None, title_cleaned, existing_title or "").ratio()
                     if similarity >= threshold and existing_id not in seen_ids:
                         matches.append(
                             {
@@ -261,9 +254,7 @@ def check_duplicate(
             conn.close()
 
         if matches:
-            logger.info(
-                "[DUP] %s doublon(s) détecté(s) pour note_id=%s", len(matches), note_id
-            )
+            logger.info("[DUP] %s doublon(s) détecté(s) pour note_id=%s", len(matches), note_id)
             return True, matches
         return False, []
     except Exception as exc:  # pylint: disable=broad-except

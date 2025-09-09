@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -32,7 +32,7 @@ _ALLOWED_COLUMNS: set[str] = {
 @with_child_logger
 def update_obsidian_note(
     note_id: int,
-    updates: Dict[str, Any],
+    updates: dict[str, Any],
     *,
     logger: LoggerProtocol | None = None,
 ) -> bool:
@@ -57,9 +57,7 @@ def update_obsidian_note(
     # Filtrage strict pour éviter l'injection via les clés
     filtered = {k: v for k, v in updates.items() if k in _ALLOWED_COLUMNS}
     if not filtered:
-        logger.warning(
-            "[NOTES] Aucun champ autorisé dans updates: %s", list(updates.keys())
-        )
+        logger.warning("[NOTES] Aucun champ autorisé dans updates: %s", list(updates.keys()))
         return False
 
     set_clause = ", ".join(f"{k} = %s" for k in filtered.keys())
@@ -76,9 +74,7 @@ def update_obsidian_note(
                 values,
             )
         conn.commit()
-        logger.info(
-            "[NOTES] Mise à jour OK (id=%s): %s", note_id, list(filtered.keys())
-        )
+        logger.info("[NOTES] Mise à jour OK (id=%s): %s", note_id, list(filtered.keys()))
         return True
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[NOTES] Erreur update_obsidian_note(id=%s): %s", note_id, exc)
@@ -88,9 +84,7 @@ def update_obsidian_note(
 
 
 @with_child_logger
-def update_obsidian_tags(
-    note_id: int, tags: Dict[str, Any], logger: LoggerProtocol | None = None
-) -> None:
+def update_obsidian_tags(note_id: int, tags: dict[str, Any], logger: LoggerProtocol | None = None) -> None:
     """
     update_obsidian_tags _summary_
 

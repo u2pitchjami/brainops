@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
+from pathlib import Path
 import re
 import shutil
-from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 from Levenshtein import ratio
 
@@ -40,11 +39,12 @@ from brainops.utils.config import (
     UNCATEGORIZED_PATH,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+from brainops.models.exceptions import BrainOpsError
 
 # ---------- Parse & nettoyage --------------------------------------------------
 
 
-def parse_category_response(llama_proposition: str) -> Optional[str]:
+def parse_category_response(llama_proposition: str) -> str | None:
     """
     Extrait "Category/Subcategory" d'une réponse LLM.
     """
@@ -73,7 +73,7 @@ def find_similar_levenshtein(
     existing_names: list[str],
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
-):
+) -> list[tuple[str, float]]:
     """
     find_similar_levenshtein _summary_
 
@@ -89,11 +89,16 @@ def find_similar_levenshtein(
         _type_: _description_
     """
     similar: list[tuple[str, float]] = []
-    for existing in existing_names:
-        similarity = ratio(name, existing)
-        # logger.debug(...) → logger injecté + décorateur dans les call sites
-        if similarity >= threshold_low:
-            similar.append((existing, similarity))
+    try:
+        for existing in existing_names:
+            similarity = ratio(name, existing)
+            # logger.debug(...) → logger injecté + décorateur dans les call sites
+            if similarity >= threshold_low:
+                similar.append((existing, similarity))
+    except BrainOpsError:
+        raise
+    except Exception as exc:        
+        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return sorted(similar, key=lambda x: x[1], reverse=True)
 
 
@@ -102,7 +107,7 @@ def check_and_handle_similarity(
     existing_names: list[str],
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
-) -> Optional[str]:
+) -> str | None:
     """
     check_and_handle_similarity _summary_
 
@@ -126,7 +131,9 @@ def check_and_handle_similarity(
             return closest
         if threshold_low <= score < threshold_high:
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            log_message = f"[{current_time}] Doute sur {entity_type}: '{name}' proche de '{closest}' (score: {score:.2f})\n"
+            log_message = (
+                f"[{current_time}] Doute sur {entity_type}: '{name}' proche de '{closest}' (score: {score:.2f})\n"
+            )
             # On log dans le fichier prévu
             with open(SIMILARITY_WARNINGS_LOG, "a", encoding="utf-8") as log_file:
                 log_file.write(log_message)
@@ -156,14 +163,10 @@ def handle_uncategorized(
         dest = Path(UNCATEGORIZED_PATH) / src.name
 
         shutil.move(src.as_posix(), dest.as_posix())
-        logger.warning(
-            "[WARNING] 🚨 Note déplacée vers 'uncategorized' : %s", dest.as_posix()
-        )
+        logger.warning("[WARNING] 🚨 Note déplacée vers 'uncategorized' : %s", dest.as_posix())
 
         # MAJ DB avec le vrai folder_id de UNCATEGORIZED_PATH
-        unc_folder_id = get_folder_id(
-            Path(UNCATEGORIZED_PATH).as_posix(), logger=logger
-        )
+        unc_folder_id = get_folder_id(Path(UNCATEGORIZED_PATH).as_posix(), logger=logger)
         updates = {"folder_id": unc_folder_id, "file_path": dest.as_posix()}
         update_obsidian_note(note_id, updates, logger=logger)
 
@@ -187,7 +190,7 @@ def handle_uncategorized(
 # ---------- Classification & déplacement --------------------------------------
 
 
-def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> Optional[str]:
+def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> str:
     """
     Construit le prompt et appelle Ollama. Retourne la chaîne brute (ex: "Dev/Python").
     """
@@ -195,35 +198,45 @@ def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> Optional[str]
     subcateg_dict = generate_optional_subcategories(logger=logger)
     categ_dict = generate_categ_dictionary(logger=logger)
 
-    prompt_name, _ = prompt_name_and_model_selection(
-        0, key="type", logger=logger
-    )  # note_id pas requis ici
+    prompt_name, _ = prompt_name_and_model_selection(0, key="type", logger=logger)  # note_id pas requis ici
     model_ollama = MODEL_GET_TYPE
     prompt = PROMPTS[prompt_name].format(
         categ_dict=categ_dict,
         subcateg_dict=subcateg_dict,
         content=content[:1500],
     )
-
     try:
         return call_ollama_with_retry(prompt, model_ollama, logger=logger)
+    except BrainOpsError:
+        raise
     except OllamaError:
-        logger.error("[ERROR] Import annulé (OllamaError).")
-        return None
+        raise BrainOpsError(f"Erreur inattendue")
 
-
+@with_child_logger
 def _resolve_destination(
-    note_type: str, note_id: int, filepath: str, *, logger: LoggerProtocol
-) -> Optional[ClassificationResult]:
+    note_type: str, note_id: int, filepath: str, *, logger: LoggerProtocol | None = None
+) -> ClassificationResult:
     """
     À partir du note_type "Cat/Sub", calcule ids + dossier cible.
     """
-    cat_id, subcat_id = get_path_safe(note_type, filepath, note_id, logger=logger)
-    res = get_path_from_classification(cat_id, subcat_id, logger=logger)
-    if not res:
-        logger.warning("Dossier cible introuvable pour %s", note_type)
-        return None
-    folder_id, dest_folder = res
+    logger = ensure_logger(logger, __name__)
+    try:
+        cat_id = None
+        subcat_id = None
+        path_result = get_path_safe(note_type, filepath, note_id, logger=logger)
+        if path_result is None:
+            logger.warning("get_path_safe a retourné None pour %s", note_type)
+            raise BrainOpsError(f"get_path_safe a retourné None pour {note_type}")
+        cat_id, subcat_id = path_result
+        res = get_path_from_classification(cat_id, subcat_id, logger=logger)
+        if not res:
+            logger.warning("Dossier cible introuvable pour %s", note_type)
+            raise BrainOpsError(f"Dossier cible introuvable pour {note_type}")
+        folder_id, dest_folder = res
+    except BrainOpsError:
+        raise
+    except Exception as exc:        
+        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return ClassificationResult(
         note_type=note_type,
         category_id=cat_id,

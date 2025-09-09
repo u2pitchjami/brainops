@@ -2,10 +2,10 @@
 2025-09-04 décorateur de scripts main.
 """
 
-import sys
-import traceback
 from collections.abc import Callable
 from functools import wraps
+import sys
+import traceback
 from typing import Any
 
 

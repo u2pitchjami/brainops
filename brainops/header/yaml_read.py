@@ -28,9 +28,7 @@ def test_title(file_path: str, *, logger: LoggerProtocol | None = None) -> None:
             return
 
         yaml_text = "\n".join(header_lines)
-        corrected_yaml_text = patch_yaml_line(
-            yaml_text, "title", sanitize_yaml_title, logger=logger
-        )
+        corrected_yaml_text = patch_yaml_line(yaml_text, "title", sanitize_yaml_title, logger=logger)
 
         if corrected_yaml_text != yaml_text:
             new_content = f"{corrected_yaml_text}\n{body}"
@@ -44,9 +42,7 @@ def test_title(file_path: str, *, logger: LoggerProtocol | None = None) -> None:
 
 
 @with_child_logger
-def ensure_status_in_yaml(
-    file_path: str, status: str = "draft", *, logger: LoggerProtocol | None = None
-) -> None:
+def ensure_status_in_yaml(file_path: str, status: str = "draft", *, logger: LoggerProtocol | None = None) -> None:
     """
     Insère/Met à jour le champ 'status' dans le YAML du fichier.
     - Ne modifie rien si déjà conforme.
@@ -54,18 +50,16 @@ def ensure_status_in_yaml(
     """
     logger = ensure_logger(logger, __name__)
     content = read_note_content(file_path, logger=logger)
+    if not content:
+        return
     new_content = merge_yaml_header(content, {"status": status}, logger=logger)
 
     if content == new_content:
-        logger.debug(
-            "🔄 [DEBUG] Fichier déjà à jour (status), pas d'écriture: %s", file_path
-        )
+        logger.debug("🔄 [DEBUG] Fichier déjà à jour (status), pas d'écriture: %s", file_path)
         return
 
     logger.debug("💾 [DEBUG] Écriture du fichier (status mis à jour): %s", file_path)
-    success = safe_write(
-        file_path, content=new_content, verify_contains="status:", logger=logger
-    )
+    success = safe_write(file_path, content=new_content, verify_contains=["status:"], logger=logger)
     if not success:
         logger.error("[main] Problème lors de l’écriture sécurisée de %s", file_path)
         return
@@ -78,9 +72,7 @@ def ensure_status_in_yaml(
     post_hash = hash_file_content(file_path)
 
     if pre_hash != post_hash:
-        logger.critical(
-            "⚠️ Contenu modifié entre écriture et vérification: %s", file_path
-        )
+        logger.warning("⚠️ Contenu modifié entre écriture et vérification: %s", file_path)
         logger.debug("Hash écrit : %s", pre_hash)
         logger.debug("Hash 1s après : %s", post_hash)
     else:

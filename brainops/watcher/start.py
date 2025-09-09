@@ -7,7 +7,6 @@ import os
 import re
 import threading
 import time
-from typing import Dict, Optional, Tuple
 
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
@@ -24,8 +23,10 @@ from brainops.watcher.queue_manager import (
     get_logger,
     log_event_queue,
     process_queue,
+    EventType,
 )
 from brainops.watcher.queue_utils import PendingNoteLockManager
+from typing import Union, Optional, Dict, Tuple, Any
 
 logger = get_logger("Brainops Watcher")
 
@@ -43,7 +44,6 @@ _TEMP_NAME_RE = re.compile(
 
 LOCK_MGR = PendingNoteLockManager()
 
-
 def _start_queue_thread() -> threading.Thread:
     """Lance process_queue() dans un thread daemon pour ne pas bloquer la boucle principale."""
     thread = threading.Thread(target=process_queue, name="queue-worker", daemon=True)
@@ -51,7 +51,7 @@ def _start_queue_thread() -> threading.Thread:
     return thread
 
 
-def start_watcher(*, logger: Optional[LoggerProtocol] = None) -> None:
+def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
     """
     Démarre la surveillance du vault Obsidian (PollingObserver).
 
@@ -100,38 +100,50 @@ def start_watcher(*, logger: Optional[LoggerProtocol] = None) -> None:
         logger.info("Watcher arrêté proprement.")
 
 
+Pathish = Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]
+
 class NoteHandler(FileSystemEventHandler):
     """Émet des payloads normalisés dans la queue à partir des événements FS."""
 
-    def __init__(
-        self, *, logger: Optional[LoggerProtocol], debounce_window: float
-    ) -> None:
+    def __init__(self, *, logger: Optional[LoggerProtocol], debounce_window: float) -> None:
         """
-        __init__ _summary_
-
-        _extended_summary_
-
         Args:
-            logger (Optional[LoggerProtocol]): _description_
-            debounce_window (float): _description_
+            logger: Logger compatible LoggerProtocol, ou None.
+            debounce_window: Fenêtre anti-rafale en secondes.
         """
         self._logger = logger
-        self._debounce_window = WATCHDOG_DEBOUNCE_WINDOW
+        # ⚠️ Utiliser bien le paramètre fourni (au lieu de WATCHDOG_DEBOUNCE_WINDOW)
+        self._debounce_window = debounce_window  # #bug corrigé
         self._last_event: Dict[Tuple[str, str], float] = {}
 
     # ---- helpers ---------------------------------------------------------------
 
     @staticmethod
-    def _is_hidden_or_temp(path: str) -> bool:
-        parts = path.split(os.sep)
-        if any(p.startswith(".") for p in parts):
+    def _to_str(path: Pathish) -> str:
+        """
+        Convertit str/bytes/PathLike en str (utf-8 avec surrogateescape).
+        Toujours retourner une str pour unifier le traitement.
+        """
+        s = os.fspath(path)  # str | bytes
+        if isinstance(s, bytes):
+            # utf-8 + surrogateescape: évite les erreurs sur noms non-décodables
+            return s.decode("utf-8", errors="surrogateescape")
+        return s
+
+    @staticmethod
+    def _is_hidden_or_temp(path: Pathish) -> bool:
+        """Retourne True si le chemin (fichier ou dossier) est caché ou temporaire."""
+        s = NoteHandler._to_str(path)
+        parts = s.split(os.sep)
+        if any(p.startswith(".") for p in parts if p):  # .git, .obsidian, etc.
             return True
-        basename = parts[-1] if parts else path
+        basename = parts[-1] if parts else s
         return basename.endswith(("~", ".swp", ".tmp"))
 
-    def _should_emit(self, path: str, action: str, etype: str) -> bool:
+    def _should_emit(self, path: Pathish, action: str, etype: str) -> bool:
         """Anti-rafale: évite les doublons dans une fenêtre courte."""
-        key = (path, f"{action}:{etype}")
+        s = self._to_str(path)
+        key = (s, f"{action}:{etype}")
         now = time.monotonic()
         last = self._last_event.get(key, 0.0)
         if now - last < self._debounce_window:
@@ -141,81 +153,47 @@ class NoteHandler(FileSystemEventHandler):
 
     # ---- events ---------------------------------------------------------------
 
-    def on_created(self, event: FileSystemEvent) -> None:  # type: ignore[override]
-        """
-        on_created _summary_
-
-        _extended_summary_
-
-        Args:
-            event (FileSystemEvent): _description_
-        """
+    def on_created(self, event: FileSystemEvent) -> None:
+        """Traite la création de fichiers/dossiers."""
         if self._is_hidden_or_temp(event.src_path):
             return
-        etype = "directory" if event.is_directory else "file"
-        path = normalize_full_path(event.src_path)
+        etype: EventType = "directory" if event.is_directory else "file"
+        path = normalize_full_path(self._to_str(event.src_path))
         if self._should_emit(path, "created", etype):
             if self._logger is not None:
                 self._logger.info("[CREATION] %s → %s", etype.upper(), path)
             enqueue_event({"type": etype, "action": "created", "path": path})
 
-    def on_deleted(self, event: FileSystemEvent) -> None:  # type: ignore[override]
-        """
-        on_deleted _summary_
-
-        _extended_summary_
-
-        Args:
-            event (FileSystemEvent): _description_
-        """
+    def on_deleted(self, event: FileSystemEvent) -> None:
+        """Traite la suppression de fichiers/dossiers."""
         if self._is_hidden_or_temp(event.src_path):
             return
-        etype = "directory" if event.is_directory else "file"
-        path = normalize_full_path(event.src_path)
+        etype: EventType = "directory" if event.is_directory else "file"
+        path = normalize_full_path(self._to_str(event.src_path))
         if self._should_emit(path, "deleted", etype):
             if self._logger is not None:
                 self._logger.info("[SUPPRESSION] %s → %s", etype.upper(), path)
             enqueue_event({"type": etype, "action": "deleted", "path": path})
 
-    def on_modified(self, event: FileSystemEvent) -> None:  # type: ignore[override]
-        """
-        on_modified _summary_
-
-        _extended_summary_
-
-        Args:
-            event (FileSystemEvent): _description_
-        """
+    def on_modified(self, event: FileSystemEvent) -> None:
+        """Traite les modifications de fichiers (ignore les dossiers)."""
         if event.is_directory or self._is_hidden_or_temp(event.src_path):
             return
-        etype = "file"
-        path = normalize_full_path(event.src_path)
+        etype: EventType = "file"
+        path = normalize_full_path(self._to_str(event.src_path))
         if self._should_emit(path, "modified", etype):
             if self._logger is not None:
                 self._logger.info("[MODIFICATION] FILE → %s", path)
             enqueue_event({"type": "file", "action": "modified", "path": path})
 
     def on_moved(self, event: FileMovedEvent) -> None:  # type: ignore[override]
-        """
-        on_moved _summary_
-
-        _extended_summary_
-
-        Args:
-            event (FileMovedEvent): _description_
-        """
-        if self._is_hidden_or_temp(event.src_path) or self._is_hidden_or_temp(
-            event.dest_path
-        ):
+        """Traite les déplacements/renommages."""
+        if self._is_hidden_or_temp(event.src_path) or self._is_hidden_or_temp(event.dest_path):
             return
-        etype = "directory" if event.is_directory else "file"
-        src = normalize_full_path(event.src_path)
-        dst = normalize_full_path(event.dest_path)
+        etype: EventType = "directory" if event.is_directory else "file"
+        src = normalize_full_path(self._to_str(event.src_path))
+        dst = normalize_full_path(self._to_str(event.dest_path))
         if self._should_emit(dst, "moved", etype):
             if self._logger is not None:
-                self._logger.info(
-                    "[DEPLACEMENT] %s → %s -> %s", etype.upper(), src, dst
-                )
-                enqueue_event(
-                    {"type": etype, "action": "moved", "src_path": src, "path": dst}
-                )
+                self._logger.info("[DEPLACEMENT] %s → %s -> %s", etype.upper(), src, dst)
+            enqueue_event({"type": etype, "action": "moved", "src_path": src, "path": dst})

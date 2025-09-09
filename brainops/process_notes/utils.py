@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from brainops.sql.get_linked.db_get_linked_notes_utils import (
     get_data_for_should_trigger,
 )
@@ -15,16 +13,14 @@ def should_trigger_process(
     note_id: int,
     new_word_count: int,
     threshold: int = 100,
-    logger: Optional[LoggerProtocol] = None,
-) -> tuple[bool, Optional[str], Optional[int]]:
+    logger: LoggerProtocol | None = None,
+) -> tuple[bool, str | None, int | None]:
     """
     Détermine si une note doit être retraitée en fonction de l'écart de word_count.
     Retourne (trigger, status, parent_id).
     """
     logger = ensure_logger(logger, __name__)
-    status, parent_id, old_word_count = get_data_for_should_trigger(
-        note_id, logger=logger
-    )
+    status, parent_id, old_word_count = get_data_for_should_trigger(note_id, logger=logger)
     word_diff = abs((old_word_count or 0) - new_word_count)
     trigger = word_diff > threshold
 

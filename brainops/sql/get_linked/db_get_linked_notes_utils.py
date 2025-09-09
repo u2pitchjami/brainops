@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
 @with_child_logger
-def get_subcategory_prompt(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> str:
+def get_subcategory_prompt(note_id: int, *, logger: LoggerProtocol | None = None) -> str:
     """
     Retourne le prompt_name de la sous-catégorie associée à une note, ou 'divers'.
     """
@@ -23,9 +19,7 @@ def get_subcategory_prompt(
 
 
 @with_child_logger
-def get_category_and_subcategory_names(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> Tuple[str, str]:
+def get_category_and_subcategory_names(note_id: int, *, logger: LoggerProtocol | None = None) -> tuple[str, str]:
     """
     get_category_and_subcategory_names _summary_
 
@@ -42,16 +36,8 @@ def get_category_and_subcategory_names(
     category = get_note_linked_data(note_id, "category", logger=logger)
     subcategory = get_note_linked_data(note_id, "subcategory", logger=logger)
 
-    cat_name = (
-        str(category.get("name"))
-        if isinstance(category, dict) and "name" in category
-        else "Inconnue"
-    )
-    sub_name = (
-        str(subcategory.get("name"))
-        if isinstance(subcategory, dict) and "name" in subcategory
-        else "Inconnue"
-    )
+    cat_name = str(category.get("name")) if isinstance(category, dict) and "name" in category else "Inconnue"
+    sub_name = str(subcategory.get("name")) if isinstance(subcategory, dict) and "name" in subcategory else "Inconnue"
     return cat_name, sub_name
 
 
@@ -62,17 +48,13 @@ def get_note_folder_type(note_id: int, *, logger: LoggerProtocol | None = None) 
     """
     logger = ensure_logger(logger, __name__)
     folder = get_note_linked_data(note_id, "folder", logger=logger)
-    return (
-        str(folder.get("folder_type"))
-        if isinstance(folder, dict) and "folder_type" in folder
-        else "inconnu"
-    )
+    return str(folder.get("folder_type")) if isinstance(folder, dict) and "folder_type" in folder else "inconnu"
 
 
 @with_child_logger
 def get_synthesis_metadata(
     note_id: int, *, logger: LoggerProtocol | None = None
-) -> Tuple[str, str, str, str, Optional[int], Optional[int]]:
+) -> tuple[str, str, str, str, int | None, int | None]:
     """
     Récupère (title, source, author, created_at, category_id, subcategory_id) pour une note.
     """
@@ -85,21 +67,13 @@ def get_synthesis_metadata(
     source = str(note_data.get("source") or "")
     author = str(note_data.get("author") or "")
     created = str(note_data.get("created_at") or "")
-    category_id = (
-        int(note_data["category_id"])
-        if note_data.get("category_id") is not None
-        else None
-    )
-    subcategory_id = (
-        int(note_data["subcategory_id"])
-        if note_data.get("subcategory_id") is not None
-        else None
-    )
+    category_id = int(note_data["category_id"]) if note_data.get("category_id") is not None else None
+    subcategory_id = int(note_data["subcategory_id"]) if note_data.get("subcategory_id") is not None else None
     return title, source, author, created, category_id, subcategory_id
 
 
 @with_child_logger
-def get_note_tags(note_id: int, *, logger: LoggerProtocol | None = None) -> List[str]:
+def get_note_tags(note_id: int, *, logger: LoggerProtocol | None = None) -> list[str]:
     """
     Retourne la liste des tags (vide si aucun).
     """
@@ -109,9 +83,7 @@ def get_note_tags(note_id: int, *, logger: LoggerProtocol | None = None) -> List
 
 
 @with_child_logger
-def get_new_note_test_metadata(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> Tuple[str, str, str, str]:
+def get_new_note_test_metadata(note_id: int, *, logger: LoggerProtocol | None = None) -> tuple[str, str, str, str]:
     """
     Récupère (title, source, author, source_hash) pour vérifications (doublons, etc.).
     """
@@ -133,17 +105,11 @@ def get_note_lang(note_id: int, *, logger: LoggerProtocol | None = None) -> str:
     """
     logger = ensure_logger(logger, __name__)
     data = get_note_linked_data(note_id, "note", logger=logger)
-    return (
-        str(data.get("lang"))
-        if isinstance(data, dict) and data.get("lang")
-        else "inconnu"
-    )
+    return str(data.get("lang")) if isinstance(data, dict) and data.get("lang") else "inconnu"
 
 
 @with_child_logger
-def get_data_for_should_trigger(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> Tuple[str, Optional[int], int]:
+def get_data_for_should_trigger(note_id: int, *, logger: LoggerProtocol | None = None) -> tuple[str, int | None, int]:
     """
     Retourne (status, parent_id, word_count) pour décider si un traitement doit être déclenché.
     """
@@ -158,9 +124,7 @@ def get_data_for_should_trigger(
 
 
 @with_child_logger
-def get_parent_id(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> Optional[int]:
+def get_parent_id(note_id: int, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     get_parent_id _summary_
 
@@ -181,9 +145,7 @@ def get_parent_id(
 
 
 @with_child_logger
-def get_file_path(
-    note_id: int, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def get_file_path(note_id: int, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     get_file_path _summary_
 

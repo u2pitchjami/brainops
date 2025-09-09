@@ -19,9 +19,7 @@ from brainops.utils.logger import get_logger
 logger = get_logger("Brainops Imports")
 
 
-def import_normal(
-    filepath: str | Path, note_id: int, force_categ: bool = False
-) -> bool:
+def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False) -> bool:
     """
     Étapes :
       1) Définir la catégorisation (chemin cible) via process_get_note_type()
@@ -31,29 +29,27 @@ def import_normal(
 
     Retourne le chemin final (str) ou None en cas d’erreur.
     """
-    try:
-        src = Path(str(filepath)).expanduser().resolve()
-        logger.info(
-            "[INFO] ▶️ LANCEMENT IMPORT : (id=%s) path=%s", note_id, src.as_posix()
-        )
-        logger.debug("[DEBUG] +++ ▶️ PRE IMPORT NORMAL pour %s", src.as_posix())
+    
+    src = Path(str(filepath)).expanduser().resolve()
+    logger.info("[INFO] ▶️ LANCEMENT IMPORT : (id=%s) path=%s", note_id, src.as_posix())
+    logger.debug("[DEBUG] +++ ▶️ PRE IMPORT NORMAL pour %s", src.as_posix())
 
+    try:
         if force_categ is False:
             # 1) classification → chemin cible (fonction existante)
             new_path = get_type_by_ollama(src.as_posix(), note_id, logger=logger)
-            logger.debug(
-                "[DEBUG] pre_import_normal fin get_note_type new_path : %s", new_path
-            )
+            logger.debug("[DEBUG] pre_import_normal fin get_note_type new_path : %s", new_path)
             if not new_path:
-                logger.warning(
-                    "[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id
-                )
+                logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
                 return False
             # 2) rename/move (idempotent)
             moved_path = rename_file(new_path, note_id, logger=logger)
             logger.debug("[DEBUG] pre_import_normal fin rename_file : %s", moved_path)
         else:
-            moved_path = get_type_by_force(src.as_posix(), note_id, logger=logger)
+            moved_path = Path(get_type_by_force(src.as_posix(), note_id, logger=logger))
+            if not moved_path:
+                logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
+                return False
 
         final_path = Path(str(moved_path)).expanduser().resolve().as_posix()
 
@@ -65,11 +61,9 @@ def import_normal(
         # Cas particulier : conversation GPT → on s'arrête là
         base_folder = Path(final_path).parent.as_posix()
         if "gpt_import" in base_folder:
-            logger.info(
-                "[INFO] Conversation GPT détectée, conservée dans : %s", base_folder
-            )
+            logger.info("[INFO] Conversation GPT détectée, conservée dans : %s", base_folder)
             logger.debug("[DEBUG] 🏁 FIN IMPORT GPT (id=%s)", note_id)
-            return final_path
+            return True
 
         # 4) Sauvegarde (optionnelle) vers SAV_PATH
         if SAV_PATH:
@@ -78,18 +72,12 @@ def import_normal(
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("[ERREUR] Sauvegarde dans SAV_PATH échouée : %s", exc)
         else:
-            logger.warning(
-                "[WARN] 🚨 SAV_PATH non défini dans utils.config, sauvegarde ignorée."
-            )
+            logger.warning("[WARN] 🚨 SAV_PATH non défini dans utils.config, sauvegarde ignorée.")
 
-        logger.debug(
-            "[DEBUG] import_normal : envoi vers make_properties %s", final_path
-        )
+        logger.debug("[DEBUG] import_normal : envoi vers make_properties %s", final_path)
 
         # 5) Traitement de l'entête
-        properties = make_properties(
-            final_path, note_id, status="archive", logger=logger
-        )
+        properties = make_properties(final_path, note_id, status="archive", logger=logger)
         if not properties:
             logger.error(
                 "[ERREUR] 🚨 Problème lors de la mise à jour des métadonnées pour (id=%s)",

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any
 
 
 @dataclass(slots=True, kw_only=True)
@@ -15,30 +16,30 @@ class Note:
     Champs transients (non persistés) indiqués en commentaires.
     """
 
-    id: Optional[int] = None
-    parent_id: Optional[int] = None
+    id: int | None = None
+    parent_id: int | None = None
 
     title: str
     file_path: str
     folder_id: int
 
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
+    category_id: int | None = None
+    subcategory_id: int | None = None
 
-    status: Optional[str] = None
-    summary: Optional[str] = None
-    source: Optional[str] = None
-    author: Optional[str] = None
-    project: Optional[str] = None
+    status: str | None = None
+    summary: str | None = None
+    source: str | None = None
+    author: str | None = None
+    project: str | None = None
 
-    created_at: Optional[date] = None
-    modified_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None  # gérée par DB (timestamp ON UPDATE)
+    created_at: date | None = None
+    modified_at: datetime | None = None
+    updated_at: datetime | None = None  # gérée par DB (timestamp ON UPDATE)
 
     word_count: int = 0
-    content_hash: Optional[str] = None
-    source_hash: Optional[str] = None
-    lang: Optional[str] = None  # 3 lettres (ex: "fr", "en")
+    content_hash: str | None = None
+    source_hash: str | None = None
+    lang: str | None = None  # 3 lettres (ex: "fr", "en")
 
     # ---- transients (non stockés) ---------------------------------------------
     name: str = field(init=False, repr=False)  # basename dérivé de file_path
@@ -62,7 +63,7 @@ class Note:
     # ------------------- Mapping DB --------------------------------------------
 
     @classmethod
-    def from_row(cls, row: Mapping[str, Any]) -> "Note":
+    def from_row(cls, row: Mapping[str, Any]) -> Note:
         """
         Construit une Note depuis un DictCursor (SELECT ...).
         Les clés doivent correspondre aux noms de colonnes SQL.
@@ -89,7 +90,7 @@ class Note:
             lang=row.get("lang"),
         )
 
-    def to_upsert_params(self) -> Tuple[Any, ...]:
+    def to_upsert_params(self) -> tuple[Any, ...]:
         """
         Ordre exactement aligné sur l'INSERT ci-dessous (DAO).
         """

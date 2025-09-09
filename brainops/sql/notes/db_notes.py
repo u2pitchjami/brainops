@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from brainops.models.note import Note
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
@@ -11,9 +9,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def upsert_note_from_model(
-    note: Note, *, logger: LoggerProtocol | None = None
-) -> Optional[int]:
+def upsert_note_from_model(note: Note, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     Upsert idempotent par `file_path` (UNIQUE) avec retour d'id via LAST_INSERT_ID(id).
     """
@@ -68,9 +64,7 @@ def upsert_note_from_model(
 
 
 @with_child_logger
-def get_note_by_path(
-    file_path: str, *, logger: LoggerProtocol | None = None
-) -> Optional[Note]:
+def get_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) -> Note | None:
     """
     Récupère une note par `file_path` (unique). Retourne None si introuvable.
     """
@@ -101,9 +95,7 @@ def get_note_by_path(
 
 
 @with_child_logger
-def delete_note_by_path(
-    file_path: str, *, logger: LoggerProtocol | None = None
-) -> bool:
+def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) -> bool:
     """
     Supprime une note par `file_path`. Retourne True si supprimée.
     """

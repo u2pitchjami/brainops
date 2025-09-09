@@ -55,9 +55,7 @@ def get_int(key: str, default: int = 0) -> int:
     try:
         return int(raw)
     except ValueError as exc:
-        raise ConfigError(
-            f"[CONFIG ERROR] La variable {key} doit être un entier (valeur: {raw!r})."
-        ) from exc
+        raise ConfigError(f"[CONFIG ERROR] La variable {key} doit être un entier (valeur: {raw!r}).") from exc
 
 
 def get_float(key: str, default: float = 0.0) -> float:
@@ -69,9 +67,7 @@ def get_float(key: str, default: float = 0.0) -> float:
     try:
         return float(raw)
     except ValueError as exc:
-        raise ConfigError(
-            f"[CONFIG ERROR] La variable {key} doit être un float (valeur: {raw!r})."
-        ) from exc
+        raise ConfigError(f"[CONFIG ERROR] La variable {key} doit être un float (valeur: {raw!r}).") from exc
 
 
 def get_path_required(key: str) -> str:
@@ -82,9 +78,7 @@ def get_path_required(key: str) -> str:
     value = get_required(key).strip()
     abs_path = str(Path(value).expanduser().resolve())
     if not Path(abs_path).exists():
-        raise ConfigError(
-            f"[CONFIG ERROR] {key} pointe vers un chemin inexistant: {abs_path}"
-        )
+        raise ConfigError(f"[CONFIG ERROR] {key} pointe vers un chemin inexistant: {abs_path}")
     return abs_path
 
 
@@ -101,12 +95,8 @@ SAV_PATH: str = get_path_required("SAV_PATH")
 GPT_IMPORT_DIR: str = get_path_required("GPT_IMPORT_DIR")
 GPT_OUTPUT_DIR: str = get_path_required("GPT_OUTPUT_DIR")
 OUTPUT_TESTS_IMPORTS_DIR: str = get_path_required("OUTPUT_TESTS_IMPORTS_DIR")
-SIMILARITY_WARNINGS_LOG: str = get_str(
-    "SIMILARITY_WARNINGS_LOG", "/logs/similarity_warnings.log"
-)
-UNCATEGORIZED_JSON: str = get_str(
-    "UNCATEGORIZED_JSON", "/logs/uncategorized_notes.json"
-)
+SIMILARITY_WARNINGS_LOG: str = get_str("SIMILARITY_WARNINGS_LOG", "/logs/similarity_warnings.log")
+UNCATEGORIZED_JSON: str = get_str("UNCATEGORIZED_JSON", "/logs/uncategorized_notes.json")
 UNCATEGORIZED_PATH: str = get_path_required("UNCATEGORIZED_PATH")
 DUPLICATES_LOGS: str = get_str("DUPLICATES_LOGS", "/logs/duplicates_log.txt")
 DUPLICATES_PATH: str = get_path_required("DUPLICATES_PATH")

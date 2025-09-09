@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import json
-import re
 from pathlib import Path
-from typing import Dict, List, Sequence
+import re
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.ollama.ollama_call import OllamaError, call_ollama_with_retry
@@ -30,13 +30,13 @@ def determine_max_words(filepath: str | Path) -> int:
     return 1000 if "gpt_import" in fp else 1000
 
 
-def split_large_note(content: str, max_words: int = 1000) -> List[str]:
+def split_large_note(content: str, max_words: int = 1000) -> list[str]:
     """
     Découpe une note en blocs de taille optimale (max_words).
     """
     words = content.split()
-    blocks: List[str] = []
-    current_block: List[str] = []
+    blocks: list[str] = []
+    current_block: list[str] = []
 
     for word in words:
         current_block.append(word)
@@ -59,7 +59,7 @@ def process_large_note(
     write_file: bool = True,
     send_to_model: bool = True,
     model_name: str | None = None,
-    custom_prompts: Dict[str, str] | None = None,
+    custom_prompts: dict[str, str] | None = None,
     persist_blocks: bool = True,
     resume_if_possible: bool = True,
     source: str = "normal",
@@ -76,24 +76,18 @@ def process_large_note(
     model_ollama = model_name or MODEL_LARGE_NOTE
 
     if not entry_type and not custom_prompts:
-        logger.error(
-            "[ERROR] Aucun 'entry_type' (clé PROMPTS) ni 'custom_prompts' fournis."
-        )
+        logger.error("[ERROR] Aucun 'entry_type' (clé PROMPTS) ni 'custom_prompts' fournis.")
         return None
 
     try:
-        header_lines, content_lines = extract_yaml_header(
-            path.as_posix(), logger=logger
-        )
+        header_lines, content_lines = extract_yaml_header(path.as_posix(), logger=logger)
         logger.debug("[DEBUG] content_lines extrait : %s", content_lines)
         content = maybe_clean(content_lines)
         logger.debug("[DEBUG] content nettoyé : %s", content)
 
         # Choix de la méthode de split
         if split_method == "titles_and_words":
-            blocks = split_large_note_by_titles_and_words(
-                content, word_limit=word_limit
-            )
+            blocks = split_large_note_by_titles_and_words(content, word_limit=word_limit)
             logger.debug("[DEBUG] blocks extrait : %s", blocks)
         elif split_method == "titles":
             blocks = split_large_note_by_titles(content)
@@ -104,7 +98,7 @@ def process_large_note(
             return None
 
         logger.info("[INFO] Note découpée en %d blocs", len(blocks))
-        processed_blocks: List[str] = []
+        processed_blocks: list[str] = []
 
         for i, block in enumerate(blocks):
             logger.debug("[DEBUG] Bloc %d/%d", i + 1, len(blocks))
@@ -160,23 +154,19 @@ def process_large_note(
                     elif i == len(blocks) - 1 and "last" in custom_prompts:
                         prompt = custom_prompts["last"].format(content=block)
                     else:
-                        prompt = custom_prompts.get(
-                            "middle", PROMPTS.get(entry_type, "{content}")
-                        ).format(content=block)
+                        prompt = custom_prompts.get("middle", PROMPTS.get(entry_type, "{content}")).format(
+                            content=block
+                        )
                 else:
                     prompt_tpl = PROMPTS.get(entry_type or "")
                     if not prompt_tpl:
-                        logger.error(
-                            "[ERROR] Prompt '%s' introuvable dans PROMPTS.", entry_type
-                        )
+                        logger.error("[ERROR] Prompt '%s' introuvable dans PROMPTS.", entry_type)
                         prompt = block  # fallback minimal
                     else:
                         prompt = prompt_tpl.format(content=block)
 
                 try:
-                    response = call_ollama_with_retry(
-                        prompt, model_ollama, logger=logger
-                    )
+                    response = call_ollama_with_retry(prompt, model_ollama, logger=logger)
                 except OllamaError:
                     logger.error("[ERROR] Échec du bloc %d, saut…", i + 1)
                     if persist_blocks:
@@ -231,13 +221,9 @@ def process_large_note(
         final_content = join_yaml_and_body(header_lines, final_body_content)
 
         if write_file:
-            success = safe_write(
-                path.as_posix(), content=str(final_content), logger=logger
-            )
+            success = safe_write(path.as_posix(), content=str(final_content), logger=logger)
             if not success:
-                logger.error(
-                    "[main] Problème lors de l’écriture de %s", path.as_posix()
-                )
+                logger.error("[main] Problème lors de l’écriture de %s", path.as_posix())
             else:
                 logger.info("[INFO] Note enregistrée : %s", path.as_posix())
             return None
@@ -249,7 +235,7 @@ def process_large_note(
         return None
 
 
-def split_large_note_by_titles(content: str) -> List[str]:
+def split_large_note_by_titles(content: str) -> list[str]:
     """
     Découpe en blocs basés sur les titres (#, ##, ###), gère l'intro avant le 1er titre.
     Chaque bloc contient le titre et son contenu.
@@ -257,7 +243,7 @@ def split_large_note_by_titles(content: str) -> List[str]:
     title_pattern = r"(?m)^(\#{1,3})\s+.*$"
     matches = list(re.finditer(title_pattern, content))
 
-    blocks: List[str] = []
+    blocks: list[str] = []
     if matches:
         if matches[0].start() > 0:
             intro = content[: matches[0].start()].strip()
@@ -278,17 +264,15 @@ def split_large_note_by_titles(content: str) -> List[str]:
     return blocks
 
 
-def split_large_note_by_titles_and_words(
-    content: str, word_limit: int = 1000
-) -> List[str]:
+def split_large_note_by_titles_and_words(content: str, word_limit: int = 1000) -> list[str]:
     """
     Découpe par titres, puis regroupe en paquets ≤ word_limit mots, sans briser les sections.
     """
     title_pattern = r"(?m)^(\#{1,5})\s+.*$"
     matches = list(re.finditer(title_pattern, content))
 
-    blocks: List[str] = []
-    temp_block: List[str] = []
+    blocks: list[str] = []
+    temp_block: list[str] = []
     word_count = 0
 
     def add_block() -> None:
@@ -326,13 +310,11 @@ def split_large_note_by_titles_and_words(
     return blocks
 
 
-def ensure_titles_in_blocks(
-    blocks: Sequence[str], default_title: str = "# Introduction"
-) -> List[str]:
+def ensure_titles_in_blocks(blocks: Sequence[str], default_title: str = "# Introduction") -> list[str]:
     """
     S'assure que chaque bloc commence par un titre Markdown ; sinon en ajoute un.
     """
-    processed: List[str] = []
+    processed: list[str] = []
     for i, block in enumerate(blocks):
         b = (block or "").strip()
         if not b.startswith("#"):
@@ -342,9 +324,7 @@ def ensure_titles_in_blocks(
     return processed
 
 
-def ensure_titles_in_initial_content(
-    blocks: Sequence[str], default_title: str = "# Introduction"
-) -> List[str]:
+def ensure_titles_in_initial_content(blocks: Sequence[str], default_title: str = "# Introduction") -> list[str]:
     """
     Variante (compat) — même logique que ensure_titles_in_blocks.
     """

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from brainops.process_import.gpt.gpt_imports import (
     process_class_gpt_test,
@@ -45,7 +44,7 @@ from brainops.utils.logger import (
 def process_single_note(
     filepath: str,
     note_id: int,
-    src_path: Optional[str] = None,
+    src_path: str | None = None,
     logger: LoggerProtocol | None = None,
 ) -> bool:
     """
@@ -87,17 +86,13 @@ def process_single_note(
     if src_path is not None:
         logger.debug("Événement=move | src=%s -> dest=%s", src_path, filepath)
         if not os.path.exists(filepath):
-            logger.warning(
-                " 🚨 Fichier destination inexistant (race condition ?) : %s", filepath
-            )
+            logger.warning(" 🚨 Fichier destination inexistant (race condition ?) : %s", filepath)
             return False
 
         src_folder = os.path.dirname(src_path)
 
         # 1) UNCATEGORIZED → Z_STORAGE : forcer la catégorisation à partir du chemin
-        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(
-            UNCATEGORIZED_PATH, src_folder
-        ):
+        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(UNCATEGORIZED_PATH, src_folder):
             logger.info(
                 "[MOVED] ✈️ (id=%s) : uncategorized → storage : Lancement Import",
                 note_id,
@@ -119,12 +114,8 @@ def process_single_note(
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return True
 
-        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(
-            Z_STORAGE_PATH, src_folder
-        ):
-            logger.info(
-                "[MOVED] ✈️ (id=%s) : storage → storage : Lancement Import", note_id
-            )
+        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(Z_STORAGE_PATH, src_folder):
+            logger.info("[MOVED] ✈️ (id=%s) : storage → storage : Lancement Import", note_id)
             cat_name, subcat_name, _, _ = categ_extract(src_path)
             new_cat_name, new_subcat_name, _, _ = categ_extract(filepath)
             if not new_cat_name or not new_subcat_name:
@@ -169,9 +160,7 @@ def process_single_note(
     # B) Note déjà dans le stockage : vérifier si on doit régénérer (header/synthèse)
     if path_is_inside(Z_STORAGE_PATH, base_folder):
         new_word_count: int = count_words(filepath=filepath, logger=logger)
-        triggered, status, parent_id = should_trigger_process(
-            note_id, new_word_count, logger=logger
-        )
+        triggered, status, parent_id = should_trigger_process(note_id, new_word_count, logger=logger)
         logger.debug(
             "Trigger check | triggered=%s | status=%s | parent_id=%s | wc=%s",
             triggered,
@@ -221,7 +210,7 @@ def process_single_note(
         try:
             process_import_gpt(filepath)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Erreur import GPT : %s", exc)
             return False
 
@@ -231,7 +220,7 @@ def process_single_note(
         try:
             process_class_gpt_test(filepath, note_id)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Erreur GPT TEST : %s", exc)
             return False
 
@@ -240,7 +229,7 @@ def process_single_note(
         try:
             process_class_imports_test(filepath, note_id)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Erreur IMPORTS TEST : %s", exc)
             return False
 

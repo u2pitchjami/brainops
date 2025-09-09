@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Optional, Tuple
+from collections.abc import Iterable
 
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
@@ -12,8 +12,8 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def is_folder_included(
     path: str,
-    include_types: Optional[Iterable[str]] = None,
-    exclude_types: Optional[Iterable[str]] = None,
+    include_types: Iterable[str] | None = None,
+    exclude_types: Iterable[str] | None = None,
     *,
     logger: LoggerProtocol | None = None,
 ) -> bool:
@@ -70,10 +70,10 @@ def is_folder_included(
 @with_child_logger
 def get_path_from_classification(
     category_id: int,
-    subcategory_id: Optional[int] = None,
+    subcategory_id: int | None = None,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[Tuple[int, str]]:
+) -> tuple[int, str] | None:
     """
     Récupère (folder_id, path) à partir d'une classification (catégorie / sous-catégorie).
     Priorité à la sous-catégorie si fournie.
@@ -138,9 +138,7 @@ def get_path_from_classification(
 
 
 @with_child_logger
-def get_folder_type_by_path(
-    path: str, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def get_folder_type_by_path(path: str, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     Retourne le `folder_type` pour un chemin donné, ou None si introuvable.
     """
@@ -166,9 +164,7 @@ def get_folder_type_by_path(
 
 
 @with_child_logger
-def get_folder_type_by_id(
-    folder_id: int, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def get_folder_type_by_id(folder_id: int, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     Retourne le `folder_type` pour un identifiant de dossier, ou None si introuvable.
     """

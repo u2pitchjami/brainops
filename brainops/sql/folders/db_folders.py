@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.models.folders import Folder
 from brainops.sql.categs.db_categ_utils import remove_unused_category
@@ -13,9 +12,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def add_folder_from_model(
-    folder: Folder, *, logger: LoggerProtocol | None = None
-) -> Optional[int]:
+def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     Upsert idempotent par path à partir d'un modèle Folder.
     Requiert idéalement UNIQUE(path).
@@ -52,9 +49,7 @@ def add_folder_from_model(
 
 
 @with_child_logger
-def update_folder_from_model(
-    folder_id: int, new_folder: Folder, *, logger: LoggerProtocol | None = None
-) -> None:
+def update_folder_from_model(folder_id: int, new_folder: Folder, *, logger: LoggerProtocol | None = None) -> None:
     """
     Met à jour path, name, parent, (sub)cat, type depuis un modèle Folder.
     """
@@ -92,9 +87,7 @@ def update_folder_from_model(
 
 
 @with_child_logger
-def delete_folder_from_db(
-    folder_path: str, logger: LoggerProtocol | None = None
-) -> bool:
+def delete_folder_from_db(folder_path: str, logger: LoggerProtocol | None = None) -> bool:
     """
     Supprime un dossier de la base de données **seulement s’il est vide**, et nettoie les catégories associées si elles
     sont devenues orphelines.
@@ -106,9 +99,7 @@ def delete_folder_from_db(
         if path.exists():
             # 🔒 Vérifie si le dossier contient des fichiers ou sous-dossiers
             if any(path.iterdir()):
-                logger.warning(
-                    f"[DELETE] Dossier non vide, suppression ignorée : {folder_path}"
-                )
+                logger.warning(f"[DELETE] Dossier non vide, suppression ignorée : {folder_path}")
                 return False
 
         conn = get_db_connection(logger=logger)

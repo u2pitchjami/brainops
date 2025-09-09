@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.ollama.ollama_call import call_ollama_with_retry
@@ -22,8 +21,8 @@ from brainops.utils.normalization import clean_fake_code_blocks
 def process_standard_note(
     note_id: int | None,
     filepath: str | Path,
-    content: Optional[str] = None,
-    model_ollama: Optional[str] = None,
+    content: str | None = None,
+    model_ollama: str | None = None,
     prompt_name: str = "import",
     source: str = "import",
     write_file: bool = True,

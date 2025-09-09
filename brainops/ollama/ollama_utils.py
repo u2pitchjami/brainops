@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from brainops.process_import.utils.divers import prompt_name_and_model_selection
 from brainops.process_import.utils.large_note import process_large_note
 from brainops.process_import.utils.standard_note import process_standard_note
@@ -13,20 +11,20 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def large_or_standard_note(
     filepath: str,
-    content: Optional[str] = None,
-    note_id: Optional[int] = None,
-    prompt_key: Optional[str] = None,
-    model_ollama: Optional[str] = None,
+    note_id: int,
+    content: str | None = None,    
+    prompt_key: str | None = None,
+    model_ollama: str | None = None,
     word_limit: int = 1000,
     split_method: str = "titles_and_words",
     write_file: bool = True,
     send_to_model: bool = True,
-    custom_prompts: Optional[Dict[str, str]] = None,
+    custom_prompts: dict[str, str] | None = None,
     persist_blocks: bool = True,
     resume_if_possible: bool = True,
     source: str = "normal",
     process_mode: str = "large_note",  # "large_note" | "standard_note"
-    prompt_name: Optional[str] = None,
+    prompt_name: str | None = None,
     *,
     logger: LoggerProtocol | None = None,
 ) -> str:
@@ -36,16 +34,12 @@ def large_or_standard_note(
     """
     logger = ensure_logger(logger, __name__)
     try:
-        logger.debug(
-            "[DEBUG] large_or_standard_note model_ollama (in) : %s", model_ollama
-        )
+        logger.debug("[DEBUG] large_or_standard_note model_ollama (in) : %s", model_ollama)
 
         # Déterminer prompt_name + model si non fournis explicitement
         if not prompt_name:
             if prompt_key:
-                pn, mdl = prompt_name_and_model_selection(
-                    note_id, key=prompt_key, logger=logger
-                )
+                pn, mdl = prompt_name_and_model_selection(note_id, key=prompt_key, logger=logger)
                 prompt_name = pn
                 model_ollama = model_ollama or mdl
                 logger.debug(

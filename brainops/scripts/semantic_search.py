@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """# scripts/semantic_search.py"""
+
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 import json
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -27,7 +29,7 @@ def _as_np2d(vectors: Sequence[Sequence[float]]) -> np.ndarray:
 def search_blocks_by_semantic(
     query_text: str,
     *,
-    note_id: Optional[int],
+    note_id: int | None,
     top_n: int = 5,
     embed_model: str = "nomic-embed-text:latest",
 ) -> list[dict[str, Any]]:
@@ -64,7 +66,7 @@ def search_blocks_by_semantic(
         sims = cosine_similarity(q, emb_mat)[0]
         top_idx = sims.argsort()[-top_n:][::-1]
         return [{"text": blocks[i], "score": float(sims[i])} for i in top_idx]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("Erreur similarity: %s", exc)
         return []
 
@@ -75,16 +77,10 @@ def main() -> None:
 
     _extended_summary_
     """
-    parser = argparse.ArgumentParser(
-        description="Recherche sémantique IA locale sur Obsidian"
-    )
+    parser = argparse.ArgumentParser(description="Recherche sémantique IA locale sur Obsidian")
     parser.add_argument("--query", required=True, help="Texte ou question à chercher")
-    parser.add_argument(
-        "--note_id", type=int, required=True, help="ID de la note cible"
-    )
-    parser.add_argument(
-        "--top", type=int, default=5, help="Nombre de blocs à retourner"
-    )
+    parser.add_argument("--note_id", type=int, required=True, help="ID de la note cible")
+    parser.add_argument("--top", type=int, default=5, help="Nombre de blocs à retourner")
     parser.add_argument(
         "--embed-model",
         type=str,
@@ -105,14 +101,9 @@ def main() -> None:
         out = Path(args.out)
         out.parent.mkdir(parents=True, exist_ok=True)
         if out.suffix.lower() == ".json":
-            out.write_text(
-                json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
+            out.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
         else:
-            lines = [
-                f"## Bloc {i + 1} (score {r['score']:.2f})\n{r['text']}\n\n"
-                for i, r in enumerate(results)
-            ]
+            lines = [f"## Bloc {i + 1} (score {r['score']:.2f})\n{r['text']}\n\n" for i, r in enumerate(results)]
             out.write_text("".join(lines), encoding="utf-8")
         logger.info("Résultats écrits dans : %s", out)
     else:

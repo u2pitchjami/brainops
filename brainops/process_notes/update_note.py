@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_note_metadata
 from brainops.header.headers import add_metadata_to_yaml
@@ -25,8 +24,8 @@ def update_note(
     note_id: int,
     dest_path: str | Path,
     src_path: str | Path | None = None,
-    logger: Optional[LoggerProtocol] = None,
-) -> Optional[int]:
+    logger: LoggerProtocol | None = None,
+) -> int | None:
     """
     Met à jour une note existante dans la base, y compris en cas de déplacement.
 
@@ -96,15 +95,11 @@ def update_note(
         # 5) Si categ/subcateg diffèrent → retrouver folder_id cible
         category_id = category_id_db
         subcategory_id = subcategory_id_db
-        if (category_id_db != category_id_dest) or (
-            subcategory_id_db != subcategory_id_dest
-        ):
+        if (category_id_db != category_id_dest) or (subcategory_id_db != subcategory_id_dest):
             category_id = category_id_dest
             subcategory_id = subcategory_id_dest
 
-            fp = get_path_from_classification(
-                category_id, subcategory_id, logger=logger
-            )
+            fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
             if fp:
                 folder_id = fp[0]  # (folder_id, path)
                 logger.debug(
@@ -149,9 +144,7 @@ def update_note(
 
         # 9) Actions selon status
         if status == "synthesis":
-            logger.debug(
-                "[UPDATE_NOTE] Post-action: check_synthesis_and_trigger_archive"
-            )
+            logger.debug("[UPDATE_NOTE] Post-action: check_synthesis_and_trigger_archive")
             check_synthesis_and_trigger_archive(note_id, str(dp), logger=logger)
         elif status == "regen":
             logger.debug("[UPDATE_NOTE] Post-action: regen_synthese_from_archive")
@@ -162,7 +155,7 @@ def update_note(
 
         return note_id
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error(
             "[UPDATE_NOTE] Erreur lors de la mise à jour (id=%s, dest=%s): %s",
             note_id,

@@ -2,26 +2,24 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import hashlib
 import re
-from typing import Callable
 
 import yaml
 
 from brainops.utils.files import read_note_content, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
-_YAML_FENCE = re.compile(
-    r"^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n)?", re.DOTALL
-)  # gère BOM/CRLF/espaces
+_YAML_FENCE = re.compile(r"^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n)?", re.DOTALL)  # gère BOM/CRLF/espaces
 
 
 @with_child_logger
-def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict:
+def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str, str]:
     """
     Extrait et parse l'en-tête YAML. Retourne {} si absent.
     """
-    _ = ensure_logger(logger, __name__)
+    logger = ensure_logger(logger, __name__)
     try:
         m = _YAML_FENCE.match(content)
         if m:
@@ -33,9 +31,7 @@ def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict:
 
 
 @with_child_logger
-def get_yaml_value(
-    content: str, key: str, default=None, *, logger: LoggerProtocol | None = None
-):
+def get_yaml_value(content: str, key: str, default: str | None = None, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     get_yaml_value _summary_
 
@@ -56,16 +52,12 @@ def get_yaml_value(
 
 
 @with_child_logger
-def update_yaml_header(
-    content: str, new_metadata: dict, *, logger: LoggerProtocol | None = None
-) -> str:
+def update_yaml_header(content: str, new_metadata: dict[str, str], *, logger: LoggerProtocol | None = None) -> str:
     """
     Remplace l’en-tête YAML par new_metadata (écrase tout l’entête).
     """
     _ = ensure_logger(logger, __name__)
-    new_yaml = yaml.safe_dump(
-        new_metadata, default_flow_style=False, sort_keys=False, allow_unicode=True
-    )
+    new_yaml = yaml.safe_dump(new_metadata, default_flow_style=False, sort_keys=False, allow_unicode=True)
     new_front = f"---\n{new_yaml}---\n"
 
     m = _YAML_FENCE.match(content)
@@ -74,9 +66,7 @@ def update_yaml_header(
 
 
 @with_child_logger
-def merge_yaml_header(
-    content: str, new_metadata: dict, *, logger: LoggerProtocol | None = None
-) -> str:
+def merge_yaml_header(content: str, new_metadata: dict[str, str], *, logger: LoggerProtocol | None = None) -> str:
     """
     Fusionne de nouvelles métadonnées dans l’en-tête YAML (conserve le reste).
     """
@@ -91,9 +81,7 @@ def merge_yaml_header(
             body = content
 
         merged = {**existing, **new_metadata}
-        new_yaml = yaml.safe_dump(
-            merged, default_flow_style=False, sort_keys=False, allow_unicode=True
-        )
+        new_yaml = yaml.safe_dump(merged, default_flow_style=False, sort_keys=False, allow_unicode=True)
         return f"---\n{new_yaml}---\n{body}"
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[ERROR] merge_yaml_header: %s", exc)
@@ -122,15 +110,15 @@ def patch_yaml_line(
 
 
 @with_child_logger
-def clean_yaml_spacing_in_file(
-    file_path: str, *, logger: LoggerProtocol | None = None
-) -> bool:
+def clean_yaml_spacing_in_file(file_path: str, *, logger: LoggerProtocol | None = None) -> bool:
     """
     Nettoie: s’assure d’une seule ligne vide après l’entête YAML, puis le corps.
     """
     logger = ensure_logger(logger, __name__)
     try:
         content = read_note_content(file_path, logger=logger)
+        if not content:
+            return False
         lines = content.splitlines()
         inside = False
         yaml_end_idx: int | None = None

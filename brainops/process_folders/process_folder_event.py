@@ -9,34 +9,14 @@ from brainops.process_folders.folders import add_folder, update_folder
 from brainops.sql.folders.db_folders import delete_folder_from_db
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import normalize_full_path
+from brainops.watcher.queue_manager import DirEvent
 
 # ----- Types d'événements -------------------------------------------------------
 
 FolderType = Literal["storage", "archive", "technical", "project", "personnal"]
 EventAction = Literal["created", "deleted", "moved"]
 
-
-class DirectoryEvent(TypedDict, total=True):
-    """
-    DirectoryEvent _summary_
-
-    _extended_summary_
-
-    Args:
-        TypedDict (_type_): _description_
-        total (bool, optional): _description_. Defaults to True.
-    """
-
-    type: Literal["directory"]
-    action: EventAction
-    path: str  # destination pour moved, cible pour created/deleted
-    # compat:
-    src_path: NotRequired[str]  # recommandé pour moved
-    new_path: NotRequired[str]  # legacy (si jamais encore utilisé)
-
-
 # ----- Helpers ------------------------------------------------------------------
-
 
 def _is_hidden_or_ignored(p: str) -> bool:
     path = Path(p)
@@ -56,11 +36,7 @@ def _detect_folder_type(p: str) -> FolderType:
     lower = p.lower()
 
     # règle spécifique d'archives
-    if (
-        "/archives" in lower
-        or lower.endswith("/archives")
-        or lower.endswith("\\archives")
-    ):
+    if "/archives" in lower or lower.endswith("/archives") or lower.endswith("\\archives"):
         return "archive"
     # règles sur segments "notes/*"
     if "/notes/z_storage/" in lower or "\\notes\\z_storage\\" in lower:
@@ -78,9 +54,7 @@ def _detect_folder_type(p: str) -> FolderType:
 
 # ----- Hub ----------------------------------------------------------------------
 @with_child_logger
-def process_folder_event(
-    event: DirectoryEvent, logger: LoggerProtocol | None = None
-) -> None:
+def process_folder_event(event: DirEvent, logger: LoggerProtocol | None = None) -> None:
     """
     Gère un événement de dossier.
 
@@ -99,11 +73,7 @@ def process_folder_event(
     logger.debug("[FOLDERS] event=%s path=%s", action, folder_path)
 
     # ignore dossiers cachés / non pertinents
-    if (
-        folder_path.startswith(".")
-        or "untitled" in folder_path.lower()
-        or "Sans titre" in folder_path.lower()
-    ):
+    if folder_path.startswith(".") or "untitled" in folder_path.lower() or "Sans titre" in folder_path.lower():
         logger.info(f"[INFO] Dossier ignoré : {folder_path}")
         return  # Ignore les dossiers cachés ou non pertinents
 
@@ -126,11 +96,7 @@ def process_folder_event(
         legacy_new = event.get("new_path")
 
         if src and dst:
-            if (
-                src.startswith(".")
-                or "untitled" in src.lower()
-                or "sans titre" in src.lower()
-            ):
+            if src.startswith(".") or "untitled" in src.lower() or "sans titre" in src.lower():
                 folder_type = _detect_folder_type(dst)
                 add_folder(dst, folder_type, logger=logger)
                 logger.info("[FOLDERS] add_folder(%s, type=%s)", dst, folder_type)
@@ -140,7 +106,7 @@ def process_folder_event(
             return
 
         if legacy_new:
-            new_dst = normalize_full_path(legacy_new)
+            new_dst = normalize_full_path(str(legacy_new))
             logger.info(
                 "[FOLDERS] legacy moved: update_folder(src=%s, dst=%s)",
                 folder_path,

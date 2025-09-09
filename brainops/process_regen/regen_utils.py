@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.headers import make_properties
 from brainops.process_import.synthese.import_synthese import process_import_syntheses
@@ -15,9 +14,7 @@ from brainops.utils.logger import get_logger
 logger = get_logger("Brainops Regen")
 
 
-def regen_synthese_from_archive(
-    note_id: int, filepath: Optional[str | Path] = None
-) -> bool:
+def regen_synthese_from_archive(note_id: int, filepath: str | Path | None = None) -> bool:
     """
     Régénère la synthèse d'une note à partir de son archive liée.
     - Purge les blocs temporaires (embeddings / prompts) pour repartir propre.
@@ -26,16 +23,12 @@ def regen_synthese_from_archive(
     try:
         path = Path(str(filepath)) if filepath else Path(get_file_path(note_id) or "")
         if not path or not path.as_posix():
-            logger.error(
-                "[REGEN] Impossible de déterminer le filepath pour note_id=%s", note_id
-            )
+            logger.error("[REGEN] Impossible de déterminer le filepath pour note_id=%s", note_id)
             return
 
         logger.info("[REGEN] Synthèse → note_id=%s | path=%s", note_id, path.as_posix())
         # Purge de tous les blocs liés à ce chemin (embeddings, prompts, etc.)
-        delete_blocs_by_path_and_source(
-            note_id, path.as_posix(), source="all", logger=logger
-        )
+        delete_blocs_by_path_and_source(note_id, path.as_posix(), source="all", logger=logger)
 
         # Relance synthèse
         process_import_syntheses(path.as_posix(), note_id, logger=logger)
@@ -47,9 +40,7 @@ def regen_synthese_from_archive(
         return False
 
 
-def regen_header(
-    note_id: int, filepath: str | Path, parent_id: Optional[int] = None
-) -> bool:
+def regen_header(note_id: int, filepath: str | Path, parent_id: int | None = None) -> bool:
     """
     Régénère l'entête (tags, summary, champs YAML) d'une note.
     Détermine le 'status' attendu :
@@ -63,11 +54,7 @@ def regen_header(
             parent_status = (parent or {}).get("status")
             status = "synthesis" if parent_status == "archive" else "archive"
         else:
-            status = (
-                "archive"
-                if any(part.lower() == "archives" for part in path.parts)
-                else "synthesis"
-            )
+            status = "archive" if any(part.lower() == "archives" for part in path.parts) else "synthesis"
 
         logger.info("[REGEN_HEADER] %s → status=%s", path.name, status)
         make_properties(path.as_posix(), note_id, status)

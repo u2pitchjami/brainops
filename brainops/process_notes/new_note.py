@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import date, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Optional, Tuple
+import shutil
 
 from brainops.header.extract_yaml_header import extract_note_metadata
 from brainops.header.headers import add_metadata_to_yaml
@@ -36,7 +35,7 @@ def _normalize_abs_posix(p: str | Path) -> Path:
     return Path(str(p)).expanduser().resolve()
 
 
-def _safe_stat_times(fp: Path) -> Tuple[Optional[date], Optional[datetime]]:
+def _safe_stat_times(fp: Path) -> tuple[date | None, datetime | None]:
     try:
         st = fp.stat()
         cdate = datetime.fromtimestamp(st.st_ctime).date()
@@ -57,7 +56,7 @@ def _safe_word_count(fp: Path) -> int:
         return 0
 
 
-def _sha256_file(fp: Path) -> Optional[str]:
+def _sha256_file(fp: Path) -> str | None:
     try:
         h = sha256()
         with fp.open("rb") as f:
@@ -75,9 +74,7 @@ def _ensure_duplicates_dir() -> None:
 
 # ---------- core ---------------------------------------------------------------
 @with_child_logger
-def new_note(
-    file_path: str | Path, logger: Optional[LoggerProtocol] = None
-) -> Optional[int]:
+def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int | None:
     """
     Crée/Met à jour une note à partir d'un fichier du vault.
     - Upsert par `file_path` (UNIQUE).
@@ -130,9 +127,7 @@ def new_note(
         # ---- upsert en DB -----------------------------------------------------
         note_id = upsert_note_from_model(note, logger=logger)
         if not note_id:
-            logger.error(
-                "[NOTES] upsert_note_from_model a échoué pour %s", fp.as_posix()
-            )
+            logger.error("[NOTES] upsert_note_from_model a échoué pour %s", fp.as_posix())
             return None
 
         # ---- détection doublons pour les imports ------------------------------
@@ -144,9 +139,7 @@ def new_note(
                 updates = {"file_path": new_path.as_posix(), "status": "duplicate"}
                 logger.debug("[NOTES] Mise à jour DB (duplicate): %s", updates)
                 update_obsidian_note(note_id, updates, logger=logger)
-                ensure_status_in_yaml(
-                    new_path.as_posix(), status="duplicate", logger=logger
-                )
+                ensure_status_in_yaml(new_path.as_posix(), status="duplicate", logger=logger)
                 return None  # ou retourner new_path si tu préfères
 
         # ---- règles spécifiques Archives -------------------------------------
@@ -162,9 +155,7 @@ def new_note(
 
 
 @with_child_logger
-def _handle_duplicate_note(
-    file_path: Path, match_info: list[dict], *, logger: LoggerProtocol
-) -> Path:
+def _handle_duplicate_note(file_path: Path, match_info: list[dict], *, logger: LoggerProtocol) -> Path:
     """
     Déplace une note vers DUPLICATES_PATH et journalise les infos.
     """
@@ -177,9 +168,7 @@ def _handle_duplicate_note(
         logger.warning("Note déplacée vers 'duplicates' : %s", new_path.as_posix())
 
         with open(DUPLICATES_LOGS, "a", encoding="utf-8") as log_file:
-            log_file.write(
-                f"{datetime.now().isoformat()} - {file_path.name} doublon de {match_info}\n"
-            )
+            log_file.write(f"{datetime.now().isoformat()} - {file_path.name} doublon de {match_info}\n")
 
         return new_path
     except Exception as exc:  # pylint: disable=broad-except

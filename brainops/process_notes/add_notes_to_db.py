@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_note_metadata
 from brainops.header.header_utils import hash_source
@@ -25,9 +24,7 @@ from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
 
 
 @with_child_logger
-def add_note_to_db(
-    file_path: str | Path, *, logger: LoggerProtocol | None = None
-) -> Optional[int]:
+def add_note_to_db(file_path: str | Path, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     Crée ou met à jour une note (upsert par file_path UNIQUE) à partir d'un fichier.
     - Normalise le chemin
@@ -50,14 +47,10 @@ def add_note_to_db(
         # on redemande l'id (suivant ton implémentation d'add_folder)
         folder_id = folder_id or get_folder_id(base_folder, logger=logger)
         if not folder_id:
-            logger.error(
-                "[NOTES] Impossible de récupérer folder_id pour %s", base_folder
-            )
+            logger.error("[NOTES] Impossible de récupérer folder_id pour %s", base_folder)
             return None
 
-    cat_id, subcat_id, _cname, _scname = get_category_context_from_folder(
-        base_folder, logger=logger
-    )
+    cat_id, subcat_id, _cname, _scname = get_category_context_from_folder(base_folder, logger=logger)
 
     # --- Métadonnées YAML -------------------------------------------------------
     meta = extract_note_metadata(fp.as_posix(), logger=logger) or {}
@@ -65,7 +58,7 @@ def add_note_to_db(
     status = str(meta.get("status", "draft")).strip() or "draft"
     created = sanitize_created(meta.get("created"), logger=logger)  # -> date | None
     modified_raw = meta.get("last_modified")
-    modified_at: Optional[datetime] = None
+    modified_at: datetime | None = None
     if isinstance(modified_raw, datetime):
         modified_at = modified_raw
     elif isinstance(modified_raw, str):

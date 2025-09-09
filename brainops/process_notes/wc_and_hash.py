@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import codecs
 import hashlib
-import re
 from pathlib import Path
-from typing import Optional, Tuple
+import re
 
 CHUNK_SIZE = 1024 * 1024  # 1 Mo
 
 
-def compute_wc_and_hash(fp: Path) -> Tuple[int, Optional[str]]:
+def compute_wc_and_hash(fp: Path) -> tuple[int, str | None]:
     """
     Calcule word_count (pour .md/.txt) et sha256 en un seul passage disque.
     - Pour les autres extensions: word_count=0, hash quand même.
@@ -21,9 +20,7 @@ def compute_wc_and_hash(fp: Path) -> Tuple[int, Optional[str]]:
     word_count = 0
 
     # décodeur texte incrémental (permet de compter les mots sans relire)
-    decoder = (
-        codecs.getincrementaldecoder("utf-8")(errors="ignore") if is_text else None
-    )
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="ignore") if is_text else None
     tail = ""  # dernier token potentiel coupé entre deux chunks
 
     with fp.open("rb") as f:

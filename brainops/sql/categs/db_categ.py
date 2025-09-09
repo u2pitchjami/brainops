@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
 
 from brainops.process_import.utils.paths import ensure_folder_exists
 from brainops.sql.db_connection import get_db_connection
@@ -16,7 +15,7 @@ from brainops.utils.normalization import normalize_full_path
 @with_child_logger
 def delete_category_from_db(
     category_name: str,
-    subcategory_name: Optional[str] = None,
+    subcategory_name: str | None = None,
     *,
     logger: LoggerProtocol | None = None,
 ) -> None:
@@ -70,7 +69,7 @@ def get_path_safe(
     note_id: int,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[Tuple[int, int]]:
+) -> tuple[int, int] | None:
     """
     Vérifie / crée la catégorie et sous-catégorie si besoin, puis renvoie (category_id, subcategory_id).
     `note_type` attendu au format "Category/Subcategory" (Subcategory optionnelle).
@@ -125,10 +124,7 @@ def get_path_safe(
                         category,
                         subcategory,
                     )
-                    subcategory_id = (
-                        add_dynamic_subcategory(category, subcategory, logger=logger)
-                        or 0
-                    )
+                    subcategory_id = add_dynamic_subcategory(category, subcategory, logger=logger) or 0
             else:
                 subcategory_id = 0  # pas de sous-catégorie
 
@@ -143,7 +139,7 @@ def add_dynamic_subcategory(
     subcategory: str,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[int]:
+) -> int | None:
     """
     Crée une sous-catégorie sous `category` et son dossier associé sous Z_STORAGE_PATH/<category>/<subcategory>.
     Si le dossier de catégorie n'existe pas en DB, il est créé sous Z_STORAGE_PATH/<category>.
@@ -177,7 +173,7 @@ def add_dynamic_subcategory(
 
             z_storage = normalize_full_path(Z_STORAGE_PATH)
             categ_path = Path(z_storage) / category
-            category_folder_id: Optional[int]
+            category_folder_id: int | None
             category_folder_path: str
 
             if cat_folder:
@@ -253,9 +249,7 @@ def add_dynamic_subcategory(
         logger.info("[CATEG] Sous-catégorie créée: %s/%s", category, subcategory)
         return subcategory_id
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[CATEG] add_dynamic_subcategory(%s, %s) : %s", category, subcategory, exc
-        )
+        logger.exception("[CATEG] add_dynamic_subcategory(%s, %s) : %s", category, subcategory, exc)
         return None
     finally:
         conn.close()
@@ -266,7 +260,7 @@ def add_dynamic_category(
     category: str,
     *,
     logger: LoggerProtocol | None = None,
-) -> Optional[int]:
+) -> int | None:
     """
     Crée une catégorie racine et son dossier sous Z_STORAGE_PATH/<category>.
     Requiert l'existence du folder racine Z_STORAGE_PATH en DB.

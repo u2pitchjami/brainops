@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from langdetect import detect
 
@@ -17,9 +16,7 @@ from brainops.utils.normalization import sanitize_created, sanitize_filename
 
 
 @with_child_logger
-def rename_file(
-    filepath: str | Path, note_id: int, *, logger: Optional[LoggerProtocol] = None
-) -> Path:
+def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> Path:
     """
     Renomme un fichier en préfixant par la date (créée ou actuelle), en évitant les collisions.
     Retourne le nouveau chemin.
@@ -34,7 +31,7 @@ def rename_file(
         raise FileNotFoundError(msg)
 
     # Récupère created_at depuis la DB si dispo, sinon now()
-    created_at_raw: Optional[str] = None
+    created_at_raw: str | None = None
     try:
         data = get_note_linked_data(note_id, "note", logger=logger)
         if isinstance(data, dict):
@@ -43,9 +40,7 @@ def rename_file(
         logger.warning("[WARN] Impossible de lire created_at en DB : %s", exc)
 
     created_str = (
-        sanitize_created(created_at_raw, logger=logger)
-        if created_at_raw
-        else datetime.now().strftime("%Y-%m-%d")
+        sanitize_created(created_at_raw, logger=logger) if created_at_raw else datetime.now().strftime("%Y-%m-%d")
     )
     stem_sanitized = sanitize_filename(file_path.stem, logger=logger)
     new_name = f"{created_str}_{stem_sanitized}{file_path.suffix}"
@@ -68,7 +63,7 @@ def make_relative_link(
     original_path: str | Path,
     filepath: str | Path,
     *,
-    logger: Optional[LoggerProtocol] = None,
+    logger: LoggerProtocol | None = None,
 ) -> Path:
     """
     Convertit un chemin absolu (original_path) en chemin relatif à partir du dossier de 'filepath'.
@@ -86,9 +81,7 @@ def make_relative_link(
 
 
 @with_child_logger
-def lang_detect(
-    file_path: str | Path, *, logger: Optional[LoggerProtocol] = None
-) -> str:
+def lang_detect(file_path: str | Path, *, logger: LoggerProtocol | None = None) -> str:
     """
     Détecte la langue ('fr', 'en', ...), 'na' si trop court (<50 mots) ou indétectable.
     """
@@ -111,8 +104,8 @@ def lang_detect(
 def prompt_name_and_model_selection(
     note_id: int,
     key: str,
-    forced_model: Optional[str] = None,
-    logger: Optional[LoggerProtocol] = None,
+    forced_model: str | None = None,
+    logger: LoggerProtocol | None = None,
 ) -> tuple[str, str]:
     """
     Sélectionne (prompt_name, model_ollama) selon la langue de la note.

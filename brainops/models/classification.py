@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(slots=True, kw_only=True)
@@ -13,8 +12,8 @@ class ClassificationResult:
     """
 
     note_type: str  # "Category/Subcategory" normalisé
-    category_id: Optional[int]
-    subcategory_id: Optional[int]
-    folder_id: Optional[int]
+    category_id: int | None
+    subcategory_id: int | None
+    folder_id: int | None
     dest_folder: str  # dossier cible (absolu POSIX)
     status: str = "archive"  # statut choisi pour l'import normal

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional, Tuple
 
 from mysql.connector.errors import IntegrityError
 
@@ -23,7 +22,7 @@ def get_existing_bloc(
     word_limit: int,
     source: str,
     logger: LoggerProtocol | None = None,
-) -> Optional[Tuple[str, str]]:
+) -> tuple[str, str] | None:
     """
     Retourne (response, status) pour un bloc existant, ou None.
     """
@@ -61,7 +60,7 @@ def get_existing_bloc(
         )
         row = cursor.fetchone()
         return (row[0], row[1]) if row else None
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[ERROR] get_existing_bloc: %s", e)
         return None
     finally:
@@ -114,10 +113,8 @@ def insert_bloc(
         )
         conn.commit()
     except IntegrityError:
-        logger.warning(
-            "[SKIP] Bloc déjà existant : index=%s path=%s", block_index, filepath
-        )
-    except Exception as e:  # noqa: BLE001
+        logger.warning("[SKIP] Bloc déjà existant : index=%s path=%s", block_index, filepath)
+    except Exception as e:
         logger.error("[ERROR] insert_bloc: %s", e)
         conn.rollback()
         raise
@@ -161,7 +158,7 @@ def update_bloc_response(
             (response.strip(), status, note_id, str(filepath), source, block_index),
         )
         conn.commit()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[ERROR] update_bloc_response: %s", e)
         conn.rollback()
         raise
@@ -171,9 +168,7 @@ def update_bloc_response(
 
 
 @with_child_logger
-def mark_bloc_as_error(
-    filepath: str | Path, block_index: int, logger: LoggerProtocol | None = None
-) -> None:
+def mark_bloc_as_error(filepath: str | Path, block_index: int, logger: LoggerProtocol | None = None) -> None:
     """
     Marque un bloc comme 'error' en se basant sur (note_path, block_index).
     (Chemin "compat" avec les anciens appels qui ne passaient pas note_id/source.)
@@ -197,7 +192,7 @@ def mark_bloc_as_error(
             (str(filepath), block_index),
         )
         conn.commit()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[ERROR] mark_bloc_as_error: %s", e)
         conn.rollback()
     finally:
@@ -252,10 +247,8 @@ def delete_blocs_by_path_and_source(
 
         conn.commit()
         logger.info("[DELETE] Blocs supprimés pour %s (source=%s)", file_path, source)
-    except Exception as e:  # noqa: BLE001
-        logger.error(
-            "[ERROR] delete_blocs_by_path_and_source(%s,%s): %s", file_path, source, e
-        )
+    except Exception as e:
+        logger.error("[ERROR] delete_blocs_by_path_and_source(%s,%s): %s", file_path, source, e)
         conn.rollback()
         raise
     finally:
@@ -293,7 +286,7 @@ def get_blocks_and_embeddings_by_note(
             (note_id,),
         )
         rows = cursor.fetchall()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error("[DB] Erreur requête temp_blocks: %s", e)
         return [], []
     finally:
@@ -327,9 +320,7 @@ def get_blocks_and_embeddings_by_note(
                 blocks.append(str(row["content"]))
                 embeddings.append(vec)
             else:
-                logger.warning(
-                    "[DB LOAD] Embedding illisible au bloc %s", row["block_index"]
-                )
+                logger.warning("[DB LOAD] Embedding illisible au bloc %s", row["block_index"])
 
         except Exception as e:
             logger.error(

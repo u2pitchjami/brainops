@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Réconcilie la cohérence entre Obsidian (fichiers) et la base MariaDB.
 
@@ -16,12 +15,13 @@ Toutes les fonctions cibles reçoivent (filepath, logger=logger).
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable
 import csv
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Literal, TypedDict
+import sys
+from typing import Literal, TypedDict
 
 from brainops.process_folders.folders import add_folder
 
@@ -152,10 +152,8 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
     # --- Folders
     conn = get_db_connection(logger=logger)
     cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        "SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders"
-    )
-    db_folders: List[FolderRow] = cursor.fetchall()  # type: ignore[assignment]
+    cursor.execute("SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
+    db_folders: list[FolderRow] = cursor.fetchall()  # type: ignore[assignment]
 
     physical_dirs = {p for p in _iter_physical_dirs(cfg.base_path)}
     db_folder_paths = {Path(row["path"]).resolve() for row in db_folders}
@@ -172,7 +170,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
 
     # --- Notes
     cursor.execute("SELECT id, file_path FROM obsidian_notes")
-    notes: List[NoteRow] = cursor.fetchall()  # type: ignore[assignment]
+    notes: list[NoteRow] = cursor.fetchall()  # type: ignore[assignment]
 
     notes_missing_file: list[str] = []
     for note in notes:
@@ -292,26 +290,20 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: _description_
     """
-    parser = argparse.ArgumentParser(
-        description="Audit & réconciliation Obsidian <-> MariaDB"
-    )
+    parser = argparse.ArgumentParser(description="Audit & réconciliation Obsidian <-> MariaDB")
     parser.add_argument(
         "--base-path",
         default=None,
         help="Racine du vault Obsidian (sinon config BASE_PATH)",
     )
-    parser.add_argument(
-        "--out-dir", default=None, help="Répertoire des rapports (sinon config LOG_DIR)"
-    )
+    parser.add_argument("--out-dir", default=None, help="Répertoire des rapports (sinon config LOG_DIR)")
     parser.add_argument(
         "--scope",
         default="all",
         choices=["all", "notes", "folders"],
         help="Cible de la réconciliation",
     )
-    parser.add_argument(
-        "--apply", action="store_true", help="Appliquer les corrections (sinon dry-run)"
-    )
+    parser.add_argument("--apply", action="store_true", help="Appliquer les corrections (sinon dry-run)")
     return parser.parse_args()
 
 
@@ -329,9 +321,7 @@ def main() -> int:
     out_dir = Path(args.out_dir or LOG_FILE_PATH).resolve()
     cfg = CheckConfig(base_path=base_path, out_dir=out_dir)
 
-    logger.info(
-        "=== DÉMARRAGE RÉCONCILIATION (scope=%s, apply=%s) ===", args.scope, args.apply
-    )
+    logger.info("=== DÉMARRAGE RÉCONCILIATION (scope=%s, apply=%s) ===", args.scope, args.apply)
     try:
         diffs = collect_diffs(cfg)
         stats = apply_diffs(diffs, scope=args.scope, dry_run=(not args.apply))

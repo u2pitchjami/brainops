@@ -5,21 +5,20 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Dict, Optional
 
 from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Watcher")
 
 
-def get_lock_key(note_id: Optional[int], file_path: Optional[str]) -> str:
+def get_lock_key(note_id: int | None, file_path: str | None) -> str:
     """
     Génère une clé de verrou logique.
     Priorise l'identifiant de note quand disponible, sinon le chemin.
     """
     if note_id is not None:
         return f"note:{note_id}"
-    return f"path:{str(file_path)}"
+    return f"path:{file_path!s}"
 
 
 class PendingNoteLockManager:
@@ -34,7 +33,7 @@ class PendingNoteLockManager:
 
         _extended_summary_
         """
-        self._locks: Dict[str, int] = {}
+        self._locks: dict[str, int] = {}
         self._lock = threading.Lock()
         self._logger = logger
 
@@ -74,7 +73,7 @@ class PendingNoteLockManager:
         with self._lock:
             return len(self._locks)
 
-    def get_all_locks(self) -> Dict[str, int]:
+    def get_all_locks(self) -> dict[str, int]:
         """Copie des verrous actifs (clé → timestamp)."""
         with self._lock:
             return dict(self._locks)

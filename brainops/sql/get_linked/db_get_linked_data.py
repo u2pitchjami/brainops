@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Literal
 
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
@@ -14,7 +14,7 @@ What = Literal["note", "category", "subcategory", "folder", "tags", "temp_blocks
 @with_child_logger
 def get_note_linked_data(
     note_id: int, what: What, *, logger: LoggerProtocol | None = None
-) -> Union[Dict[str, Any], List[str]]:
+) -> dict[str, Any] | list[str]:
     """
     Récupère des informations liées à une note à partir de son id.
 
@@ -111,7 +111,7 @@ def get_folder_linked_data(
     what: Literal["folder", "category", "subcategory", "parent"],
     *,
     logger: LoggerProtocol | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Récupère des informations liées à un dossier Obsidian à partir de son chemin.
     """
@@ -170,9 +170,7 @@ def get_folder_linked_data(
         return {"error": f"Type de donnée '{what}' non pris en charge."}
 
     except Exception as e:
-        logger.error(
-            "[FOLDER] get_folder_linked_data(%s,%s) : %s", folder_path, what, e
-        )
+        logger.error("[FOLDER] get_folder_linked_data(%s,%s) : %s", folder_path, what, e)
         return {"error": str(e)}
     finally:
         try:

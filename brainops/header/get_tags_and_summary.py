@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import List, Optional
 
 from brainops.ollama.ollama_call import OllamaError, call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
@@ -25,7 +24,7 @@ def _sanitize_tag(tag: str) -> str:
     return t
 
 
-def _parse_jsonish_tags(response: str) -> List[str]:
+def _parse_jsonish_tags(response: str) -> list[str]:
     """
     Extrait une liste de tags depuis la réponse LLM.
     - Supporte: bloc ```json ...```, objet {"tags":[...]} ou tableau [...],
@@ -43,11 +42,7 @@ def _parse_jsonish_tags(response: str) -> List[str]:
     if m:
         try:
             obj = json.loads(m.group(0))
-            if (
-                isinstance(obj, dict)
-                and "tags" in obj
-                and isinstance(obj["tags"], list)
-            ):
+            if isinstance(obj, dict) and "tags" in obj and isinstance(obj["tags"], list):
                 return [_sanitize_tag(str(t)) for t in obj["tags"] if str(t).strip()]
         except json.JSONDecodeError:
             pass
@@ -66,9 +61,7 @@ def _parse_jsonish_tags(response: str) -> List[str]:
 
 
 @with_child_logger
-def get_tags_from_ollama(
-    content: str, note_id: int, *, logger: LoggerProtocol | None = None
-) -> List[str]:
+def get_tags_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol | None = None) -> list[str]:
     """
     Interroge Ollama pour générer des tags à partir du contenu.
     Retourne toujours une liste (éventuellement vide).
@@ -76,20 +69,16 @@ def get_tags_from_ollama(
     logger = ensure_logger(logger, __name__)
     logger.debug("[DEBUG] tags ollama : lancement fonction")
 
-    tags: List[str] = []
+    tags: list[str] = []
 
     try:
-        prompt_name, model_ollama = prompt_name_and_model_selection(
-            note_id, key="add_tags", logger=logger
-        )
+        prompt_name, model_ollama = prompt_name_and_model_selection(note_id, key="add_tags", logger=logger)
         prompt_tpl = PROMPTS.get(prompt_name)
         if not prompt_tpl:
             logger.error("[ERREUR] Prompt '%s' introuvable dans PROMPTS.", prompt_name)
             return []
         prompt = prompt_tpl.format(content=content)
-        logger.debug(
-            "[DEBUG] tags ollama : prompt_name=%s model=%s", prompt_name, model_ollama
-        )
+        logger.debug("[DEBUG] tags ollama : prompt_name=%s model=%s", prompt_name, model_ollama)
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[ERREUR] Construction du prompt tags : %s", exc)
         return []
@@ -97,15 +86,11 @@ def get_tags_from_ollama(
     try:
         logger.debug("[DEBUG] tags ollama : appel modèle…")
         response = call_ollama_with_retry(prompt, model_ollama, logger=logger)
-        logger.debug(
-            "[DEBUG] tags ollama : réponse récupérée (%d chars)", len(response or "")
-        )
+        logger.debug("[DEBUG] tags ollama : réponse récupérée (%d chars)", len(response or ""))
 
         tags = _parse_jsonish_tags(response)
         if not tags:
-            logger.warning(
-                "[WARN] Aucun JSON exploitable trouvé dans la réponse pour les tags."
-            )
+            logger.warning("[WARN] Aucun JSON exploitable trouvé dans la réponse pour les tags.")
             return []
 
         # dédoublonnage et filtrage des vides
@@ -126,9 +111,7 @@ def get_tags_from_ollama(
 
 
 @with_child_logger
-def get_summary_from_ollama(
-    content: str, note_id: int, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def get_summary_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     Génère un résumé automatique avec Ollama.
     - Utilise le prompt 'summary' (via prompt_name_and_model_selection pour le nom),
@@ -139,9 +122,7 @@ def get_summary_from_ollama(
     logger.debug("[DEBUG] résumé ollama : lancement fonction")
 
     try:
-        prompt_name, _ = prompt_name_and_model_selection(
-            note_id, key="summary", logger=logger
-        )
+        prompt_name, _ = prompt_name_and_model_selection(note_id, key="summary", logger=logger)
         prompt_tpl = PROMPTS.get(prompt_name)
         if not prompt_tpl:
             logger.error("[ERREUR] Prompt '%s' introuvable dans PROMPTS.", prompt_name)

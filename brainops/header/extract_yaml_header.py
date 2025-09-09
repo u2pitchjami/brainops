@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from brainops.utils.files import maybe_clean, read_note_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+from brainops.models.note import Note
+from brainops.models.exceptions import BrainOpsError
 
 
 @with_child_logger
 def extract_yaml_header(
     filepath: str, clean: bool = True, *, logger: LoggerProtocol | None = None
-) -> Tuple[List[str], str]:
+) -> tuple[list[str], str]:
     """
     Extrait l'entête YAML d'un fichier Obsidian.
 
@@ -23,19 +23,16 @@ def extract_yaml_header(
     logger.debug("[DEBUG] entrée extract_yaml_header: %s", filepath)
 
     content = read_note_content(filepath, logger=logger)
-    lines = content.strip().splitlines()
+    if content:
+        lines = content.strip().splitlines()
 
-    header_lines: List[str] = []
-    content_lines: List[str] = []
+    header_lines: list[str] = []
+    content_lines: list[str] = []
 
     if lines and lines[0].strip() == "---":
         try:
-            logger.debug(
-                "[DEBUG] extract_yaml_header: détection '---' en première ligne"
-            )
-            yaml_end_idx = next(
-                i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"
-            )
+            logger.debug("[DEBUG] extract_yaml_header: détection '---' en première ligne")
+            yaml_end_idx = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
             header_lines = lines[: yaml_end_idx + 1]  # inclut la 2e barrière '---'
             content_lines = lines[yaml_end_idx + 1 :]
         except StopIteration:
@@ -54,9 +51,7 @@ def extract_yaml_header(
 
 
 @with_child_logger
-def extract_metadata(
-    filepath: str, key: str | None = None, *, logger: LoggerProtocol | None = None
-) -> dict:
+def extract_metadata(filepath: str, key: str | None = None, *, logger: LoggerProtocol | None = None) -> dict[str, str | int]:
     """
     Extrait les métadonnées YAML (tout le dict ou une clé spécifique).
     """
@@ -67,27 +62,26 @@ def extract_metadata(
 
     logger = ensure_logger(logger, __name__)
     try:
-        content = read_note_content(filepath, logger=logger)
-        logger.debug("[DEBUG] extract_metadata preview: %s", content[:500])
-        return (
-            get_yaml(content, logger=logger)
-            if not key
-            else get_yaml_value(content, key, logger=logger) or {}
-        )
+        content = read_note_content(filepath, logger=logger)        
+        
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[ERREUR] Impossible de lire l'entête de %s : %s", filepath, exc
-        )
-        return {}
+        raise BrainOpsError(f"Lecture échouée: {filepath}") from exc
+    if content is None:
+        raise BrainOpsError(f"Contenu None: {filepath}")
+    if content == "":
+        raise BrainOpsError(f"Contenu vide: {filepath}")
+        logger.exception("[ERREUR] Impossible de lire l'entête de %s : %s", filepath, exc)
+    logger.debug("[DEBUG] extract_metadata preview: %s", content[:500])
+    return get_yaml(content, logger=logger) if not key else get_yaml_value(content, key, logger=logger) or {}
 
 
 @with_child_logger
 def extract_note_metadata(
     filepath: str,
-    old_metadata: dict | None = None,
+    old_metadata: dict[str, str] | None = None,
     *,
     logger: LoggerProtocol | None = None,
-) -> dict:
+) -> dict[str, str]:
     """
     Extrait toutes les métadonnées d'une note (lecture unique), fusionne avec old_metadata si fourni.
     """
@@ -96,7 +90,7 @@ def extract_note_metadata(
 
     meta = extract_metadata(filepath, logger=logger)
 
-    defaults = {
+    defaults: Note = {
         "title": None,
         "category": None,
         "sub category": None,

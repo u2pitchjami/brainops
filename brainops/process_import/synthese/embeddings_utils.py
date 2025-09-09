@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,9 +17,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def make_embeddings_synthesis(
-    note_id: int, filepath: str, *, logger: LoggerProtocol | None = None
-) -> Optional[str]:
+def make_embeddings_synthesis(note_id: int, filepath: str, *, logger: LoggerProtocol | None = None) -> str | None:
     """
     1) Génère/persiste des embeddings via 'large_or_standard_note' (mode embeddings)
     2) Sélectionne les meilleurs blocs
@@ -44,29 +43,25 @@ def make_embeddings_synthesis(
     )
 
     # 2) top blocs (avec score pour debug)
-    top_blocks = select_top_blocks(
-        note_id=note_id, ratio=0.3, return_scores=True, logger=logger
-    )
+    top_blocks = select_top_blocks(note_id=note_id, ratio=0.3, return_scores=True, logger=logger)
     for bloc in top_blocks:
         logger.debug("🧠 Score %.4f → %s...", bloc["score"], bloc["text"][:80])
 
     # 3) synthèse finale
     prompt = build_summary_prompt(top_blocks)
-    final_response = call_ollama_with_retry(
-        prompt, model_ollama="llama3.1:8b-instruct-q8_0", logger=logger
-    )
+    final_response = call_ollama_with_retry(prompt, model_ollama="llama3.1:8b-instruct-q8_0", logger=logger)
     return final_response
 
 
 @with_child_logger
 def select_top_blocks(
     note_id: int,
-    N: Optional[int] = None,
+    N: int | None = None,
     ratio: float = 0.3,
     return_scores: bool = False,
     *,
     logger: LoggerProtocol | None = None,
-) -> List[Dict[str, Any]] | List[str]:
+) -> list[dict[str, Any]] | list[str]:
     """
     Sélectionne les N blocs les plus proches pour une note donnée.
     - Récupère (blocks, embeddings) depuis la DB.
@@ -75,9 +70,7 @@ def select_top_blocks(
       sinon une liste de textes.
     """
     logger = ensure_logger(logger, __name__)
-    logger.debug(
-        "[DEBUG] select_top_blocks(note_id=%s, N=%s, ratio=%.2f)", note_id, N, ratio
-    )
+    logger.debug("[DEBUG] select_top_blocks(note_id=%s, N=%s, ratio=%.2f)", note_id, N, ratio)
 
     blocks, embeddings = get_blocks_and_embeddings_by_note(note_id, logger=logger)
     if not blocks or not embeddings:
@@ -110,9 +103,7 @@ def select_top_blocks(
     return [blocks[i] for i in top_idx]
 
 
-def build_summary_prompt(
-    blocks: Sequence[str] | Sequence[Dict[str, Any]], structure: str = "simple"
-) -> str:
+def build_summary_prompt(blocks: Sequence[str] | Sequence[dict[str, Any]], structure: str = "simple") -> str:
     """
     Construit un prompt de synthèse à partir d'une liste de blocs sélectionnés.
     Accepte soit une liste de strings, soit une liste de dicts {"text": ..., "score": ...}.

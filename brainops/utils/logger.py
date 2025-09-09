@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 import functools
 import logging
 import logging.handlers
 import os
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, Optional, ParamSpec, Protocol, TypeVar, cast
+from typing import Any, ParamSpec, Protocol, TypeVar, cast
 
 from brainops.utils.config import LOG_FILE_PATH, LOG_ROTATION_DAYS
 from brainops.utils.log_rotation import rotate_logs
@@ -157,15 +157,11 @@ class BrainopsLogger:
         return BrainopsLogger(self._base.getChild(suffix))
 
 
-def _ensure_handlers(
-    base: logging.Logger, global_log_file: str, script_log_file: str
-) -> None:
+def _ensure_handlers(base: logging.Logger, global_log_file: str, script_log_file: str) -> None:
     if getattr(base, "_brainops_configured", False):
         return
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - [%(name)s] %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - [%(name)s] %(message)s")
 
     stream = logging.StreamHandler()
     stream.setFormatter(formatter)
@@ -216,7 +212,7 @@ def get_logger(script_name: str) -> LoggerProtocol:
 
     try:
         rotate_logs(LOG_FILE_PATH, LOG_ROTATION_DAYS, logf=script_log_file)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         base_fallback = logging.getLogger(script_name)
         base_fallback.setLevel(logging.INFO)
         _ensure_handlers(base_fallback, global_log_file, script_log_file)
@@ -263,7 +259,7 @@ def with_child_logger(func: Callable[P, R]) -> Callable[P, R]:
 
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        current = cast(Optional[LoggerProtocol], kwargs.get("logger"))
+        current = cast(LoggerProtocol | None, kwargs.get("logger"))
         if current is None:
             # Premier hop : on prend le nom de module pour initialiser
             base = ensure_logger(current, func.__module__)  # init une seule fois

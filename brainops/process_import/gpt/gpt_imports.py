@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import re
 import shutil
-from pathlib import Path
-from typing import List, Tuple
 
 from brainops.header.headers import make_properties
 from brainops.ollama.ollama_utils import large_or_standard_note
@@ -23,9 +22,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def process_clean_gpt(
-    filepath: str | Path, *, logger: LoggerProtocol | None = None
-) -> None:
+def process_clean_gpt(filepath: str | Path, *, logger: LoggerProtocol | None = None) -> None:
     """
     Nettoie une note 'GPT' (content cleaning léger) et sauvegarde.
     """
@@ -46,9 +43,7 @@ def process_clean_gpt(
 
 
 @with_child_logger
-def process_import_gpt(
-    filepath: str | Path | None = None, *, logger: LoggerProtocol | None = None
-) -> None:
+def process_import_gpt(filepath: str | Path | None = None, *, logger: LoggerProtocol | None = None) -> None:
     """
     Traite toutes les notes dans GPT_IMPORT_DIR, si la ligne 1 contient un titre.
     (Le paramètre 'filepath' est ignoré, conservé pour compat.)
@@ -69,9 +64,7 @@ def process_import_gpt(
         try:
             if is_ready_for_split(file):
                 logger.info("[INFO] Traitement : %s", file.name)
-                process_gpt_conversation(
-                    file, out_dir, prefix="GPT_Conversation", logger=logger
-                )
+                process_gpt_conversation(file, out_dir, prefix="GPT_Conversation", logger=logger)
                 processed += 1
                 # Archivage dans SAV_PATH
                 move_file_with_date(file.as_posix(), SAV_PATH, logger=logger)
@@ -81,9 +74,7 @@ def process_import_gpt(
         except Exception as exc:  # pylint: disable=broad-except
             logger.exception("[ERROR] Fichier %s : %s", file, exc)
 
-    logger.info(
-        "[INFO] GPT import terminé — traités=%d | ignorés=%d", processed, ignored
-    )
+    logger.info("[INFO] GPT import terminé — traités=%d | ignorés=%d", processed, ignored)
 
 
 def is_ready_for_split(filepath: str | Path) -> bool:
@@ -133,14 +124,14 @@ def process_gpt_conversation(
             logger.error("[ERROR] Écriture section échouée : %s", dst)
 
 
-def split_gpt_conversation(content: str) -> List[Tuple[str, str]]:
+def split_gpt_conversation(content: str) -> list[tuple[str, str]]:
     """
     Découpe une conversation GPT en sections basées sur les titres de niveau '# '.
     Retourne [(title, body), ...].
     """
     # Répartition par titres capturés : ["pre", title1, body1, title2, body2, ...]
     parts = re.split(r"(?m)^# (.+)$", content)
-    results: List[Tuple[str, str]] = []
+    results: list[tuple[str, str]] = []
     for i in range(1, len(parts), 2):
         title = (parts[i] or "").strip()
         body = (parts[i + 1] or "").strip()
@@ -149,9 +140,7 @@ def split_gpt_conversation(content: str) -> List[Tuple[str, str]]:
 
 
 @with_child_logger
-def process_class_gpt(
-    filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None
-) -> None:
+def process_class_gpt(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
     """
     Pipeline de "reformulation" pour une note GPT :
       - nettoyage via process_large_note (entry_type='gpt_reformulation')
@@ -180,9 +169,7 @@ def process_class_gpt(
 
 
 @with_child_logger
-def process_class_gpt_test(
-    filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None
-) -> None:
+def process_class_gpt_test(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
     """
     Variante de test :
       - duplique le fichier pour différents modèles,
@@ -192,9 +179,7 @@ def process_class_gpt_test(
     """
     logger = ensure_logger(logger, __name__)
     src = Path(str(filepath)).resolve()
-    dest_dir = Path(
-        "/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/"
-    ).resolve()
+    dest_dir = Path("/mnt/user/Documents/Obsidian/notes/Z_technical/test_output_gpt/").resolve()
     ensure_folder_exists(dest_dir, logger=logger)
 
     models = ["llama3.1:8b-instruct-q8_0"]  # liste de modèles à tester
@@ -220,14 +205,8 @@ def process_class_gpt_test(
             copied_2 = shutil.copy(first_copy.as_posix(), second_copy.as_posix())
             logger.debug("[DEBUG] Copie 2 : %s", copied_2)
 
-            final_response = make_embeddings_synthesis(
-                note_id, second_copy.as_posix(), logger=logger
-            )
-            safe_write(
-                second_copy.as_posix(), content=final_response or "", logger=logger
-            )
+            final_response = make_embeddings_synthesis(note_id, second_copy.as_posix(), logger=logger)
+            safe_write(second_copy.as_posix(), content=final_response or "", logger=logger)
 
         except Exception as exc:  # pylint: disable=broad-except
-            logger.exception(
-                "[ERROR] process_class_gpt_test(%s, %s) : %s", src, model, exc
-            )
+            logger.exception("[ERROR] process_class_gpt_test(%s, %s) : %s", src, model, exc)

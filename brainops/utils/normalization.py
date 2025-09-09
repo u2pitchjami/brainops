@@ -3,28 +3,25 @@
 # utils/normalization.py
 from __future__ import annotations
 
+from datetime import date, datetime
 import re
 import unicodedata
-from datetime import date, datetime
-from typing import Optional
 
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
-def normalize_full_path(path: str) -> str:
+def normalize_full_path(path: str | bytes) -> str:
     """
     Normalise un chemin (NFC, strip, normalisation OS).
     """
     import os
 
-    path = unicodedata.normalize("NFC", path).strip()
+    path = unicodedata.normalize("NFC", str(path)).strip()
     return os.path.normpath(path)
 
 
 @with_child_logger
-def sanitize_created(
-    created: object, *, logger: Optional[LoggerProtocol] = None
-) -> str:
+def sanitize_created(created: object, *, logger: LoggerProtocol | None = None) -> str:
     """
     Normalise une date en 'YYYY-MM-DD'. Fallback = today().
     """
@@ -44,7 +41,7 @@ def sanitize_created(
         return datetime.now().strftime("%Y-%m-%d")
 
 
-def sanitize_yaml_title(title: Optional[str]) -> str:
+def sanitize_yaml_title(title: str | None) -> str:
     """
     Nettoie un titre pour YAML (supprime chars problématiques, garde lettres/chiffres/espace/-/')
     """
@@ -58,7 +55,7 @@ def sanitize_yaml_title(title: Optional[str]) -> str:
 
 
 @with_child_logger
-def sanitize_filename(filename: str, *, logger: Optional[LoggerProtocol] = None) -> str:
+def sanitize_filename(filename: str, *, logger: LoggerProtocol | None = None) -> str:
     """
     Nettoie un nom de fichier (compatible Windows/Unix).
     """
