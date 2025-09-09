@@ -1,4 +1,6 @@
-"""# utils/regen_utils.py"""
+"""
+# utils/regen_utils.py
+"""
 
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ logger = get_logger("Brainops Regen")
 def regen_synthese_from_archive(note_id: int, filepath: str | Path | None = None) -> bool:
     """
     Régénère la synthèse d'une note à partir de son archive liée.
+
     - Purge les blocs temporaires (embeddings / prompts) pour repartir propre.
     - Relance le pipeline de synthèse sur le fichier cible.
     """
@@ -43,6 +46,7 @@ def regen_synthese_from_archive(note_id: int, filepath: str | Path | None = None
 def regen_header(note_id: int, filepath: str | Path, parent_id: int | None = None) -> bool:
     """
     Régénère l'entête (tags, summary, champs YAML) d'une note.
+
     Détermine le 'status' attendu :
       - si parent_id est fourni : 'synthesis' si le parent est 'archive', sinon 'archive'
       - sinon : 'archive' si le chemin contient un segment 'Archives' (insensible casse), sinon 'synthesis'

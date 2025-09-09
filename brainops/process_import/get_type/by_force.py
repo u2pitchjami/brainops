@@ -1,13 +1,15 @@
-"""# process_import_get_type.by_force.py"""
+"""
+# process_import_get_type.by_force.py
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from brainops.models.exceptions import BrainOpsError
 from brainops.process_import.utils.divers import rename_file
 from brainops.sql.categs.db_categ_utils import categ_extract
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-from brainops.models.exceptions import BrainOpsError
 
 
 @with_child_logger
@@ -19,10 +21,11 @@ def get_type_by_force(
 ) -> str:
     """
     Force la catégorisation d'une note à partir de son chemin (sans appel IA) :
-      - déduit category/subcategory via la base (categ_extract)
-      - renomme le fichier (incl. note_id si ta logique le fait)
-      - met à jour la ligne en base
-      - relance l'import normal + synthèse
+
+    - déduit category/subcategory via la base (categ_extract)
+    - renomme le fichier (incl. note_id si ta logique le fait)
+    - met à jour la ligne en base
+    - relance l'import normal + synthèse
     """
     logger = ensure_logger(logger, __name__)
     try:
@@ -49,6 +52,6 @@ def get_type_by_force(
     except BrainOpsError:
         raise
     except Exception as exc:
-        logger.exception("Crash inattendu dans : %s",exc)
+        logger.exception("Crash inattendu dans : %s", exc)
         raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return new_path

@@ -1,4 +1,6 @@
-"""process_note.wc_and_hash.py"""
+"""
+process_note.wc_and_hash.py.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ CHUNK_SIZE = 1024 * 1024  # 1 Mo
 def compute_wc_and_hash(fp: Path) -> tuple[int, str | None]:
     """
     Calcule word_count (pour .md/.txt) et sha256 en un seul passage disque.
+
     - Pour les autres extensions: word_count=0, hash quand même.
     """
     is_text = fp.suffix.lower() in {".md", ".txt"}

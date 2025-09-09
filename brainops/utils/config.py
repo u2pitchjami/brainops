@@ -15,7 +15,9 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
 class ConfigError(Exception):
-    """Erreur de configuration (.env / variables d'environnement)."""
+    """
+    Erreur de configuration (.env / variables d'environnement).
+    """
 
 
 # --- Fonctions utilitaires ---
@@ -24,6 +26,7 @@ class ConfigError(Exception):
 def get_required(key: str) -> str:
     """
     Récupère la valeur d'une variable env requise.
+
     Lève ConfigError si absente.
     """
     value = os.getenv(key)
@@ -49,6 +52,7 @@ def get_str(key: str, default: str = "") -> str:
 def get_int(key: str, default: int = 0) -> int:
     """
     Retourne la variable env convertie en entier.
+
     Lève ConfigError si conversion impossible.
     """
     raw = os.getenv(key, str(default))
@@ -61,6 +65,7 @@ def get_int(key: str, default: int = 0) -> int:
 def get_float(key: str, default: float = 0.0) -> float:
     """
     Retourne la variable env convertie en float.
+
     Lève ConfigError si conversion impossible.
     """
     raw = os.getenv(key, str(default))
@@ -73,6 +78,7 @@ def get_float(key: str, default: float = 0.0) -> float:
 def get_path_required(key: str) -> str:
     """
     Retourne un chemin (str) *existant* lu depuis l'env.
+
     Lève ConfigError si absent ou inexistant.
     """
     value = get_required(key).strip()

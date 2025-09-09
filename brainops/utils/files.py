@@ -1,4 +1,6 @@
-"""utils/files.py"""
+"""
+utils/files.py.
+"""
 
 from __future__ import annotations
 
@@ -59,6 +61,7 @@ def safe_write(
 ) -> bool:
     """
     Écrit de façon sûre :
+
     - supporte str ou liste/iterable de str
     - fsync
     - vérification optionnelle de champs
@@ -99,6 +102,7 @@ def copy_file_with_date(
 ) -> Path | None:
     """
     Copie un fichier en préfixant par la date 'yymmdd_'.
+
     Retourne le chemin de destination ou None en cas d'erreur.
     """
     logger = ensure_logger(logger, __name__)
@@ -126,6 +130,7 @@ def move_file_with_date(
 ) -> Path | None:
     """
     Déplace un fichier en préfixant par la date 'yymmdd_'.
+
     Retourne le nouveau chemin ou None en cas d'erreur.
     """
     logger = ensure_logger(logger, __name__)
@@ -175,6 +180,7 @@ def count_words(
 def maybe_clean(content: str | list[str], *, force: bool = False) -> str:
     """
     Nettoie *si nécessaire* :
+
     - list -> join + clean
     - présence de balises HTML problématiques -> clean
     - force=True -> clean systématique
@@ -209,7 +215,9 @@ def clean_content(content: str | list[str]) -> str:
 @with_child_logger
 def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) -> str | None:
     """
-    Lit le contenu d'une note (UTF-8). None en cas d'erreur.
+    Lit le contenu d'une note (UTF-8).
+
+    None en cas d'erreur.
     """
     logger = ensure_logger(logger, __name__)
     p = Path(filepath)
@@ -225,6 +233,7 @@ def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = No
 def join_yaml_and_body(header_lines: list[str], body: str) -> str:
     """
     Recompose YAML + corps :
+
     - YAML encadré par ---
     - une seule ligne vide entre YAML et corps
     """

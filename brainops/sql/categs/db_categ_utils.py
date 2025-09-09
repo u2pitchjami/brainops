@@ -1,4 +1,6 @@
-"""# sql/db_categs_utils.py"""
+"""
+# sql/db_categs_utils.py
+"""
 
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ def categ_extract(
 ) -> tuple[str | None, str | None, int | None, int | None]:
     """
     Retourne (category_name, subcategory_name, category_id, subcategory_id) pour un dossier.
+
     Utilise des curseurs bufferisés pour éviter 'Unread result found'.
     """
     logger = ensure_logger(logger, __name__)
@@ -305,8 +308,9 @@ def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtoc
 @with_child_logger
 def remove_unused_category(category_id: int, *, logger: LoggerProtocol | None = None) -> bool:
     """
-    Supprime une catégorie si plus utilisée dans `obsidian_folders`
-    (category_id ou subcategory_id). Retourne True si supprimée.
+    Supprime une catégorie si plus utilisée dans `obsidian_folders` (category_id ou subcategory_id).
+
+    Retourne True si supprimée.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)

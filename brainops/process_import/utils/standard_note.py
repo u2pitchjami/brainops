@@ -1,4 +1,6 @@
-"""process_import.utils.standard_note.py"""
+"""
+process_import.utils.standard_note.py.
+"""
 
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ def process_standard_note(
 ) -> str | None:
     """
     Traite une note entière sans découpage (bloc unique).
+
     - Vérifie si déjà traité (obsidian_temp_blocks) si resume_if_possible=True.
     - Retourne la réponse si write_file=False, sinon None.
     """

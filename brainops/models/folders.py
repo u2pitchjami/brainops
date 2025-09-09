@@ -1,4 +1,6 @@
-"""# models/folder.py"""
+"""
+# models/folder.py
+"""
 
 from __future__ import annotations
 
@@ -10,7 +12,9 @@ from typing import Any
 
 
 class FolderType(str, Enum):
-    """Miroir de l'ENUM MariaDB."""
+    """
+    Miroir de l'ENUM MariaDB.
+    """
 
     STORAGE = "storage"
     ARCHIVE = "archive"
@@ -43,7 +47,9 @@ class Folder:
     subcategory_id: int | None = None
 
     def __post_init__(self) -> None:
-        """# Normalise le chemin en absolu POSIX"""
+        """
+        # Normalise le chemin en absolu POSIX
+        """
         p = Path(self.path).expanduser().resolve()
         self.path = p.as_posix()
         # Si name vide: déduire depuis le path
@@ -54,7 +60,9 @@ class Folder:
 
     @property
     def parent_path(self) -> str | None:
-        """Chemin absolu POSIX du parent, ou None si racine."""
+        """
+        Chemin absolu POSIX du parent, ou None si racine.
+        """
         p = Path(self.path)
         par = p.parent
         return par.as_posix() if par != p else None
@@ -63,7 +71,9 @@ class Folder:
         self,
     ) -> tuple[str, str, str, int | None, int | None, int | None]:
         """
-        Paramètres prêts pour un INSERT ... ON DUPLICATE KEY UPDATE.
+        Paramètres prêts pour un INSERT ...
+
+        ON DUPLICATE KEY UPDATE.
         Ordre: name, path, folder_type, parent_id, category_id, subcategory_id
         """
         return (
@@ -78,6 +88,7 @@ class Folder:
     def with_new_path(self, new_path: str) -> Folder:
         """
         Retourne une nouvelle instance avec un nouveau chemin (et name mis à jour).
+
         parent_id/category/subcategory doivent être recalculés par le service.
         """
         new_p = Path(new_path).expanduser().resolve()

@@ -1,4 +1,6 @@
-"""utils normalization"""
+"""
+Utils normalization.
+"""
 
 # utils/normalization.py
 from __future__ import annotations
@@ -23,7 +25,9 @@ def normalize_full_path(path: str | bytes) -> str:
 @with_child_logger
 def sanitize_created(created: object, *, logger: LoggerProtocol | None = None) -> str:
     """
-    Normalise une date en 'YYYY-MM-DD'. Fallback = today().
+    Normalise une date en 'YYYY-MM-DD'.
+
+    Fallback = today().
     """
     logger = ensure_logger(logger, __name__)
     try:

@@ -1,4 +1,6 @@
-"""# sql/db_connection.py"""
+"""
+# sql/db_connection.py
+"""
 
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ def get_db_connection(
 ) -> MySQLConnection | None:
     """
     Ouvre une connexion MySQL à partir de la config centralisée (.env chargée par utils.config).
+
     Retourne None si la connexion échoue.
     """
     logger = ensure_logger(logger, __name__)

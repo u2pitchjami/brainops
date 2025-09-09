@@ -1,9 +1,11 @@
-"""# handlers/start/process_folder_event.py"""
+"""
+# handlers/start/process_folder_event.py
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal
 
 from brainops.process_folders.folders import add_folder, update_folder
 from brainops.sql.folders.db_folders import delete_folder_from_db
@@ -18,6 +20,7 @@ EventAction = Literal["created", "deleted", "moved"]
 
 # ----- Helpers ------------------------------------------------------------------
 
+
 def _is_hidden_or_ignored(p: str) -> bool:
     path = Path(p)
     # ignore dotfiles/dossiers; ex: .git, .obsidian
@@ -31,6 +34,7 @@ def _is_hidden_or_ignored(p: str) -> bool:
 def _detect_folder_type(p: str) -> FolderType:
     """
     Détermine le type de dossier à partir du chemin.
+
     Adapte si besoin à ton arbo, garde les valeurs de l'ENUM MariaDB.
     """
     lower = p.lower()

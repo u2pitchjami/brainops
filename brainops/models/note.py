@@ -1,4 +1,6 @@
-"""# models/note.py"""
+"""
+# models/note.py
+"""
 
 from __future__ import annotations
 
@@ -13,6 +15,7 @@ from typing import Any
 class Note:
     """
     Miroir de la table `obsidian_notes`.
+
     Champs transients (non persistés) indiqués en commentaires.
     """
 
@@ -46,7 +49,9 @@ class Note:
     ext: str = field(init=False, repr=False)  # extension dérivée
 
     def __post_init__(self) -> None:
-        """# Normaliser le chemin en absolu POSIX"""
+        """
+        # Normaliser le chemin en absolu POSIX
+        """
         p = Path(self.file_path).expanduser().resolve()
         self.file_path = p.as_posix()
         self.name = p.name
@@ -66,6 +71,7 @@ class Note:
     def from_row(cls, row: Mapping[str, Any]) -> Note:
         """
         Construit une Note depuis un DictCursor (SELECT ...).
+
         Les clés doivent correspondre aux noms de colonnes SQL.
         """
         return cls(

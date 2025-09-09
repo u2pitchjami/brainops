@@ -1,4 +1,6 @@
-"""# process/imports_test.py"""
+"""
+# process/imports_test.py
+"""
 
 from __future__ import annotations
 
@@ -17,8 +19,8 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def process_class_imports_test(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
     """
-    Duplique un fichier source dans un répertoire de tests, applique plusieurs
-    passes (reformulations/synthèses), puis assemble la dernière sortie avec le YAML existant.
+    Duplique un fichier source dans un répertoire de tests, applique plusieurs passes (reformulations/synthèses), puis
+    assemble la dernière sortie avec le YAML existant.
     """
     logger = ensure_logger(logger, __name__)
     src = Path(str(filepath)).resolve()

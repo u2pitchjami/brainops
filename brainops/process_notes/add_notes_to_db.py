@@ -1,4 +1,6 @@
-"""# sql/db_notes.py"""
+"""
+# sql/db_notes.py
+"""
 
 from __future__ import annotations
 
@@ -27,6 +29,7 @@ from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
 def add_note_to_db(file_path: str | Path, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     Crée ou met à jour une note (upsert par file_path UNIQUE) à partir d'un fichier.
+
     - Normalise le chemin
     - Récupère folder/category/subcategory
     - Lit les métadonnées YAML (title, status, created, last_modified, summary, source, author, project)

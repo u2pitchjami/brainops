@@ -1,4 +1,6 @@
-"""sql/db_temp_blocs.py"""
+"""
+sql/db_temp_blocs.py.
+"""
 
 from __future__ import annotations
 
@@ -136,6 +138,7 @@ def update_bloc_response(
 ) -> None:
     """
     Met à jour un bloc avec la réponse et le statut (par défaut 'processed').
+
     Filtrage par (note_id, note_path, source, block_index).
     """
     logger = ensure_logger(logger, __name__)
@@ -171,8 +174,9 @@ def update_bloc_response(
 def mark_bloc_as_error(filepath: str | Path, block_index: int, logger: LoggerProtocol | None = None) -> None:
     """
     Marque un bloc comme 'error' en se basant sur (note_path, block_index).
-    (Chemin "compat" avec les anciens appels qui ne passaient pas note_id/source.)
-    On ne touche pas aux blocs déjà 'processed'.
+
+    (Chemin "compat" avec les anciens appels qui ne passaient pas note_id/source.) On ne touche pas aux blocs déjà
+    'processed'.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
@@ -209,9 +213,10 @@ def delete_blocs_by_path_and_source(
 ) -> None:
     """
     Supprime des blocs dans obsidian_temp_blocks selon la stratégie:
-      - source == "all"  -> purge tous les blocs de la note (par note_id)
-      - source contient "*" -> supprime par LIKE sur source pour ce file_path
-      - sinon -> supprime exactement (file_path, source)
+
+    - source == "all"  -> purge tous les blocs de la note (par note_id)
+    - source contient "*" -> supprime par LIKE sur source pour ce file_path
+    - sinon -> supprime exactement (file_path, source)
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
@@ -262,6 +267,7 @@ def get_blocks_and_embeddings_by_note(
 ) -> tuple[list[str], list[list[float]]]:
     """
     Charge les blocs (content) et leurs embeddings (JSON dans `response`) pour une note donnée.
+
     Ne retourne jamais None: ([], []) en cas d'erreur.
     """
     logger = ensure_logger(logger, __name__)

@@ -1,4 +1,6 @@
-"""# process/new_note.py"""
+"""
+# process/new_note.py
+"""
 
 from __future__ import annotations
 
@@ -77,6 +79,7 @@ def _ensure_duplicates_dir() -> None:
 def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int | None:
     """
     Crée/Met à jour une note à partir d'un fichier du vault.
+
     - Upsert par `file_path` (UNIQUE).
     - Vérifie les doublons si la note vient de IMPORTS_PATH.
     - Tag 'duplicate' + déplacement dans DUPLICATES_PATH si doublon confirmé.

@@ -1,4 +1,6 @@
-"""# ollama/ollama_call.py"""
+"""
+# ollama/ollama_call.py
+"""
 
 from __future__ import annotations
 
@@ -7,17 +9,19 @@ from typing import Any
 
 import requests
 
+from brainops.models.exceptions import BrainOpsError
 from brainops.utils.config import (
     OLLAMA_TIMEOUT,
     OLLAMA_URL_EMBEDDINGS,
     OLLAMA_URL_GENERATE,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-from brainops.models.exceptions import BrainOpsError
 
 
 class OllamaError(Exception):
-    """Exception spécifique pour les erreurs Ollama."""
+    """
+    Exception spécifique pour les erreurs Ollama.
+    """
 
 
 @with_child_logger
@@ -31,6 +35,7 @@ def call_ollama_with_retry(
 ) -> str:
     """
     Appelle Ollama avec 'retries' essais.
+
     - Pour les modèles d'embedding ('nomic-embed-text:latest'), bascule sur get_embedding()
       mais retourne une string JSONifiée de l'embedding par compat, ou None si échec.
     """
@@ -62,6 +67,7 @@ def call_ollama_with_retry(
 def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | None = None) -> str:
     """
     Appel texte → texte sur le endpoint GENERATE (stream).
+
     Concatène les fragments 'response' du flux JSONL.
     """
     logger = ensure_logger(logger, __name__)
@@ -102,7 +108,7 @@ def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | 
             text = "".join(full).strip()
             if not text:
                 logger.warning("[WARNING] 🚨 Réponse Ollame vide")
-                raise 
+                raise
     except BrainOpsError:
         raise
     except requests.exceptions.Timeout as exc:
@@ -118,6 +124,7 @@ def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | 
 def get_embedding(prompt: str, model_ollama: str, *, logger: LoggerProtocol | None = None) -> list[float]:
     """
     Appel texte → embedding sur le endpoint EMBEDDINGS.
+
     Retourne la liste des floats, ou None en cas d'échec.
     """
     logger = ensure_logger(logger, __name__)
@@ -136,7 +143,7 @@ def get_embedding(prompt: str, model_ollama: str, *, logger: LoggerProtocol | No
         # format attendu: {"embedding": [...]}
         emb = data.get("embedding", [])
         if not emb:
-            logger.warning("[WARNING] 🚨 Embedding vide !")            
+            logger.warning("[WARNING] 🚨 Embedding vide !")
             raise
         # S'assurer que c'est bien une liste de floats
         return [float(x) for x in emb]

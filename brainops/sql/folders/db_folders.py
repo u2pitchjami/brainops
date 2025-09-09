@@ -1,4 +1,6 @@
-"""# sql/db_folders.py (ajouts)"""
+"""
+# sql/db_folders.py (ajouts)
+"""
 
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = None) -> int | None:
     """
     Upsert idempotent par path à partir d'un modèle Folder.
+
     Requiert idéalement UNIQUE(path).
     """
     logger = ensure_logger(logger, __name__)

@@ -1,11 +1,13 @@
-"""header.extract_yaml_header"""
+"""
+header.extract_yaml_header.
+"""
 
 from __future__ import annotations
 
+from brainops.models.exceptions import BrainOpsError
+from brainops.models.note import Note
 from brainops.utils.files import maybe_clean, read_note_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-from brainops.models.note import Note
-from brainops.models.exceptions import BrainOpsError
 
 
 @with_child_logger
@@ -51,7 +53,9 @@ def extract_yaml_header(
 
 
 @with_child_logger
-def extract_metadata(filepath: str, key: str | None = None, *, logger: LoggerProtocol | None = None) -> dict[str, str | int]:
+def extract_metadata(
+    filepath: str, key: str | None = None, *, logger: LoggerProtocol | None = None
+) -> dict[str, str | int]:
     """
     Extrait les métadonnées YAML (tout le dict ou une clé spécifique).
     """
@@ -62,8 +66,8 @@ def extract_metadata(filepath: str, key: str | None = None, *, logger: LoggerPro
 
     logger = ensure_logger(logger, __name__)
     try:
-        content = read_note_content(filepath, logger=logger)        
-        
+        content = read_note_content(filepath, logger=logger)
+
     except Exception as exc:  # pylint: disable=broad-except
         raise BrainOpsError(f"Lecture échouée: {filepath}") from exc
     if content is None:

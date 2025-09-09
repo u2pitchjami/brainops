@@ -1,4 +1,6 @@
-"""# process/divers.py"""
+"""
+# process/divers.py
+"""
 
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ def link_synthesis_and_archive(
 ) -> int | None:
     """
     Crée une note 'archive' depuis original_path et associe parent_id dans les deux sens.
+
     Retourne l'ID de l'archive créée (ou None).
     """
     logger = ensure_logger(logger, __name__)
@@ -41,8 +44,10 @@ def link_synthesis_and_archive(
 @with_child_logger
 def copy_to_archive(original_path: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> Path:
     """
-    Copie le fichier vers son sous-dossier 'Archives', crée la note archivée en base,
-    et relie archive ↔ synthèse via parent_id. Retourne le Path de l'archive.
+    Copie le fichier vers son sous-dossier 'Archives', crée la note archivée en base, et relie archive ↔ synthèse via
+    parent_id.
+
+    Retourne le Path de l'archive.
     """
     logger = ensure_logger(logger, __name__)
     src = Path(str(original_path)).resolve()

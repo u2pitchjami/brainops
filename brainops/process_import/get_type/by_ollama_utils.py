@@ -1,4 +1,6 @@
-"""# handlers/process/get_type.py"""
+"""
+# handlers/process/get_type.py
+"""
 
 from __future__ import annotations
 
@@ -11,6 +13,7 @@ import shutil
 from Levenshtein import ratio
 
 from brainops.models.classification import ClassificationResult
+from brainops.models.exceptions import BrainOpsError
 from brainops.ollama.ollama_call import (
     OllamaError,
     call_ollama_with_retry,
@@ -39,7 +42,6 @@ from brainops.utils.config import (
     UNCATEGORIZED_PATH,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-from brainops.models.exceptions import BrainOpsError
 
 # ---------- Parse & nettoyage --------------------------------------------------
 
@@ -97,7 +99,7 @@ def find_similar_levenshtein(
                 similar.append((existing, similarity))
     except BrainOpsError:
         raise
-    except Exception as exc:        
+    except Exception as exc:
         raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return sorted(similar, key=lambda x: x[1], reverse=True)
 
@@ -192,7 +194,9 @@ def handle_uncategorized(
 
 def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> str:
     """
-    Construit le prompt et appelle Ollama. Retourne la chaîne brute (ex: "Dev/Python").
+    Construit le prompt et appelle Ollama.
+
+    Retourne la chaîne brute (ex: "Dev/Python").
     """
     # dictionnaires pour guider le LLM
     subcateg_dict = generate_optional_subcategories(logger=logger)
@@ -210,7 +214,8 @@ def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> str:
     except BrainOpsError:
         raise
     except OllamaError:
-        raise BrainOpsError(f"Erreur inattendue")
+        raise BrainOpsError("Erreur inattendue")
+
 
 @with_child_logger
 def _resolve_destination(
@@ -235,7 +240,7 @@ def _resolve_destination(
         folder_id, dest_folder = res
     except BrainOpsError:
         raise
-    except Exception as exc:        
+    except Exception as exc:
         raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return ClassificationResult(
         note_type=note_type,

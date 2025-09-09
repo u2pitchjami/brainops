@@ -1,4 +1,6 @@
-"""# process/divers.py"""
+"""
+# process/divers.py
+"""
 
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from brainops.utils.normalization import sanitize_created, sanitize_filename
 def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> Path:
     """
     Renomme un fichier en préfixant par la date (créée ou actuelle), en évitant les collisions.
+
     Retourne le nouveau chemin.
     """
     logger = ensure_logger(logger, __name__)
@@ -67,6 +70,7 @@ def make_relative_link(
 ) -> Path:
     """
     Convertit un chemin absolu (original_path) en chemin relatif à partir du dossier de 'filepath'.
+
     Retourne un Path relatif utilisable dans un lien Obsidian.
     """
     logger = ensure_logger(logger, __name__)
@@ -109,6 +113,7 @@ def prompt_name_and_model_selection(
 ) -> tuple[str, str]:
     """
     Sélectionne (prompt_name, model_ollama) selon la langue de la note.
+
     - prompt suffixé _en si langue != 'fr'
     - modèle choisi via config (MODEL_FR / MODEL_EN) sauf si forced_model fourni
     """

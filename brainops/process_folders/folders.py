@@ -1,4 +1,6 @@
-"""# process/folders.py"""
+"""
+# process/folders.py
+"""
 
 from __future__ import annotations
 
@@ -21,7 +23,9 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 def _norm_path(p: str | Path) -> Path:
-    """Normalise un chemin en Path absolu, séparateurs POSIX pour la DB."""
+    """
+    Normalise un chemin en Path absolu, séparateurs POSIX pour la DB.
+    """
     return Path(str(p)).expanduser().resolve()
 
 

@@ -1,4 +1,6 @@
-"""# utils/divers.py"""
+"""
+# utils/divers.py
+"""
 
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ def should_trigger_process(
 ) -> tuple[bool, str | None, int | None]:
     """
     Détermine si une note doit être retraitée en fonction de l'écart de word_count.
+
     Retourne (trigger, status, parent_id).
     """
     logger = ensure_logger(logger, __name__)

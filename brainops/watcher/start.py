@@ -1,4 +1,6 @@
-"""start watcher."""
+"""
+Start watcher.
+"""
 
 # /watcher/start.py
 from __future__ import annotations
@@ -7,6 +9,7 @@ import os
 import re
 import threading
 import time
+from typing import Union
 
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
@@ -19,14 +22,13 @@ from brainops.utils.config import (
 from brainops.utils.logger import LoggerProtocol, ensure_logger
 from brainops.utils.normalization import normalize_full_path
 from brainops.watcher.queue_manager import (
+    EventType,
     enqueue_event,
     get_logger,
     log_event_queue,
     process_queue,
-    EventType,
 )
 from brainops.watcher.queue_utils import PendingNoteLockManager
-from typing import Union, Optional, Dict, Tuple, Any
 
 logger = get_logger("Brainops Watcher")
 
@@ -44,8 +46,11 @@ _TEMP_NAME_RE = re.compile(
 
 LOCK_MGR = PendingNoteLockManager()
 
+
 def _start_queue_thread() -> threading.Thread:
-    """Lance process_queue() dans un thread daemon pour ne pas bloquer la boucle principale."""
+    """
+    Lance process_queue() dans un thread daemon pour ne pas bloquer la boucle principale.
+    """
     thread = threading.Thread(target=process_queue, name="queue-worker", daemon=True)
     thread.start()
     return thread
@@ -102,10 +107,13 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
 
 Pathish = Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]
 
-class NoteHandler(FileSystemEventHandler):
-    """Émet des payloads normalisés dans la queue à partir des événements FS."""
 
-    def __init__(self, *, logger: Optional[LoggerProtocol], debounce_window: float) -> None:
+class NoteHandler(FileSystemEventHandler):
+    """
+    Émet des payloads normalisés dans la queue à partir des événements FS.
+    """
+
+    def __init__(self, *, logger: LoggerProtocol | None, debounce_window: float) -> None:
         """
         Args:
             logger: Logger compatible LoggerProtocol, ou None.
@@ -114,7 +122,7 @@ class NoteHandler(FileSystemEventHandler):
         self._logger = logger
         # ⚠️ Utiliser bien le paramètre fourni (au lieu de WATCHDOG_DEBOUNCE_WINDOW)
         self._debounce_window = debounce_window  # #bug corrigé
-        self._last_event: Dict[Tuple[str, str], float] = {}
+        self._last_event: dict[tuple[str, str], float] = {}
 
     # ---- helpers ---------------------------------------------------------------
 
@@ -122,6 +130,7 @@ class NoteHandler(FileSystemEventHandler):
     def _to_str(path: Pathish) -> str:
         """
         Convertit str/bytes/PathLike en str (utf-8 avec surrogateescape).
+
         Toujours retourner une str pour unifier le traitement.
         """
         s = os.fspath(path)  # str | bytes
@@ -132,7 +141,9 @@ class NoteHandler(FileSystemEventHandler):
 
     @staticmethod
     def _is_hidden_or_temp(path: Pathish) -> bool:
-        """Retourne True si le chemin (fichier ou dossier) est caché ou temporaire."""
+        """
+        Retourne True si le chemin (fichier ou dossier) est caché ou temporaire.
+        """
         s = NoteHandler._to_str(path)
         parts = s.split(os.sep)
         if any(p.startswith(".") for p in parts if p):  # .git, .obsidian, etc.
@@ -154,7 +165,9 @@ class NoteHandler(FileSystemEventHandler):
     # ---- events ---------------------------------------------------------------
 
     def on_created(self, event: FileSystemEvent) -> None:
-        """Traite la création de fichiers/dossiers."""
+        """
+        Traite la création de fichiers/dossiers.
+        """
         if self._is_hidden_or_temp(event.src_path):
             return
         etype: EventType = "directory" if event.is_directory else "file"
@@ -165,7 +178,9 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": etype, "action": "created", "path": path})
 
     def on_deleted(self, event: FileSystemEvent) -> None:
-        """Traite la suppression de fichiers/dossiers."""
+        """
+        Traite la suppression de fichiers/dossiers.
+        """
         if self._is_hidden_or_temp(event.src_path):
             return
         etype: EventType = "directory" if event.is_directory else "file"
@@ -176,7 +191,9 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": etype, "action": "deleted", "path": path})
 
     def on_modified(self, event: FileSystemEvent) -> None:
-        """Traite les modifications de fichiers (ignore les dossiers)."""
+        """
+        Traite les modifications de fichiers (ignore les dossiers).
+        """
         if event.is_directory or self._is_hidden_or_temp(event.src_path):
             return
         etype: EventType = "file"
@@ -187,7 +204,9 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": "file", "action": "modified", "path": path})
 
     def on_moved(self, event: FileMovedEvent) -> None:  # type: ignore[override]
-        """Traite les déplacements/renommages."""
+        """
+        Traite les déplacements/renommages.
+        """
         if self._is_hidden_or_temp(event.src_path) or self._is_hidden_or_temp(event.dest_path):
             return
         etype: EventType = "directory" if event.is_directory else "file"

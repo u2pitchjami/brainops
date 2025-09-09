@@ -1,4 +1,6 @@
-"""# process/folders_context.py"""
+"""
+# process/folders_context.py
+"""
 
 from __future__ import annotations
 
@@ -20,12 +22,16 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 def normalize_folder_path(p: str | Path) -> str:
-    """Chemin absolu POSIX (stable multi-OS)."""
+    """
+    Chemin absolu POSIX (stable multi-OS).
+    """
     return Path(str(p)).expanduser().resolve().as_posix()
 
 
 def _detect_folder_type(path: str) -> FolderType:
-    """Détection par règles simples sur le chemin complet (fallback) → Enum."""
+    """
+    Détection par règles simples sur le chemin complet (fallback) → Enum.
+    """
     lower = path.lower()
     if "/archives" in lower or lower.endswith("/archives"):
         return FolderType.ARCHIVE
@@ -42,7 +48,9 @@ def _detect_folder_type(path: str) -> FolderType:
 
 @dataclass(frozen=True, slots=True)
 class FolderContext:
-    """Contexte DB & logique pour un dossier."""
+    """
+    Contexte DB & logique pour un dossier.
+    """
 
     # arborescence
     parent_path: str | None
@@ -60,6 +68,7 @@ class FolderContext:
 def resolve_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -> FolderContext:
     """
     Calcule le contexte d'un dossier (parent, catégories, type).
+
     Réutilisable par update_folder()
     """
     logger = ensure_logger(logger, __name__)
@@ -98,6 +107,7 @@ def resolve_folder_context(path: str | Path, logger: LoggerProtocol | None = Non
 def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -> FolderContext:
     """
     Calcule le contexte d'un dossier (parent, catégories, type).
+
     Réutilisable par add_folder().
     """
     logger = ensure_logger(logger, __name__)

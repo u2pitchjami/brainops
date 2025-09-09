@@ -1,4 +1,6 @@
-"""# ollama/ollama_utils.py"""
+"""
+# ollama/ollama_utils.py
+"""
 
 from __future__ import annotations
 
@@ -12,7 +14,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def large_or_standard_note(
     filepath: str,
     note_id: int,
-    content: str | None = None,    
+    content: str | None = None,
     prompt_key: str | None = None,
     model_ollama: str | None = None,
     word_limit: int = 1000,
@@ -30,6 +32,7 @@ def large_or_standard_note(
 ) -> str:
     """
     Routeur entre 'process_large_note' et 'process_standard_note'.
+
     Retourne toujours une chaîne (éventuellement vide) pour compat ascendante.
     """
     logger = ensure_logger(logger, __name__)

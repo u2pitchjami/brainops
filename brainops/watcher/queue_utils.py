@@ -1,4 +1,6 @@
-"""utils for queue"""
+"""
+Utils for queue.
+"""
 
 # watcher/queue_utils.py
 from __future__ import annotations
@@ -14,6 +16,7 @@ logger = get_logger("Brainops Watcher")
 def get_lock_key(note_id: int | None, file_path: str | None) -> str:
     """
     Génère une clé de verrou logique.
+
     Priorise l'identifiant de note quand disponible, sinon le chemin.
     """
     if note_id is not None:
@@ -24,6 +27,7 @@ def get_lock_key(note_id: int | None, file_path: str | None) -> str:
 class PendingNoteLockManager:
     """
     Verrous logiques pour empêcher des traitements concurrents sur la même note/fichier.
+
     Chaque lock est horodaté pour permettre une purge.
     """
 
@@ -38,7 +42,11 @@ class PendingNoteLockManager:
         self._logger = logger
 
     def acquire(self, key: str) -> bool:
-        """Pose un verrou atomiquement. Retourne False si déjà verrouillé."""
+        """
+        Pose un verrou atomiquement.
+
+        Retourne False si déjà verrouillé.
+        """
         with self._lock:
             if key in self._locks:
                 return False
@@ -46,13 +54,17 @@ class PendingNoteLockManager:
             return True
 
     def release(self, key: str) -> None:
-        """Libère le verrou s’il existe."""
+        """
+        Libère le verrou s’il existe.
+        """
         with self._lock:
             if key in self._locks:
                 del self._locks[key]
 
     def is_locked(self, key: str) -> bool:
-        """Indique si la clé est verrouillée."""
+        """
+        Indique si la clé est verrouillée.
+        """
         with self._lock:
             return key in self._locks
 
@@ -69,11 +81,15 @@ class PendingNoteLockManager:
                     self._logger.warning("[LOCK] 🔥 Lock expiré supprimé : %s", k)
 
     def count(self) -> int:
-        """Nombre de verrous actifs."""
+        """
+        Nombre de verrous actifs.
+        """
         with self._lock:
             return len(self._locks)
 
     def get_all_locks(self) -> dict[str, int]:
-        """Copie des verrous actifs (clé → timestamp)."""
+        """
+        Copie des verrous actifs (clé → timestamp).
+        """
         with self._lock:
             return dict(self._locks)

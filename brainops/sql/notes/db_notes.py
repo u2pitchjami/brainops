@@ -1,4 +1,6 @@
-"""# sql/db_notes.py"""
+"""
+# sql/db_notes.py
+"""
 
 from __future__ import annotations
 
@@ -66,7 +68,9 @@ def upsert_note_from_model(note: Note, *, logger: LoggerProtocol | None = None) 
 @with_child_logger
 def get_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) -> Note | None:
     """
-    Récupère une note par `file_path` (unique). Retourne None si introuvable.
+    Récupère une note par `file_path` (unique).
+
+    Retourne None si introuvable.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
@@ -97,7 +101,9 @@ def get_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) ->
 @with_child_logger
 def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) -> bool:
     """
-    Supprime une note par `file_path`. Retourne True si supprimée.
+    Supprime une note par `file_path`.
+
+    Retourne True si supprimée.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)

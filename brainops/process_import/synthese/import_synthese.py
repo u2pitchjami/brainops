@@ -1,4 +1,6 @@
-"""# handlers/process/synthesis.py"""
+"""
+# handlers/process/synthesis.py
+"""
 
 from __future__ import annotations
 
@@ -29,10 +31,11 @@ def process_import_syntheses(
 ) -> bool:
     """
     Orchestrateur de la génération de synthèse :
-      - si pas de parent → copie en 'archive' et embeddings sur la note
-      - sinon → embeddings sur l'archive liée
-      - construit glossaire, questions, traduction FR si besoin
-      - écrit le fichier final et met à jour le YAML/DB (status='synthesis')
+
+    - si pas de parent → copie en 'archive' et embeddings sur la note
+    - sinon → embeddings sur l'archive liée
+    - construit glossaire, questions, traduction FR si besoin
+    - écrit le fichier final et met à jour le YAML/DB (status='synthesis')
     """
     logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).expanduser().resolve().as_posix()
@@ -236,6 +239,7 @@ def make_syntheses(
 ) -> None:
     """
     Construit le contenu final de la synthèse et l’écrit dans le fichier.
+
     - header_lines/content_lines peuvent être fournis ; sinon on relit le fichier.
     """
     logger = ensure_logger(logger, __name__)

@@ -1,4 +1,6 @@
-"""# sql/db_notes_utils.py"""
+"""
+# sql/db_notes_utils.py
+"""
 
 from __future__ import annotations
 
@@ -26,6 +28,7 @@ def link_notes_parent_child(
 ) -> bool:
     """
     Lie archive -> synthesis via parent_id.
+
     🔧 Règle métier observée dans ton code:
     - L'archive doit avoir parent_id = synthesis_id
     - La synthesis NE doit PAS pointer vers l'archive (évite cycle/confusion)
@@ -66,6 +69,7 @@ def check_synthesis_and_trigger_archive(
 ) -> None:
     """
     Si une synthesis est modifiée, s'assurer que l'archive liée:
+
     - est sous 'Archives/',
     - porte le bon nom,
     - a son YAML synchronisé.
@@ -176,6 +180,7 @@ def check_duplicate(
 ) -> tuple[bool, list[dict]]:
     """
     Cherche des doublons côté 'archive' via:
+
     - fuzzy match sur le titre,
     - source_hash,
     - content_hash.
@@ -263,5 +268,7 @@ def check_duplicate(
 
 
 def clean_title(title: str) -> str:
-    """Nettoie le titre pour comparaison fuzzy (dates, underscores)."""
+    """
+    Nettoie le titre pour comparaison fuzzy (dates, underscores).
+    """
     return re.sub(r"^\d{6}_?", "", (title or "").replace("_", " ")).lower()

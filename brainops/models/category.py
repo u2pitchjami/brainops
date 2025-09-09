@@ -1,4 +1,6 @@
-"""# models/category.py"""
+"""
+# models/category.py
+"""
 
 from __future__ import annotations
 
@@ -7,7 +9,9 @@ from dataclasses import dataclass
 
 @dataclass(slots=True, kw_only=True)
 class Category:
-    """Miroir de la table obsidian_categories."""
+    """
+    Miroir de la table obsidian_categories.
+    """
 
     id: int | None = None
     name: str

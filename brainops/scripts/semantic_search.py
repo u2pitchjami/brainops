@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""# scripts/semantic_search.py"""
+"""
+# scripts/semantic_search.py
+"""
 
 from __future__ import annotations
 

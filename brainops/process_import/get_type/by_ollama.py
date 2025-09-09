@@ -1,4 +1,6 @@
-"""# handlers/process/get_type.py"""
+"""
+# handlers/process/get_type.py
+"""
 
 from __future__ import annotations
 
@@ -8,6 +10,7 @@ import shutil
 from brainops.header.extract_yaml_header import (
     extract_yaml_header,
 )
+from brainops.models.exceptions import BrainOpsError
 from brainops.process_import.get_type.by_ollama_utils import (
     _classify_with_llm,
     _resolve_destination,
@@ -19,13 +22,13 @@ from brainops.process_import.utils.paths import ensure_folder_exists
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.files import clean_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-from brainops.models.exceptions import BrainOpsError
 
 
 @with_child_logger
 def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | None = None) -> str:
     """
     Analyse le type via LLM → calcule dossier cible → déplace → met à jour la DB.
+
     Retourne le **nouveau chemin complet** ou None.
     """
     logger = ensure_logger(logger, __name__)
@@ -36,7 +39,7 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
         # 1) contenu sans YAML
         _, content_lines = extract_yaml_header(filepath, logger=logger)
         content_lines = clean_content(content_lines)
-          
+
         if not content_lines.strip():
             logger.warning("[WARNING] 🚨 Contenu vide après nettoyage → UNCATEGORIZED")
             handle_uncategorized(note_id, filepath, "Empty content", llama_proposition, logger=logger)
@@ -45,7 +48,7 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
 
         # 2) LLM
         llama_proposition = _classify_with_llm(content_lines, logger=logger) or ""
-    
+
         if not llama_proposition:
             logger.warning("[WARNING] 🚨 Aucune proposition de classification reçue → UNCATEGORIZED")
             handle_uncategorized(note_id, filepath, "No classification", llama_proposition, logger=logger)
@@ -107,7 +110,7 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
     except BrainOpsError:
         raise
     except Exception as exc:
-        logger.exception("Crash inattendu dans : %s",exc)
+        logger.exception("Crash inattendu dans : %s", exc)
         handle_uncategorized(note_id, filepath, note_type, llama_proposition, logger=logger)
         raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
     return new_path

@@ -1,4 +1,6 @@
-"""# sql/db_folder_utils.py"""
+"""
+# sql/db_folder_utils.py
+"""
 
 from __future__ import annotations
 
@@ -18,8 +20,8 @@ def is_folder_included(
     logger: LoggerProtocol | None = None,
 ) -> bool:
     """
-    Vérifie si un dossier (par son `path`) doit être inclus selon des listes
-    d'inclusions/exclusions basées sur `folder_type`.
+    Vérifie si un dossier (par son `path`) doit être inclus selon des listes d'inclusions/exclusions basées sur
+    `folder_type`.
 
     Args:
         path: Chemin complet (absolu POSIX) du dossier.
@@ -75,8 +77,8 @@ def get_path_from_classification(
     logger: LoggerProtocol | None = None,
 ) -> tuple[int, str] | None:
     """
-    Récupère (folder_id, path) à partir d'une classification (catégorie / sous-catégorie).
-    Priorité à la sous-catégorie si fournie.
+    Récupère (folder_id, path) à partir d'une classification (catégorie / sous-catégorie). Priorité à la sous-catégorie
+    si fournie.
 
     Returns:
         (id, path) si trouvé, sinon None.

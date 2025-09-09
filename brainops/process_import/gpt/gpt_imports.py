@@ -1,4 +1,6 @@
-"""# process/gpt_imports.py"""
+"""
+# process/gpt_imports.py
+"""
 
 from __future__ import annotations
 
@@ -46,6 +48,7 @@ def process_clean_gpt(filepath: str | Path, *, logger: LoggerProtocol | None = N
 def process_import_gpt(filepath: str | Path | None = None, *, logger: LoggerProtocol | None = None) -> None:
     """
     Traite toutes les notes dans GPT_IMPORT_DIR, si la ligne 1 contient un titre.
+
     (Le paramètre 'filepath' est ignoré, conservé pour compat.)
     """
     logger = ensure_logger(logger, __name__)
@@ -127,6 +130,7 @@ def process_gpt_conversation(
 def split_gpt_conversation(content: str) -> list[tuple[str, str]]:
     """
     Découpe une conversation GPT en sections basées sur les titres de niveau '# '.
+
     Retourne [(title, body), ...].
     """
     # Répartition par titres capturés : ["pre", title1, body1, title2, body2, ...]
@@ -143,9 +147,10 @@ def split_gpt_conversation(content: str) -> list[tuple[str, str]]:
 def process_class_gpt(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
     """
     Pipeline de "reformulation" pour une note GPT :
-      - nettoyage via process_large_note (entry_type='gpt_reformulation')
-      - extraction de mots-clés (process_and_update_file)
-      - properties YAML + DB (status='archive')
+
+    - nettoyage via process_large_note (entry_type='gpt_reformulation')
+    - extraction de mots-clés (process_and_update_file)
+    - properties YAML + DB (status='archive')
     """
     logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).resolve()

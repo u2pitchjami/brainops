@@ -1,4 +1,6 @@
-"""header.yaml_read"""
+"""
+header.yaml_read.
+"""
 
 from __future__ import annotations
 
@@ -45,6 +47,7 @@ def test_title(file_path: str, *, logger: LoggerProtocol | None = None) -> None:
 def ensure_status_in_yaml(file_path: str, status: str = "draft", *, logger: LoggerProtocol | None = None) -> None:
     """
     Insère/Met à jour le champ 'status' dans le YAML du fichier.
+
     - Ne modifie rien si déjà conforme.
     - Vérifie l'écriture en s'assurant que 'status:' est bien présent.
     """

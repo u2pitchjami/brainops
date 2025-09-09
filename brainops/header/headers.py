@@ -1,4 +1,6 @@
-"""# handlers/header/headers.py"""
+"""
+# handlers/header/headers.py
+"""
 
 from __future__ import annotations
 
@@ -169,6 +171,7 @@ def make_properties(
 ) -> bool:
     """
     Génère les entêtes et met à jour les métadonnées (DB + YAML).
+
     - Appelle l'IA pour tags + résumé
     - Met à jour DB (status, summary, word_count)
     - Écrit l'entête YAML consolidée
@@ -237,6 +240,7 @@ def extract_category_and_subcategory(
 ) -> tuple[str | None, str | None]:
     """
     Lit l'entête YAML pour extraire la catégorie et la sous-catégorie.
+
     Gère les deux variantes: 'subcategory' et 'sub category'.
     """
     logger = ensure_logger(logger, __name__)

@@ -1,4 +1,6 @@
-"""queue."""
+"""
+queue.
+"""
 
 # watcher/queue_manager.py
 from __future__ import annotations
@@ -69,6 +71,7 @@ lock_mgr = PendingNoteLockManager()
 def enqueue_event(event: Event) -> None:
     """
     Enrichit et enfile un événement.
+
     - Pour les fichiers, pose un lock logique (note_id ou path).
     - Si le lock existe déjà, l'événement est ignoré (dé-bounce de travail).
     """
@@ -90,6 +93,7 @@ def enqueue_event(event: Event) -> None:
 def process_queue() -> None:
     """
     Boucle de consommation des événements.
+
     - Traite fichiers et dossiers.
     - Relâche toujours les locks en fin de traitement.
     """
@@ -192,7 +196,9 @@ def process_queue() -> None:
 
 
 def log_event_queue() -> None:
-    """Logge un aperçu de la file en DEBUG."""
+    """
+    Logge un aperçu de la file en DEBUG.
+    """
     try:
         items = list(event_queue.queue)
         logger.debug("[DEBUG] Contenu file d'attente : %s", items)

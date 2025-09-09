@@ -1,4 +1,6 @@
-"""sql/db_update_notes.py"""
+"""
+sql/db_update_notes.py.
+"""
 
 from __future__ import annotations
 

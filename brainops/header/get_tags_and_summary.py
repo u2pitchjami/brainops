@@ -1,4 +1,6 @@
-"""# header/get_tags_and_summary.py"""
+"""
+# header/get_tags_and_summary.py
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,9 @@ _TAG_CLEAN_RE = re.compile(r"[:*?\"<>#|'\\]")  # caractères à retirer dans un 
 
 
 def _sanitize_tag(tag: str) -> str:
-    """Nettoie un tag pour l'entête (underscore pour espaces, retire chars interdits)."""
+    """
+    Nettoie un tag pour l'entête (underscore pour espaces, retire chars interdits).
+    """
     t = (tag or "").strip()
     t = _TAG_CLEAN_RE.sub("", t)
     t = "_".join(t.split())
@@ -27,6 +31,7 @@ def _sanitize_tag(tag: str) -> str:
 def _parse_jsonish_tags(response: str) -> list[str]:
     """
     Extrait une liste de tags depuis la réponse LLM.
+
     - Supporte: bloc ```json ...```, objet {"tags":[...]} ou tableau [...],
     - Renvoie [] si rien d'exploitable.
     """
@@ -64,6 +69,7 @@ def _parse_jsonish_tags(response: str) -> list[str]:
 def get_tags_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol | None = None) -> list[str]:
     """
     Interroge Ollama pour générer des tags à partir du contenu.
+
     Retourne toujours une liste (éventuellement vide).
     """
     logger = ensure_logger(logger, __name__)

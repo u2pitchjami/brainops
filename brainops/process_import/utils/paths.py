@@ -1,4 +1,6 @@
-"""# utils/paths.py"""
+"""
+# utils/paths.py
+"""
 
 from __future__ import annotations
 
@@ -41,8 +43,8 @@ def get_relative_parts(
     logger: LoggerProtocol | None = None,
 ) -> tuple[str, ...] | None:
     """
-    Renvoie les parties relatives de `folder_path` par rapport à `base_path`
-    (None si folder_path n'est pas dans base_path).
+    Renvoie les parties relatives de `folder_path` par rapport à `base_path` (None si folder_path n'est pas dans
+    base_path).
     """
     logger = ensure_logger(logger, __name__)
     try:
@@ -55,7 +57,7 @@ def get_relative_parts(
 
 def build_archive_path(original_path: str | Path) -> Path:
     """
-    Construit le chemin d'archive : <dir>/Archives/<stem> (archive).md
+    Construit le chemin d'archive : <dir>/Archives/<stem> (archive).md.
     """
     p = Path(original_path)
     archive_dir = p.parent / "Archives"

@@ -1,4 +1,6 @@
-"""# handlers/process/import_normal.py"""
+"""
+# handlers/process/import_normal.py
+"""
 
 from __future__ import annotations
 
@@ -21,15 +23,12 @@ logger = get_logger("Brainops Imports")
 
 def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False) -> bool:
     """
-    Étapes :
-      1) Définir la catégorisation (chemin cible) via process_get_note_type()
-      2) Renommer/déplacer le fichier (rename_file)
-      3) Mettre à jour la DB (file_path)
-      4) Brancher sur import_normal()
+    Étapes : 1) Définir la catégorisation (chemin cible) via process_get_note_type() 2) Renommer/déplacer le fichier
+    (rename_file) 3) Mettre à jour la DB (file_path) 4) Brancher sur import_normal()
 
     Retourne le chemin final (str) ou None en cas d’erreur.
     """
-    
+
     src = Path(str(filepath)).expanduser().resolve()
     logger.info("[INFO] ▶️ LANCEMENT IMPORT : (id=%s) path=%s", note_id, src.as_posix())
     logger.debug("[DEBUG] +++ ▶️ PRE IMPORT NORMAL pour %s", src.as_posix())

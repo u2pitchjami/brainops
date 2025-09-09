@@ -1,4 +1,6 @@
-"""# process/embeddings_utils.py"""
+"""
+# process/embeddings_utils.py
+"""
 
 from __future__ import annotations
 
@@ -19,10 +21,8 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def make_embeddings_synthesis(note_id: int, filepath: str, *, logger: LoggerProtocol | None = None) -> str | None:
     """
-    1) Génère/persiste des embeddings via 'large_or_standard_note' (mode embeddings)
-    2) Sélectionne les meilleurs blocs
-    3) Construit le prompt et appelle le modèle de synthèse
-    Retourne le texte de synthèse ou None en cas d'échec.
+    1) Génère/persiste des embeddings via 'large_or_standard_note' (mode embeddings) 2) Sélectionne les meilleurs blocs
+    3) Construit le prompt et appelle le modèle de synthèse Retourne le texte de synthèse ou None en cas d'échec.
     """
     logger = ensure_logger(logger, __name__)
 
@@ -64,6 +64,7 @@ def select_top_blocks(
 ) -> list[dict[str, Any]] | list[str]:
     """
     Sélectionne les N blocs les plus proches pour une note donnée.
+
     - Récupère (blocks, embeddings) depuis la DB.
     - Calcule l'embedding moyen comme 'requête'.
     - Retourne une liste de dicts {"text": str, "score": float} si return_scores=True,
@@ -106,6 +107,7 @@ def select_top_blocks(
 def build_summary_prompt(blocks: Sequence[str] | Sequence[dict[str, Any]], structure: str = "simple") -> str:
     """
     Construit un prompt de synthèse à partir d'une liste de blocs sélectionnés.
+
     Accepte soit une liste de strings, soit une liste de dicts {"text": ..., "score": ...}.
     """
     intro = (

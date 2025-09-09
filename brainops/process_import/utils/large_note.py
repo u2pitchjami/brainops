@@ -1,4 +1,6 @@
-"""process_import.utils.large_note"""
+"""
+process_import.utils.large_note.
+"""
 
 from __future__ import annotations
 
@@ -68,6 +70,7 @@ def process_large_note(
 ) -> str | None:
     """
     Traite une note volumineuse (split + appel LLM par bloc).
+
     Si persist_blocks=True, chaque bloc est stocké en base dans `obsidian_temp_blocks`.
     Retourne le contenu final (si write_file=False), sinon None.
     """
@@ -238,6 +241,7 @@ def process_large_note(
 def split_large_note_by_titles(content: str) -> list[str]:
     """
     Découpe en blocs basés sur les titres (#, ##, ###), gère l'intro avant le 1er titre.
+
     Chaque bloc contient le titre et son contenu.
     """
     title_pattern = r"(?m)^(\#{1,3})\s+.*$"

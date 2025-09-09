@@ -44,7 +44,7 @@ Scope = Literal["notes", "folders", "all"]
 @dataclass(frozen=True)
 class CheckConfig:
     """
-     _summary_
+    _summary_
 
     _extended_summary_
     """
@@ -123,7 +123,7 @@ def _export_to_csv(rows: list[tuple[str, str]], out_dir: Path, prefix: str) -> P
 @dataclass(frozen=True)
 class DiffSets:
     """
-     _summary_
+    _summary_
 
     _extended_summary_
     """
@@ -206,7 +206,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
 @dataclass
 class ApplyStats:
     """
-     _summary_
+    _summary_
 
     _extended_summary_
     """
@@ -221,6 +221,7 @@ class ApplyStats:
 def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
     """
     Applique les corrections en appelant les 4 fonctions fournies.
+
     dry_run=True -> log uniquement sans modifier.
     """
     stats = ApplyStats()
@@ -309,7 +310,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     """
-    main _summary_
+    Main _summary_
 
     _extended_summary_
 

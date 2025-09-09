@@ -1,4 +1,6 @@
-"""header.header_utils"""
+"""
+header.header_utils.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +19,9 @@ _YAML_FENCE = re.compile(r"^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n)?", re
 @with_child_logger
 def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str, str]:
     """
-    Extrait et parse l'en-tête YAML. Retourne {} si absent.
+    Extrait et parse l'en-tête YAML.
+
+    Retourne {} si absent.
     """
     logger = ensure_logger(logger, __name__)
     try:
@@ -31,7 +35,9 @@ def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str,
 
 
 @with_child_logger
-def get_yaml_value(content: str, key: str, default: str | None = None, *, logger: LoggerProtocol | None = None) -> str | None:
+def get_yaml_value(
+    content: str, key: str, default: str | None = None, *, logger: LoggerProtocol | None = None
+) -> str | None:
     """
     get_yaml_value _summary_
 
@@ -97,7 +103,8 @@ def patch_yaml_line(
     logger: LoggerProtocol | None = None,
 ) -> str:
     """
-    Applique une fonction de transformation sur la valeur d'une ligne 'key: value' (yaml_text = bloc YAML + délimiteurs).
+    Applique une fonction de transformation sur la valeur d'une ligne 'key: value' (yaml_text = bloc YAML +
+    délimiteurs).
     """
     _ = ensure_logger(logger, __name__)
     pattern = rf"^({re.escape(key)}\s*:\s*)(.+)$"

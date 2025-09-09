@@ -1,4 +1,6 @@
-"""# sql/db_get_linked_data.py"""
+"""
+# sql/db_get_linked_data.py
+"""
 
 from __future__ import annotations
 

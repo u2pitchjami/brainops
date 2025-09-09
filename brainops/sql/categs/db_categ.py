@@ -1,4 +1,6 @@
-"""# sql/db_categs.py"""
+"""
+# sql/db_categs.py
+"""
 
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ def delete_category_from_db(
 ) -> None:
     """
     Supprime une catégorie ou une sous-catégorie par nom.
+
     - Si `subcategory_name` est fourni → supprime la sous-catégorie sous `category_name`.
     - Sinon → supprime la catégorie uniquement si elle n'a plus de sous-catégories.
     """
@@ -72,6 +75,7 @@ def get_path_safe(
 ) -> tuple[int, int] | None:
     """
     Vérifie / crée la catégorie et sous-catégorie si besoin, puis renvoie (category_id, subcategory_id).
+
     `note_type` attendu au format "Category/Subcategory" (Subcategory optionnelle).
     """
     logger = ensure_logger(logger, __name__)
@@ -142,6 +146,7 @@ def add_dynamic_subcategory(
 ) -> int | None:
     """
     Crée une sous-catégorie sous `category` et son dossier associé sous Z_STORAGE_PATH/<category>/<subcategory>.
+
     Si le dossier de catégorie n'existe pas en DB, il est créé sous Z_STORAGE_PATH/<category>.
     """
     logger = ensure_logger(logger, __name__)
@@ -263,6 +268,7 @@ def add_dynamic_category(
 ) -> int | None:
     """
     Crée une catégorie racine et son dossier sous Z_STORAGE_PATH/<category>.
+
     Requiert l'existence du folder racine Z_STORAGE_PATH en DB.
     """
     logger = ensure_logger(logger, __name__)

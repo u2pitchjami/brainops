@@ -1,4 +1,6 @@
-"""# sql/db_utils.py"""
+"""
+# sql/db_utils.py
+"""
 
 from __future__ import annotations
 
@@ -9,13 +11,15 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 class CursorProtocol(Protocol):
-    """Contrat minimal pour un curseur MySQL utilisé ici."""
+    """
+    Contrat minimal pour un curseur MySQL utilisé ici.
+    """
 
     def nextset(
         self,
     ) -> bool | None:  # True s'il reste un jeu de résultats, sinon None/False
         """
-        nextset _summary_
+        Nextset _summary_
 
         _extended_summary_
 
@@ -26,7 +30,7 @@ class CursorProtocol(Protocol):
 
     def execute(self, operation: str, params: Sequence[Any] | Mapping[str, Any] | None = ...) -> None:
         """
-        execute _summary_
+        Execute _summary_
 
         _extended_summary_
 
@@ -40,8 +44,7 @@ class CursorProtocol(Protocol):
 @with_child_logger
 def flush_cursor(cursor: CursorProtocol, logger: LoggerProtocol | None = None) -> None:
     """
-    Vide proprement le curseur MySQL (utile pour éviter
-    les erreurs 'Unread result found' lors d'appels successifs).
+    Vide proprement le curseur MySQL (utile pour éviter les erreurs 'Unread result found' lors d'appels successifs).
 
     On itère tant qu'il reste des jeux de résultats non consommés.
     """
