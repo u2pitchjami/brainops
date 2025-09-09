@@ -1,10 +1,11 @@
-# process/gpt_imports.py
+"""# process/gpt_imports.py"""
+
 from __future__ import annotations
 
 import re
 import shutil
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from brainops.header.headers import make_properties
 from brainops.ollama.ollama_utils import large_or_standard_note
@@ -196,7 +197,6 @@ def process_class_gpt_test(
     ).resolve()
     ensure_folder_exists(dest_dir, logger=logger)
 
-    filename = src.name
     models = ["llama3.1:8b-instruct-q8_0"]  # liste de modèles à tester
 
     for model in models:

@@ -1,4 +1,5 @@
-# process/folders_context.py
+"""# process/folders_context.py"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -56,11 +57,15 @@ class FolderContext:
     folder_type: FolderType
 
 
-def resolve_folder_context(path: str | Path) -> FolderContext:
+@with_child_logger
+def resolve_folder_context(
+    path: str | Path, logger: LoggerProtocol | None = None
+) -> FolderContext:
     """
     Calcule le contexte d'un dossier (parent, catégories, type).
     Réutilisable par update_folder()
     """
+    logger = ensure_logger(logger, __name__)
     logger.debug("[DEBUG] resolve_folder_context(%s)", path)
     p_str = normalize_folder_path(path)
 
@@ -103,8 +108,7 @@ def add_folder_context(
     Réutilisable par add_folder().
     """
     logger = ensure_logger(logger, __name__)
-    category, subcategory, archive, category_id, subcategory_id = (
-        None,
+    category, subcategory, category_id, subcategory_id = (
         None,
         None,
         None,
@@ -150,9 +154,26 @@ def add_folder_context(
     )
 
 
+@with_child_logger
 def build_folder(
-    path: str | Path, *, override_type: Optional[FolderType] = None
+    path: str | Path,
+    *,
+    override_type: Optional[FolderType] = None,
+    logger: LoggerProtocol | None = None,
 ) -> Folder:
+    """
+    build_folder _summary_
+
+    _extended_summary_
+
+    Args:
+        path (str | Path): _description_
+        override_type (Optional[FolderType], optional): _description_. Defaults to None.
+
+    Returns:
+        Folder: _description_
+    """
+    logger = ensure_logger(logger, __name__)
     p = normalize_folder_path(path)
     name = Path(p).name
     parent_path = Path(p).parent.as_posix() if Path(p).parent != Path(p) else None

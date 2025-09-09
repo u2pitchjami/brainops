@@ -1,4 +1,5 @@
-# sql/db_notes.py
+"""# sql/db_notes.py"""
+
 from __future__ import annotations
 
 from typing import Optional

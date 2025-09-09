@@ -1,7 +1,8 @@
-# sql/db_get_linked_notes_utils.py
+"""# sql/db_get_linked_notes_utils.py"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -25,6 +26,18 @@ def get_subcategory_prompt(
 def get_category_and_subcategory_names(
     note_id: int, *, logger: LoggerProtocol | None = None
 ) -> Tuple[str, str]:
+    """
+    get_category_and_subcategory_names _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Tuple[str, str]: _description_
+    """
     logger = ensure_logger(logger, __name__)
     category = get_note_linked_data(note_id, "category", logger=logger)
     subcategory = get_note_linked_data(note_id, "subcategory", logger=logger)
@@ -148,6 +161,18 @@ def get_data_for_should_trigger(
 def get_parent_id(
     note_id: int, *, logger: LoggerProtocol | None = None
 ) -> Optional[int]:
+    """
+    get_parent_id _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[int]: _description_
+    """
     logger = ensure_logger(logger, __name__)
     note = get_note_linked_data(note_id, "note", logger=logger)
     if not isinstance(note, dict):
@@ -159,6 +184,18 @@ def get_parent_id(
 def get_file_path(
     note_id: int, *, logger: LoggerProtocol | None = None
 ) -> Optional[str]:
+    """
+    get_file_path _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[str]: _description_
+    """
     logger = ensure_logger(logger, __name__)
     note = get_note_linked_data(note_id, "note", logger=logger)
     if not isinstance(note, dict):

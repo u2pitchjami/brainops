@@ -1,35 +1,24 @@
-# process/folders.py
+"""# process/folders.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
-from brainops.models.folders import Folder, FolderType
+from brainops.models.folders import Folder
 from brainops.process_folders.folders_context import (
-    _detect_folder_type,
     add_folder_context,
     normalize_folder_path,
-    resolve_folder_context,
 )
-from brainops.process_import.utils.paths import get_relative_parts, path_is_inside
-from brainops.sql.categs.db_categ_utils import (
-    get_or_create_category,
-    get_or_create_subcategory,
-    remove_unused_category,
-)
+from brainops.sql.categs.db_categ_utils import remove_unused_category
 from brainops.sql.folders.db_folders import (
     add_folder_from_model,
     update_folder_from_model,
 )
 from brainops.sql.get_linked.db_get_linked_data import get_folder_linked_data
-from brainops.sql.get_linked.db_get_linked_folders_utils import (
-    get_category_context_from_folder,
-    get_folder_id,
-)
-from brainops.utils.config import Z_STORAGE_PATH
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
-FolderType = Literal["storage", "archive", "technical", "project", "personnal"]
+# FolderType = Literal["storage", "archive", "technical", "project", "personnal"]
 
 
 def _norm_path(p: str | Path) -> Path:
@@ -49,6 +38,19 @@ def add_folder(
     *,
     logger: LoggerProtocol | None = None,
 ) -> Optional[int]:
+    """
+    add_folder _summary_
+
+    _extended_summary_
+
+    Args:
+        folder_path (str | Path): _description_
+        folder_type_hint (str): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[int]: _description_
+    """
     logger = ensure_logger(logger, __name__)
     logger.debug("add_folder called")
     p_str = normalize_folder_path(folder_path)
@@ -84,6 +86,16 @@ def add_folder(
 def update_folder(
     old_path: str | Path, new_path: str | Path, *, logger: LoggerProtocol | None = None
 ) -> None:
+    """
+    update_folder _summary_
+
+    _extended_summary_
+
+    Args:
+        old_path (str | Path): _description_
+        new_path (str | Path): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+    """
     logger = ensure_logger(logger, __name__)
 
     old_p = normalize_folder_path(old_path)

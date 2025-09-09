@@ -1,8 +1,8 @@
-# handlers/process/import_normal.py
+"""# handlers/process/import_normal.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from brainops.header.headers import make_properties
 from brainops.process_import.get_type.by_force import get_type_by_force
@@ -14,7 +14,7 @@ from brainops.process_import.utils.divers import rename_file
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.config import SAV_PATH
 from brainops.utils.files import copy_file_with_date
-from brainops.utils.logger import LoggerProtocol, get_logger, with_child_logger
+from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Imports")
 
@@ -53,7 +53,7 @@ def import_normal(
             moved_path = rename_file(new_path, note_id, logger=logger)
             logger.debug("[DEBUG] pre_import_normal fin rename_file : %s", moved_path)
         else:
-            moved_path = force_categ_from_path(src.as_posix(), note_id, logger=logger)
+            moved_path = get_type_by_force(src.as_posix(), note_id, logger=logger)
 
         final_path = Path(str(moved_path)).expanduser().resolve().as_posix()
 

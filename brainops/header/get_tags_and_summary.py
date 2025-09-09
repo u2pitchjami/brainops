@@ -1,4 +1,5 @@
-# header/get_tags_and_summary.py
+"""# header/get_tags_and_summary.py"""
+
 from __future__ import annotations
 
 import json

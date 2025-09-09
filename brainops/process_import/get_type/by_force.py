@@ -1,8 +1,9 @@
-# utils/regen_utils.py
+"""# process_import_get_type.by_force.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from brainops.process_import.utils.divers import rename_file
 from brainops.sql.categs.db_categ_utils import categ_extract

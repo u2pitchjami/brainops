@@ -1,4 +1,5 @@
-# sql/db_folders.py (ajouts)
+"""# sql/db_folders.py (ajouts)"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,7 +9,6 @@ from brainops.models.folders import Folder
 from brainops.sql.categs.db_categ_utils import remove_unused_category
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
-from brainops.sql.get_linked.db_get_linked_folders_utils import get_folder_id
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 

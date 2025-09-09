@@ -1,4 +1,5 @@
-# runner.py
+"""# runner.py"""
+
 from __future__ import annotations
 
 from brainops.utils.config import ConfigError
@@ -11,6 +12,11 @@ logger = get_logger("Brainops Watcher")
 
 @safe_main
 def main() -> None:
+    """
+    main _summary_
+
+    _extended_summary_
+    """
     try:
         start_watcher(logger=logger)
     except ConfigError as exc:

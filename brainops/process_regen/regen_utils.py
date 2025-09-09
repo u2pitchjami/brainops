@@ -1,24 +1,16 @@
-# utils/regen_utils.py
+"""# utils/regen_utils.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from brainops.header.headers import make_properties
-from brainops.process_import.normal.import_normal import import_normal
 from brainops.process_import.synthese.import_synthese import process_import_syntheses
-from brainops.process_import.utils.divers import rename_file
-from brainops.sql.categs.db_categ_utils import categ_extract
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_file_path
 from brainops.sql.notes.db_temp_blocs import delete_blocs_by_path_and_source
-from brainops.sql.notes.db_update_notes import update_obsidian_note
-from brainops.utils.logger import (
-    LoggerProtocol,
-    ensure_logger,
-    get_logger,
-    with_child_logger,
-)
+from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Regen")
 

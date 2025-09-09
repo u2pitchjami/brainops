@@ -1,4 +1,4 @@
-# handlers/process/get_type.py
+"""# handlers/process/get_type.py"""
 from __future__ import annotations
 
 import shutil
@@ -11,9 +11,7 @@ from brainops.header.extract_yaml_header import (
 from brainops.process_import.get_type.by_ollama_utils import (
     _classify_with_llm,
     _resolve_destination,
-    check_and_handle_similarity,
     clean_note_type,
-    find_similar_levenshtein,
     handle_uncategorized,
     parse_category_response,
 )

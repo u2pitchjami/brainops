@@ -1,4 +1,5 @@
-# sql/db_categs_utils.py
+"""# sql/db_categs_utils.py"""
+
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
@@ -228,6 +229,18 @@ def generate_categ_dictionary(*, logger: LoggerProtocol | None = None) -> str:
 
 @with_child_logger
 def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -> int:
+    """
+    get_or_create_category _summary_
+
+    _extended_summary_
+
+    Args:
+        name (str): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        int: _description_
+    """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     if not conn:
@@ -259,6 +272,19 @@ def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -
 def get_or_create_subcategory(
     name: str, parent_id: int, *, logger: LoggerProtocol | None = None
 ) -> int:
+    """
+    get_or_create_subcategory _summary_
+
+    _extended_summary_
+
+    Args:
+        name (str): _description_
+        parent_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        int: _description_
+    """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     if not conn:

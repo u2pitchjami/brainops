@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Literal, Tuple, TypedDict
+from typing import Iterable, List, Literal, TypedDict
 
 from brainops.process_folders.folders import add_folder
 
@@ -30,7 +30,7 @@ from brainops.process_notes.new_note import new_note
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.folders.db_folders import delete_folder_from_db
 from brainops.sql.notes.db_notes import delete_note_by_path
-from brainops.utils.config import LOG_FILE_PATH
+from brainops.utils.config import BASE_PATH, LOG_FILE_PATH
 from brainops.utils.logger import LoggerProtocol, get_logger
 
 logger: LoggerProtocol = get_logger("coherence_reconcile")
@@ -43,11 +43,26 @@ Scope = Literal["notes", "folders", "all"]
 
 @dataclass(frozen=True)
 class CheckConfig:
+    """
+     _summary_
+
+    _extended_summary_
+    """
+
     base_path: Path
     out_dir: Path
 
 
 class FolderRow(TypedDict):
+    """
+    FolderRow _summary_
+
+    _extended_summary_
+
+    Args:
+        TypedDict (_type_): _description_
+    """
+
     id: int
     path: str
     folder_type: str | None
@@ -56,6 +71,15 @@ class FolderRow(TypedDict):
 
 
 class NoteRow(TypedDict):
+    """
+    NoteRow _summary_
+
+    _extended_summary_
+
+    Args:
+        TypedDict (_type_): _description_
+    """
+
     id: int
     file_path: str
 
@@ -98,6 +122,12 @@ def _export_to_csv(rows: list[tuple[str, str]], out_dir: Path, prefix: str) -> P
 
 @dataclass(frozen=True)
 class DiffSets:
+    """
+     _summary_
+
+    _extended_summary_
+    """
+
     folders_missing_in_db: list[str]
     folders_ghost_in_db: list[str]
     notes_missing_in_db: list[str]
@@ -105,6 +135,17 @@ class DiffSets:
 
 
 def collect_diffs(cfg: CheckConfig) -> DiffSets:
+    """
+    collect_diffs _summary_
+
+    _extended_summary_
+
+    Args:
+        cfg (CheckConfig): _description_
+
+    Returns:
+        DiffSets: _description_
+    """
     logger.info("=== COLLECTE DES ÉCARTS ===")
     errors: list[tuple[str, str]] = []
 
@@ -166,6 +207,12 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
 
 @dataclass
 class ApplyStats:
+    """
+     _summary_
+
+    _extended_summary_
+    """
+
     added_folders: int = 0
     deleted_folders: int = 0
     added_notes: int = 0
@@ -237,6 +284,14 @@ def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
 
 
 def parse_args() -> argparse.Namespace:
+    """
+    parse_args _summary_
+
+    _extended_summary_
+
+    Returns:
+        argparse.Namespace: _description_
+    """
     parser = argparse.ArgumentParser(
         description="Audit & réconciliation Obsidian <-> MariaDB"
     )
@@ -261,8 +316,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """
+    main _summary_
+
+    _extended_summary_
+
+    Returns:
+        int: _description_
+    """
     args = parse_args()
-    base_path = Path(args.base_path or get_str("BASE_PATH", ".")).resolve()
+    base_path = Path(args.base_path or BASE_PATH).resolve()
     out_dir = Path(args.out_dir or LOG_FILE_PATH).resolve()
     cfg = CheckConfig(base_path=base_path, out_dir=out_dir)
 

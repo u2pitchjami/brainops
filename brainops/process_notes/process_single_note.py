@@ -1,4 +1,5 @@
-# handlers/process/process_single_note.py
+"""# handlers/process/process_single_note.py"""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ from brainops.process_import.normal.import_normal import (
     import_normal,
 )
 from brainops.process_import.utils.paths import path_is_inside
+from brainops.process_notes.update_note import update_note
 from brainops.process_notes.utils import should_trigger_process
 from brainops.process_regen.regen_utils import (
     regen_header,
@@ -33,7 +35,6 @@ from brainops.utils.files import count_words
 from brainops.utils.logger import (
     LoggerProtocol,
     ensure_logger,
-    get_logger,
     with_child_logger,
 )
 
@@ -140,7 +141,7 @@ def process_single_note(
                 new_cat_name,
                 new_subcat_name,
             )
-            update_note(note_id, file_path, src_path)
+            update_note(note_id, filepath, src_path)
             return True
 
         # 3) Autres déplacements ignorés

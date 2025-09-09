@@ -1,7 +1,8 @@
-# sql/db_update_notes.py
+"""sql/db_update_notes.py"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict
 
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -35,6 +36,19 @@ def update_obsidian_note(
     *,
     logger: LoggerProtocol | None = None,
 ) -> bool:
+    """
+    update_obsidian_note _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        updates (Dict[str, Any]): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        bool: _description_
+    """
     logger = ensure_logger(logger, __name__)
     if not updates:
         logger.debug("[NOTES] Aucun champ à mettre à jour (id=%s)", note_id)
@@ -77,6 +91,16 @@ def update_obsidian_note(
 def update_obsidian_tags(
     note_id: int, tags: Dict[str, Any], logger: LoggerProtocol | None = None
 ) -> None:
+    """
+    update_obsidian_tags _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        tags (Dict[str, Any]): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+    """
     logger = ensure_logger(logger, __name__)
     # Ouvre la connexion à la base de données
     conn = get_db_connection(logger=logger)

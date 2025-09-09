@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Final, Literal
+from typing import Final
 
 from dotenv import load_dotenv
 

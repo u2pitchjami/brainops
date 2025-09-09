@@ -1,7 +1,8 @@
-# process/embeddings_utils.py
+"""# process/embeddings_utils.py"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray

@@ -1,4 +1,5 @@
-# models/note.py
+"""# models/note.py"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -44,7 +45,7 @@ class Note:
     ext: str = field(init=False, repr=False)  # extension dérivée
 
     def __post_init__(self) -> None:
-        # Normaliser le chemin en absolu POSIX
+        """# Normaliser le chemin en absolu POSIX"""
         p = Path(self.file_path).expanduser().resolve()
         self.file_path = p.as_posix()
         self.name = p.name

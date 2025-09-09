@@ -1,4 +1,5 @@
-# handlers/start/process_folder_event.py
+"""# handlers/start/process_folder_event.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,6 +17,16 @@ EventAction = Literal["created", "deleted", "moved"]
 
 
 class DirectoryEvent(TypedDict, total=True):
+    """
+    DirectoryEvent _summary_
+
+    _extended_summary_
+
+    Args:
+        TypedDict (_type_): _description_
+        total (bool, optional): _description_. Defaults to True.
+    """
+
     type: Literal["directory"]
     action: EventAction
     path: str  # destination pour moved, cible pour created/deleted

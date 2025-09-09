@@ -1,3 +1,5 @@
+"""queue."""
+
 # watcher/queue_manager.py
 from __future__ import annotations
 
@@ -12,12 +14,7 @@ from brainops.process_notes.update_note import update_note
 from brainops.sql.notes.db_notes import delete_note_by_path
 from brainops.sql.notes.db_notes_utils import file_path_exists_in_db
 from brainops.utils.files import wait_for_file
-from brainops.utils.logger import (
-    LoggerProtocol,
-    ensure_logger,
-    get_logger,
-    with_child_logger,
-)
+from brainops.utils.logger import get_logger
 from brainops.watcher.queue_utils import PendingNoteLockManager, get_lock_key
 
 logger = get_logger("Brainops Watcher")
@@ -28,6 +25,16 @@ EventType = Literal["file", "directory"]
 
 
 class DirEvent(TypedDict, total=True):
+    """
+    DirEvent _summary_
+
+    _extended_summary_
+
+    Args:
+        TypedDict (_type_): _description_
+        total (bool, optional): _description_. Defaults to True.
+    """
+
     type: Literal["directory"]
     action: EventAction
     path: str
@@ -35,6 +42,16 @@ class DirEvent(TypedDict, total=True):
 
 
 class Event(TypedDict, total=True):
+    """
+    Event _summary_
+
+    _extended_summary_
+
+    Args:
+        TypedDict (_type_): _description_
+        total (bool, optional): _description_. Defaults to True.
+    """
+
     type: EventType
     action: EventAction
     path: str

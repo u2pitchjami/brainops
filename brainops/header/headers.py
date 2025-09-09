@@ -1,4 +1,5 @@
-# handlers/header/headers.py
+"""# handlers/header/headers.py"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -59,14 +60,13 @@ def add_metadata_to_yaml(
         )
         project_yaml = yaml_meta.get("project") or ""
         created_yaml = sanitize_created(yaml_meta.get("created"), logger=logger)
-        print(f"header created_yaml : {created_yaml}")
 
         # --- 2) Métadonnées DB
         data = get_note_linked_data(note_id, "note", logger=logger)
         if isinstance(data, dict):
             title = sanitize_yaml_title(data.get("title") or title_yaml)
-            category_id = data.get("category_id")
-            subcategory_id = data.get("subcategory_id")
+            # category_id = data.get("category_id")
+            # subcategory_id = data.get("subcategory_id")
             status = data.get("status") if status is None else status
             summary = data.get("summary") if summary is None else summary
             source = data.get("source") or source_yaml
@@ -75,14 +75,12 @@ def add_metadata_to_yaml(
             created = data.get("created_at") or created_yaml
         else:
             title = sanitize_yaml_title(title_yaml)
-            category_id = None
-            subcategory_id = None
+            # category_id = None
+            # subcategory_id = None
             source = source_yaml
             author = author_yaml
             project = project_yaml
             created = created_yaml
-
-        print(f"header created : {created}")
 
         # --- 3) Cat/Sub Noms (pour l'entête lisible)
         category_name, subcategory_name = get_category_and_subcategory_names(
@@ -241,9 +239,9 @@ def check_type_header(
     """
     logger = ensure_logger(logger, __name__)
     try:
-        content = read_note_content(
-            Path(str(filepath)).expanduser().resolve().as_posix(), logger=logger
-        )
+        # content = read_note_content(
+        #     Path(str(filepath)).expanduser().resolve().as_posix(), logger=logger
+        # )
         meta = extract_metadata(Path(filepath).as_posix(), logger=logger)
         return (
             str(meta.get("type"))

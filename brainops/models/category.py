@@ -1,4 +1,5 @@
-# models/category.py
+"""# models/category.py"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

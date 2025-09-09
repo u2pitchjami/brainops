@@ -1,4 +1,5 @@
-# handlers/process/get_type.py
+"""# handlers/process/get_type.py"""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from Levenshtein import ratio
 
@@ -73,6 +74,20 @@ def find_similar_levenshtein(
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
 ):
+    """
+    find_similar_levenshtein _summary_
+
+    _extended_summary_
+
+    Args:
+        name (str): _description_
+        existing_names (list[str]): _description_
+        threshold_low (float, optional): _description_. Defaults to 0.7.
+        entity_type (str, optional): _description_. Defaults to "subcategory".
+
+    Returns:
+        _type_: _description_
+    """
     similar: list[tuple[str, float]] = []
     for existing in existing_names:
         similarity = ratio(name, existing)
@@ -88,6 +103,20 @@ def check_and_handle_similarity(
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
 ) -> Optional[str]:
+    """
+    check_and_handle_similarity _summary_
+
+    _extended_summary_
+
+    Args:
+        name (str): _description_
+        existing_names (list[str]): _description_
+        threshold_low (float, optional): _description_. Defaults to 0.7.
+        entity_type (str, optional): _description_. Defaults to "subcategory".
+
+    Returns:
+        Optional[str]: _description_
+    """
     threshold_high = 0.9
     similar = find_similar_levenshtein(name, existing_names, threshold_low, entity_type)
     if similar:

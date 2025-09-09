@@ -1,13 +1,13 @@
-# process/divers.py
+"""# process/divers.py"""
+
 from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from langdetect import detect
 
-from brainops.models.note import Note
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_lang
 from brainops.utils.config import MODEL_EN, MODEL_FR

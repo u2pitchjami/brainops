@@ -1,4 +1,5 @@
-# models/folder.py
+"""# models/folder.py"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -41,7 +42,7 @@ class Folder:
     subcategory_id: Optional[int] = None
 
     def __post_init__(self) -> None:
-        # Normalise le chemin en absolu POSIX
+        """# Normalise le chemin en absolu POSIX"""
         p = Path(self.path).expanduser().resolve()
         self.path = p.as_posix()
         # Si name vide: déduire depuis le path

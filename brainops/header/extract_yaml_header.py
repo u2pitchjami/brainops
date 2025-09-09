@@ -1,3 +1,5 @@
+"""header.extract_yaml_header"""
+
 from __future__ import annotations
 
 from typing import List, Tuple

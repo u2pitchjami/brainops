@@ -1,8 +1,9 @@
-# handlers/process/synthesis.py
+"""# handlers/process/synthesis.py"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.header.headers import make_properties
@@ -34,7 +35,7 @@ def process_import_syntheses(
       - construit glossaire, questions, traduction FR si besoin
       - écrit le fichier final et met à jour le YAML/DB (status='synthesis')
     """
-    logger = ensure_logger(logger, "1")
+    logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).expanduser().resolve().as_posix()
     logger.info("[SYNTH] ▶️ Génération de la synthèse pour : (id=%s)", note_id)
     logger.debug("[DEBUG] +++ ▶️ SYNTHESE pour %s", path)
@@ -121,7 +122,20 @@ def process_import_syntheses(
 def make_translate(
     filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None
 ) -> Optional[str]:
-    logger = ensure_logger(logger, "2")
+    """
+    make_translate _summary_
+
+    _extended_summary_
+
+    Args:
+        filepath (str | Path): _description_
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[str]: _description_
+    """
+    logger = ensure_logger(logger, __name__)
     prompt_key = "synth_translate"
     return large_or_standard_note(
         filepath=str(filepath),
@@ -141,7 +155,21 @@ def make_questions(
     content: Optional[str],
     logger: LoggerProtocol | None = None,
 ) -> Optional[str]:
-    logger = ensure_logger(logger, "3")
+    """
+    make_questions _summary_
+
+    _extended_summary_
+
+    Args:
+        filepath (str | Path): _description_
+        note_id (int): _description_
+        content (Optional[str]): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[str]: _description_
+    """
+    logger = ensure_logger(logger, __name__)
     prompt_key = "add_questions"
     return large_or_standard_note(
         filepath=str(filepath),
@@ -159,8 +187,21 @@ def make_questions(
 def make_glossary(
     filepath: str | Path, note_id: int, logger: LoggerProtocol | None = None
 ) -> str:
+    """
+    make_glossary _summary_
+
+    _extended_summary_
+
+    Args:
+        filepath (str | Path): _description_
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        str: _description_
+    """
     # 1/2 : extraction brute
-    logger = ensure_logger(logger, "4")
+    logger = ensure_logger(logger, __name__)
     prompt_key = "glossaires"
     glossary_sections = large_or_standard_note(
         filepath=str(filepath),
@@ -206,7 +247,7 @@ def make_syntheses(
     Construit le contenu final de la synthèse et l’écrit dans le fichier.
     - header_lines/content_lines peuvent être fournis ; sinon on relit le fichier.
     """
-    logger = ensure_logger(logger, "5")
+    logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).expanduser().resolve().as_posix()
 
     try:

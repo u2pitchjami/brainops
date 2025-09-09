@@ -1,4 +1,5 @@
-# sql/db_folder_utils.py
+"""# sql/db_folder_utils.py"""
+
 from __future__ import annotations
 
 from typing import Iterable, Optional, Tuple

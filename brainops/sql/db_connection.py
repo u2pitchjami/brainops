@@ -1,4 +1,5 @@
-# sql/db_connection.py
+"""# sql/db_connection.py"""
+
 from __future__ import annotations
 
 from typing import Optional

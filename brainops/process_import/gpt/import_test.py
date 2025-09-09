@@ -1,4 +1,5 @@
-# process/imports_test.py
+"""# process/imports_test.py"""
+
 from __future__ import annotations
 
 import re

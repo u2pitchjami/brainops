@@ -1,16 +1,14 @@
-# process/divers.py
+"""# process/divers.py"""
+
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from brainops.models.note import Note
 from brainops.process_folders.folders import add_folder
 from brainops.process_import.utils.paths import build_archive_path, ensure_folder_exists
 from brainops.process_notes.add_notes_to_db import add_note_to_db
 from brainops.process_notes.new_note import new_note
-from brainops.sql.notes.db_notes import upsert_note_from_model
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 

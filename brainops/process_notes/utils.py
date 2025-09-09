@@ -1,7 +1,8 @@
-# utils/divers.py
+"""# utils/divers.py"""
+
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from brainops.sql.get_linked.db_get_linked_notes_utils import (
     get_data_for_should_trigger,

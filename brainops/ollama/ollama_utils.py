@@ -1,7 +1,8 @@
-# ollama/ollama_utils.py
+"""# ollama/ollama_utils.py"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from brainops.process_import.utils.divers import prompt_name_and_model_selection
 from brainops.process_import.utils.large_note import process_large_note

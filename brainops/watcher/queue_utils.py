@@ -1,3 +1,5 @@
+"""utils for queue"""
+
 # watcher/queue_utils.py
 from __future__ import annotations
 
@@ -5,12 +7,7 @@ import threading
 import time
 from typing import Dict, Optional
 
-from brainops.utils.logger import (
-    LoggerProtocol,
-    ensure_logger,
-    get_logger,
-    with_child_logger,
-)
+from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Watcher")
 
@@ -32,6 +29,11 @@ class PendingNoteLockManager:
     """
 
     def __init__(self) -> None:
+        """
+        __init__ _summary_
+
+        _extended_summary_
+        """
         self._locks: Dict[str, int] = {}
         self._lock = threading.Lock()
         self._logger = logger

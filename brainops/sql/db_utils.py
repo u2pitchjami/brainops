@@ -1,4 +1,5 @@
-# sql/db_utils.py
+"""# sql/db_utils.py"""
+
 from __future__ import annotations
 
 from typing import Any, Mapping, Optional, Protocol, Sequence
@@ -12,11 +13,29 @@ class CursorProtocol(Protocol):
     def nextset(
         self,
     ) -> Optional[bool]:  # True s'il reste un jeu de résultats, sinon None/False
+        """
+        nextset _summary_
+
+        _extended_summary_
+
+        Returns:
+            Optional[bool]: _description_
+        """
         ...
 
     def execute(
         self, operation: str, params: Optional[Sequence[Any] | Mapping[str, Any]] = ...
-    ) -> None: ...
+    ) -> None:
+        """
+        execute _summary_
+
+        _extended_summary_
+
+        Args:
+            operation (str): _description_
+            params (Optional[Sequence[Any]  |  Mapping[str, Any]], optional): _description_. Defaults to ....
+        """
+        ...
 
 
 @with_child_logger

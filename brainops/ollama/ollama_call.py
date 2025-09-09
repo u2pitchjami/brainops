@@ -1,4 +1,5 @@
-# ollama/ollama_call.py
+"""# ollama/ollama_call.py"""
+
 from __future__ import annotations
 
 import json
@@ -148,7 +149,7 @@ def get_embedding(
         # S'assurer que c'est bien une liste de floats
         return [float(x) for x in emb]
     except requests.exceptions.Timeout as exc:
-        logger.exception("Timeout sur l'appel embeddings.")
+        logger.exception("Timeout sur l'appel embeddings : %s", exc)
         return None
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("Erreur lors de l'appel Ollama embeddings : %s", exc)

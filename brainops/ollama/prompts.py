@@ -1,3 +1,5 @@
+"""prompts pour ollama"""
+
 PROMPTS = {
     "reformulation": """
     Tu es un assistant intelligent et bienveillant,\

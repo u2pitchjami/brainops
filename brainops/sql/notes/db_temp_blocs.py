@@ -1,4 +1,5 @@
-# sql/db_temp_blocs.py
+"""sql/db_temp_blocs.py"""
+
 from __future__ import annotations
 
 import json

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# scripts/semantic_search.py
+"""# scripts/semantic_search.py"""
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Optional, Sequence
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -70,6 +70,11 @@ def search_blocks_by_semantic(
 
 
 def main() -> None:
+    """
+    Main _summary_
+
+    _extended_summary_
+    """
     parser = argparse.ArgumentParser(
         description="Recherche sémantique IA locale sur Obsidian"
     )
@@ -105,7 +110,7 @@ def main() -> None:
             )
         else:
             lines = [
-                f"## Bloc {i+1} (score {r['score']:.2f})\n{r['text']}\n\n"
+                f"## Bloc {i + 1} (score {r['score']:.2f})\n{r['text']}\n\n"
                 for i, r in enumerate(results)
             ]
             out.write_text("".join(lines), encoding="utf-8")

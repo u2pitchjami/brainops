@@ -1,7 +1,6 @@
-from __future__ import annotations
+"""header.yaml_read"""
 
-from pathlib import Path
-from typing import Optional, Tuple
+from __future__ import annotations
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.header.header_utils import merge_yaml_header, patch_yaml_line
@@ -12,6 +11,15 @@ from brainops.utils.normalization import sanitize_yaml_title
 
 @with_child_logger
 def test_title(file_path: str, *, logger: LoggerProtocol | None = None) -> None:
+    """
+    test_title _summary_
+
+    _extended_summary_
+
+    Args:
+        file_path (str): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+    """
     logger = ensure_logger(logger, __name__)
     try:
         header_lines, body = extract_yaml_header(file_path, logger=logger)

@@ -1,4 +1,5 @@
-# sql/db_notes_utils.py
+"""# sql/db_notes_utils.py"""
+
 from __future__ import annotations
 
 import os
@@ -6,7 +7,7 @@ import re
 import shutil
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from brainops.header.header_utils import hash_source
 from brainops.process_import.utils.paths import ensure_folder_exists

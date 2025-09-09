@@ -1,3 +1,5 @@
+"""utils normalization"""
+
 # utils/normalization.py
 from __future__ import annotations
 

@@ -1,4 +1,5 @@
-# process/new_note.py
+"""# process/new_note.py"""
+
 from __future__ import annotations
 
 import shutil
@@ -24,7 +25,6 @@ from brainops.utils.config import DUPLICATES_LOGS, DUPLICATES_PATH, IMPORTS_PATH
 from brainops.utils.logger import (
     LoggerProtocol,
     ensure_logger,
-    get_logger,
     with_child_logger,
 )
 from brainops.utils.normalization import sanitize_created, sanitize_yaml_title

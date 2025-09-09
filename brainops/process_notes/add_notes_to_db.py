@@ -1,4 +1,5 @@
-# sql/db_notes.py
+"""# sql/db_notes.py"""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -13,16 +14,12 @@ from brainops.process_folders.process_folder_event import (
     _detect_folder_type as detect_folder_type,  # garde ton detecteur
 )
 from brainops.process_import.utils.divers import lang_detect
-from brainops.process_import.utils.paths import path_is_inside
 from brainops.process_notes.wc_and_hash import compute_wc_and_hash
-from brainops.sql.db_connection import get_db_connection
-from brainops.sql.db_utils import safe_execute
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
     get_folder_id,
 )
 from brainops.sql.notes.db_notes import upsert_note_from_model
-from brainops.utils.config import IMPORTS_PATH
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
 

@@ -1,4 +1,5 @@
-# utils/files.py
+"""utils/files.py"""
+
 from __future__ import annotations
 
 import hashlib
@@ -42,7 +43,7 @@ def hash_file_content(filepath: StrOrPath) -> Optional[str]:
     try:
         with open(filepath, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         # logger délégué au caller si besoin
         return None
 
@@ -106,7 +107,6 @@ def copy_file_with_date(
     dst_dir = Path(destination_folder).resolve()
     try:
         dst_dir.mkdir(parents=True, exist_ok=True)
-        name = src.name
         stem, ext = src.stem, src.suffix
         date_str = datetime.now().strftime("%y%m%d")
         dst = dst_dir / f"{date_str}_{stem}{ext}"
@@ -230,7 +230,6 @@ def join_yaml_and_body(header_lines: list[str], body: str) -> str:
     Recompose YAML + corps :
     - YAML encadré par ---
     - une seule ligne vide entre YAML et corps
-    - fin par \n
     """
     if not header_lines:
         return body.strip() + "\n"

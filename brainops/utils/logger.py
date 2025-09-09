@@ -8,7 +8,6 @@ import logging.handlers
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Optional, ParamSpec, Protocol, TypeVar, cast
 
 from brainops.utils.config import LOG_FILE_PATH, LOG_ROTATION_DAYS
@@ -211,8 +210,8 @@ def get_logger(script_name: str) -> LoggerProtocol:
     :return: Instanciation de logeur.
     """
     os.makedirs(LOG_FILE_PATH, exist_ok=True)
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    global_log_file = os.path.join(LOG_FILE_PATH, f"Brainops.log")
+    # date_str = datetime.now().strftime("%Y-%m-%d")
+    global_log_file = os.path.join(LOG_FILE_PATH, "Brainops.log")
     script_log_file = os.path.join(LOG_FILE_PATH, f"{script_name}.log")
 
     try:

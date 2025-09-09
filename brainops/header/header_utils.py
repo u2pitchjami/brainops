@@ -1,3 +1,5 @@
+"""header.header_utils"""
+
 from __future__ import annotations
 
 import hashlib
@@ -34,6 +36,20 @@ def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict:
 def get_yaml_value(
     content: str, key: str, default=None, *, logger: LoggerProtocol | None = None
 ):
+    """
+    get_yaml_value _summary_
+
+    _extended_summary_
+
+    Args:
+        content (str): _description_
+        key (str): _description_
+        default (_type_, optional): _description_. Defaults to None.
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     logger = ensure_logger(logger, __name__)
     y = get_yaml(content, logger=logger)
     return y.get(key, default)
@@ -143,4 +159,15 @@ def clean_yaml_spacing_in_file(
 
 
 def hash_source(source: str) -> str:
+    """
+    hash_source _summary_
+
+    _extended_summary_
+
+    Args:
+        source (str): _description_
+
+    Returns:
+        str: _description_
+    """
     return hashlib.sha256(source.strip().lower().encode("utf-8")).hexdigest()

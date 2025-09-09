@@ -1,3 +1,5 @@
+"""start watcher."""
+
 # /watcher/start.py
 from __future__ import annotations
 
@@ -5,7 +7,6 @@ import os
 import re
 import threading
 import time
-from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
@@ -16,7 +17,7 @@ from brainops.utils.config import (
     WATCHDOG_DEBOUNCE_WINDOW,
     WATCHDOG_POLL_INTERVAL,
 )
-from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+from brainops.utils.logger import LoggerProtocol, ensure_logger
 from brainops.utils.normalization import normalize_full_path
 from brainops.watcher.queue_manager import (
     enqueue_event,
@@ -105,6 +106,15 @@ class NoteHandler(FileSystemEventHandler):
     def __init__(
         self, *, logger: Optional[LoggerProtocol], debounce_window: float
     ) -> None:
+        """
+        __init__ _summary_
+
+        _extended_summary_
+
+        Args:
+            logger (Optional[LoggerProtocol]): _description_
+            debounce_window (float): _description_
+        """
         self._logger = logger
         self._debounce_window = WATCHDOG_DEBOUNCE_WINDOW
         self._last_event: Dict[Tuple[str, str], float] = {}
@@ -132,6 +142,14 @@ class NoteHandler(FileSystemEventHandler):
     # ---- events ---------------------------------------------------------------
 
     def on_created(self, event: FileSystemEvent) -> None:  # type: ignore[override]
+        """
+        on_created _summary_
+
+        _extended_summary_
+
+        Args:
+            event (FileSystemEvent): _description_
+        """
         if self._is_hidden_or_temp(event.src_path):
             return
         etype = "directory" if event.is_directory else "file"
@@ -142,6 +160,14 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": etype, "action": "created", "path": path})
 
     def on_deleted(self, event: FileSystemEvent) -> None:  # type: ignore[override]
+        """
+        on_deleted _summary_
+
+        _extended_summary_
+
+        Args:
+            event (FileSystemEvent): _description_
+        """
         if self._is_hidden_or_temp(event.src_path):
             return
         etype = "directory" if event.is_directory else "file"
@@ -152,6 +178,14 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": etype, "action": "deleted", "path": path})
 
     def on_modified(self, event: FileSystemEvent) -> None:  # type: ignore[override]
+        """
+        on_modified _summary_
+
+        _extended_summary_
+
+        Args:
+            event (FileSystemEvent): _description_
+        """
         if event.is_directory or self._is_hidden_or_temp(event.src_path):
             return
         etype = "file"
@@ -162,6 +196,14 @@ class NoteHandler(FileSystemEventHandler):
             enqueue_event({"type": "file", "action": "modified", "path": path})
 
     def on_moved(self, event: FileMovedEvent) -> None:  # type: ignore[override]
+        """
+        on_moved _summary_
+
+        _extended_summary_
+
+        Args:
+            event (FileMovedEvent): _description_
+        """
         if self._is_hidden_or_temp(event.src_path) or self._is_hidden_or_temp(
             event.dest_path
         ):
