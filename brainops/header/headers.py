@@ -7,14 +7,14 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-import yaml
-
-from brainops.header.extract_yaml_header import extract_metadata, extract_yaml_header
 from brainops.header.get_tags_and_summary import (
     get_summary_from_ollama,
     get_tags_from_ollama,
 )
-from brainops.header.header_utils import clean_yaml_spacing_in_file
+from brainops.io.note_reader import read_metadata_object, read_note_full
+from brainops.io.note_writer import write_metadata_to_note
+from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.models.metadata import NoteMetadata
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import (
     get_category_and_subcategory_names,
@@ -25,7 +25,7 @@ from brainops.sql.notes.db_update_notes import (
     update_obsidian_note,
     update_obsidian_tags,
 )
-from brainops.utils.files import count_words, read_note_content, safe_write
+from brainops.utils.files import count_words
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
 
@@ -42,49 +42,21 @@ def add_metadata_to_yaml(
     logger: LoggerProtocol | None = None,
 ) -> None:
     """
-    Ajoute ou met à jour l'entête YAML d'un fichier Markdown.
-
-    - Lit d'abord YAML existant + DB pour valeurs de référence
-    - Écrit un YAML propre (PyYAML), puis le corps d'origine
+    Rassemble les métadonnées (YAML existant, DB, etc.) et réécrit une entête propre.
     """
     logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).expanduser().resolve().as_posix()
     try:
         logger.debug("[DEBUG] add_yaml : démarrage pour %s", path)
 
-        # --- 1) Métadonnées existantes YAML
-        yaml_meta = extract_metadata(path, logger=logger) or {}
-        title_yaml = yaml_meta.get("title") or Path(path).stem
-        source_yaml = yaml_meta.get("source") or ""
-        author_yaml = yaml_meta.get("author") or ("ChatGPT" if "ChatGPT" in title_yaml else "")
-        project_yaml = yaml_meta.get("project") or ""
-        created_yaml = sanitize_created(yaml_meta.get("created"), logger=logger)
+        # 1) Métadonnées existantes YAML
+        meta_yaml = read_metadata_object(path, logger=logger)
 
-        # --- 2) Métadonnées DB
+        # 2) Métadonnées DB
         data = get_note_linked_data(note_id, "note", logger=logger)
-        if isinstance(data, dict):
-            title = sanitize_yaml_title(data.get("title") or title_yaml)
-            # category_id = data.get("category_id")
-            # subcategory_id = data.get("subcategory_id")
-            status = data.get("status") if status is None else status
-            summary = data.get("summary") if summary is None else summary
-            source = data.get("source") or source_yaml
-            author = data.get("author") or author_yaml
-            project = data.get("project") or project_yaml
-            created = data.get("created_at") or created_yaml
-        else:
-            title = sanitize_yaml_title(title_yaml)
-            # category_id = None
-            # subcategory_id = None
-            source = source_yaml
-            author = author_yaml
-            project = project_yaml
-            created = created_yaml
+        meta_db = NoteMetadata.from_db_dict(data) if isinstance(data, dict) else NoteMetadata()
 
-        # --- 3) Cat/Sub Noms (pour l'entête lisible)
-        category_name, subcategory_name = get_category_and_subcategory_names(note_id, logger=logger)
-
-        # --- 4) Si archive liée à une synthèse → sync champs principaux
+        # 3) Métadonnées liées à une synthèse (écrasement)
         if synthesis_id:
             logger.debug("[SYNC] Archive liée à la synthesis %s, synchronisation", synthesis_id)
             (
@@ -95,70 +67,53 @@ def add_metadata_to_yaml(
                 _cat_id_syn,
                 _subcat_id_syn,
             ) = get_synthesis_metadata(synthesis_id, logger=logger)
-            title = title_syn or title
-            source = source_syn or source
-            author = author_syn or author
-            created = created_syn or created
 
-        # --- 5) Tags : priorité paramètre > DB > YAML existant
-        tags_final: list[str] = []
-        if tags:
-            tags_final = list(tags)
-        else:
-            tags_db = get_note_tags(note_id, logger=logger)
-            if tags_db:
-                tags_final = tags_db
-            else:
-                tags_yaml = yaml_meta.get("tags") or []
-                tags_final = list(tags_yaml) if isinstance(tags_yaml, list) else []
-
-        # --- 6) Corps du fichier sans entête (on ne touche pas au contenu)
-        content = read_note_content(path, logger=logger)
-        if not content:
-            logger.error("Erreur : fichier non trouvé %s", path)
-            raise
-        lines = content.splitlines(True)  # conserve CR/LF
-        yaml_start, yaml_end = -1, -1
-        if lines and lines[0].strip() == "---":
-            yaml_start = 0
-            yaml_end = next(
-                (i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"),
-                -1,
+            meta_syn = NoteMetadata(
+                title=title_syn or "",
+                source=source_syn or "",
+                author=author_syn or "",
+                created=str(created_syn) if created_syn else None,
             )
-        body_lines = lines[yaml_end + 1 :] if (yaml_start != -1 and yaml_end != -1) else lines
+        else:
+            meta_syn = NoteMetadata()
 
-        # --- 7) Construire l'objet YAML final
-        # NB: PyYAML gère les chaînes multilignes (summary) en block style automatiquement si besoin.
-        yaml_dict = {
-            "title": title or Path(path).stem,
-            "tags": [str(t).replace(" ", "_") for t in tags_final],
-            "summary": (summary or "").strip(),
-            "category": category_name or "",
-            "sub category": subcategory_name or "",
-            "created": str(created or ""),
-            "last_modified": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "source": source or "",
-            "author": author or "",
-            "status": status or "draft",
-            "project": project or "",
-        }
+        # 4) Fusion dans l'ordre de priorité : Synthèse > DB > YAML
+        meta_final = NoteMetadata.merge(meta_syn, meta_db, meta_yaml)
 
-        # --- 8) YAML + écriture sécurisée
-        yaml_text = yaml.safe_dump(yaml_dict, default_flow_style=False, sort_keys=False, allow_unicode=True)
-        new_content = f"---\n{yaml_text}---\n" + "".join(body_lines)
+        # 5) Catégories
+        cat, subcat = get_category_and_subcategory_names(note_id, logger=logger)
+        meta_final.category = cat or meta_final.category
+        meta_final.subcategory = subcat or meta_final.subcategory
 
-        success = safe_write(path, content=new_content, logger=logger)
+        # 6) Tags
+        if tags:
+            meta_final.tags = tags
+        else:
+            tags_db = get_note_tags(note_id, logger=logger) or []
+            meta_final.tags = tags_db or meta_yaml.tags
+
+        # 7) Autres mises à jour (status / summary)
+        if summary:
+            meta_final.summary = summary.strip()
+        if status:
+            meta_final.status = status
+
+        # 8) Normalisation
+        meta_final.title = sanitize_yaml_title(meta_final.title or Path(path).stem)
+        meta_final.created = sanitize_created(meta_final.created, logger=logger)
+
+        # 9) Écriture dans le fichier
+        success = write_metadata_to_note(path, meta_final, logger=logger)
         if not success:
-            logger.error("[main] Problème lors de l’écriture sécurisée de %s", path)
+            logger.error("[ERREUR] Échec de l’écriture sécurisée pour %s", path)
             return
 
-        clean_yaml_spacing_in_file(path, logger=logger)
-        logger.info("[INFO] Génération de l'entête terminée avec succès pour %s", path)
+        logger.info("[INFO] Écriture YAML terminée pour %s", path)
 
-    except FileNotFoundError:
-        logger.error("Erreur : fichier non trouvé %s", path)
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERREUR] Problème lors de l'ajout du YAML : %s", exc)
+    except FileNotFoundError as exc:
+        raise BrainOpsError("fichier non trouvé KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc
+    except Exception as exc:
+        raise BrainOpsError("ajout YAML KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc
 
 
 @with_child_logger
@@ -167,92 +122,62 @@ def make_properties(
     note_id: int,
     status: str,
     *,
+    synthesis_id: int | None = None,  # gardé si tu synchronises ailleurs
     logger: LoggerProtocol | None = None,
 ) -> bool:
     """
-    Génère les entêtes et met à jour les métadonnées (DB + YAML).
+    Génère/rafraîchit les propriétés d'une note :
 
-    - Appelle l'IA pour tags + résumé
-    - Met à jour DB (status, summary, word_count)
-    - Écrit l'entête YAML consolidée
+    1) Lecture YAML + body
+    2) Appels IA (tags + summary) sur le body
+    3) Mise à jour DB (status, summary, tags, word_count)
+    4) Réécriture YAML consolidée via NoteMetadata
+
+    Retourne True si tout s'est bien passé.
     """
-    logger = ensure_logger(logger, __name__)
-    path = Path(str(filepath)).expanduser().resolve().as_posix()
-
-    logger.debug("[DEBUG] make_pro : Entrée de la fonction")
+    log = ensure_logger(logger, __name__)
     try:
-        # 1) Récupérer le contenu hors YAML (une lecture)
-        _, content_str = extract_yaml_header(path, logger=logger)
-        content = content_str
+        path = Path(str(filepath)).expanduser().resolve().as_posix()
+        log.debug("[make_properties] start for %s (note_id=%s)", path, note_id)
 
-        # 2) Tags + résumé via IA
-        logger.debug("[DEBUG] make_pro : Récupération des tags et résumé")
-        tags = get_tags_from_ollama(content, note_id, logger=logger)
-        summary = get_summary_from_ollama(content, note_id, logger=logger)
+        # 1) Lecture unique : métadonnées typées + corps
+        meta_yaml, body = read_note_full(path, logger=log)
 
-        # 3) DB: status + summary
-        updates = {
-            "status": status,
-            "summary": summary,
-        }
-        update_obsidian_note(note_id, updates, logger=logger)
-        update_obsidian_tags(note_id, tags, logger=logger)
+        # 2) Appels IA (sur body uniquement)
+        log.debug("[make_properties] IA: tags + summary")
+        tags = get_tags_from_ollama(body, note_id, logger=log) or []
+        summary = (get_summary_from_ollama(body, note_id, logger=log) or "").strip()
 
-        # 4) YAML
-        logger.debug("[DEBUG] make_pro : Mise à jour du YAML")
-        add_metadata_to_yaml(note_id, path, tags=tags, summary=summary, status=status, logger=logger)
+        # 3) DB : status + summary + tags, puis word_count
+        updates_note = {"status": status, "summary": summary}
+        update_obsidian_note(note_id, updates_note, logger=log)
+        update_obsidian_tags(note_id, tags, logger=log)
 
-        # 5) Recalcule word_count (post-YAML)
-        nombre_mots_actuels = count_words(filepath=path, logger=logger)
-        update_obsidian_note(note_id, {"word_count": nombre_mots_actuels}, logger=logger)
+        # 4) Catégorisation lisible (noms) pour YAML
+        cat_name, subcat_name = get_category_and_subcategory_names(note_id, logger=log)
 
-        logger.debug("[DEBUG] make_pro : Écriture réussie et fichier mis à jour")
+        # 5) Construire l’objet NoteMetadata final (fusion YAML existant + ajouts)
+        meta_final = NoteMetadata.merge(
+            NoteMetadata(  # priorité aux nouvelles infos
+                tags=tags,
+                summary=summary,
+                status=status,
+                category=cat_name or "",
+                subcategory=subcat_name or "",
+                last_modified=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+            meta_yaml,  # puis l’existant
+        )
+
+        # 7) Recalcul word_count (après réécriture YAML)
+        word_count = count_words(filepath=path, logger=log)
+        update_obsidian_note(note_id, {"word_count": word_count}, logger=log)
+
+        log.info("[make_properties] OK (id=%s, wc=%s)", note_id, word_count)
+        # 6) Écriture YAML consolidée
+        if not write_metadata_to_note(path, meta_final, logger=log):
+            log.error("[make_properties] Échec écriture YAML pour %s", path)
+            return False
         return True
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[ERREUR] Problème lors de la mise à jour des métadonnées pour %s : %s",
-            filepath,
-            exc,
-        )
-        return False
-
-
-@with_child_logger
-def check_type_header(filepath: str | Path, *, logger: LoggerProtocol | None = None) -> str | None:
-    """
-    Retourne la valeur du champ YAML 'type' si présent, sinon None.
-    """
-    logger = ensure_logger(logger, __name__)
-    try:
-        # content = read_note_content(
-        #     Path(str(filepath)).expanduser().resolve().as_posix(), logger=logger
-        # )
-        meta = extract_metadata(Path(filepath).as_posix(), logger=logger)
-        return str(meta.get("type")) if isinstance(meta, dict) and meta.get("type") else None
-    except FileNotFoundError as exc:
-        logger.error("Erreur lors du traitement de l'entête YAML pour %s : %s", filepath, exc)
-        return None
-
-
-@with_child_logger
-def extract_category_and_subcategory(
-    filepath: str | Path, *, logger: LoggerProtocol | None = None
-) -> tuple[str | None, str | None]:
-    """
-    Lit l'entête YAML pour extraire la catégorie et la sous-catégorie.
-
-    Gère les deux variantes: 'subcategory' et 'sub category'.
-    """
-    logger = ensure_logger(logger, __name__)
-    try:
-        meta = extract_metadata(Path(str(filepath)).expanduser().resolve().as_posix(), logger=logger)
-        category = meta.get("category")
-        # compat: certains fichiers ont 'sub category' (avec espace)
-        subcategory = meta.get("subcategory", meta.get("sub category"))
-        return (
-            str(category) if category else None,
-            str(subcategory) if subcategory else None,
-        )
-    except FileNotFoundError as exc:
-        logger.error("[ERREUR] Impossible de lire l'entête du fichier %s : %s", filepath, exc)
-        return None, None
+        raise BrainOpsError("construction header KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc

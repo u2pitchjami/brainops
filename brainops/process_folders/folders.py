@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder
 from brainops.process_folders.folders_context import (
     add_folder_context,
@@ -37,10 +38,8 @@ def _is_ignored(p: str | Path) -> bool:
 @with_child_logger
 def add_folder(
     folder_path: str | Path,
-    folder_type_hint: str,
-    *,
     logger: LoggerProtocol | None = None,
-) -> int | None:
+) -> int:
     """
     add_folder _summary_
 
@@ -48,7 +47,6 @@ def add_folder(
 
     Args:
         folder_path (str | Path): _description_
-        folder_type_hint (str): _description_
         logger (LoggerProtocol | None, optional): _description_. Defaults to None.
 
     Returns:
@@ -56,30 +54,36 @@ def add_folder(
     """
     logger = ensure_logger(logger, __name__)
     logger.debug("add_folder called")
-    p_str = normalize_folder_path(folder_path)
-    logger.debug(f"Normalized path: {p_str}")
+    try:
+        p_str = normalize_folder_path(folder_path)
+        logger.debug(f"Normalized path: {p_str}")
 
-    # ignore cachés/temp
-    if "untitled" in Path(p_str).name.lower() or "sans titre" in Path(p_str).name.lower():
-        logger.debug(f"[DEBUG] Dossier ignoré (temp/caché) : {p_str}")
-        logger.info("[FOLDER] Dossier ignoré (temp/caché) : %s", p_str)
-        return None
+        # ignore cachés/temp
+        if "untitled" in Path(p_str).name.lower() or "sans titre" in Path(p_str).name.lower():
+            logger.debug(f"[DEBUG] Dossier ignoré (temp/caché) : {p_str}")
+            raise BrainOpsError("dossier ignoré (temp/caché)", code=ErrCode.UNEXPECTED, ctx={"folder": folder_path})
 
-    ctx = add_folder_context(p_str, logger=logger)
-    # Remarque: folder_type_hint peut rester si tu veux un override manuel.
-    ftype = ctx.folder_type
+        ctx = add_folder_context(p_str, logger=logger)
+        # Remarque: folder_type_hint peut rester si tu veux un override manuel.
+        ftype = ctx.folder_type
 
-    new_folder = Folder(
-        id=None,  # laissé à None, il sera rempli par la DB
-        name=Path(p_str).name,
-        path=p_str,
-        folder_type=ftype,
-        parent_id=ctx.parent_id,
-        category_id=ctx.category_id,
-        subcategory_id=ctx.subcategory_id,
-    )
+        new_folder = Folder(
+            id=None,  # laissé à None, il sera rempli par la DB
+            name=Path(p_str).name,
+            path=p_str,
+            folder_type=ftype,
+            parent_id=ctx.parent_id,
+            category_id=ctx.category_id,
+            subcategory_id=ctx.subcategory_id,
+        )
 
-    return add_folder_from_model(new_folder, logger=logger)
+        return add_folder_from_model(new_folder, logger=logger)
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "KO création folder",
+            code=ErrCode.DB,
+            ctx={"path": folder_path},
+        ) from exc
 
 
 @with_child_logger
@@ -110,7 +114,7 @@ def update_folder(old_path: str | Path, new_path: str | Path, *, logger: LoggerP
 
     ctx = add_folder_context(new_p)
 
-    folder = Folder(
+    update = Folder(
         id=folder_id,
         name=Path(new_p).name,
         path=new_p,
@@ -118,9 +122,8 @@ def update_folder(old_path: str | Path, new_path: str | Path, *, logger: LoggerP
         parent_id=ctx.parent_id,
         category_id=ctx.category_id,
         subcategory_id=ctx.subcategory_id,
-        logger=logger,
     )
-    update_folder_from_model(folder_id, folder, logger=logger)
+    update_folder_from_model(folder_id, update, logger=logger)
 
     if old_cat_id and old_cat_id != ctx.category_id:
         remove_unused_category(old_cat_id, logger=logger)

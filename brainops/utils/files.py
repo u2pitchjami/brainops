@@ -11,11 +11,10 @@ import os
 from pathlib import Path
 import re
 import time
-from typing import Union
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.models.types import StrOrPath
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
-
-StrOrPath = Union[str, Path]
 
 
 @with_child_logger
@@ -89,8 +88,7 @@ def safe_write(
                     return False
         return True
     except Exception as exc:  # pylint: disable=broad-except
-        logger.error("[safe_write] Erreur d'écriture %s : %s", p, exc)
-        return False
+        raise BrainOpsError("write file KO", code=ErrCode.FILEERROR, ctx={"file_path": file_path}) from exc
 
 
 @with_child_logger
@@ -99,7 +97,7 @@ def copy_file_with_date(
     destination_folder: StrOrPath,
     *,
     logger: LoggerProtocol | None = None,
-) -> Path | None:
+) -> Path:
     """
     Copie un fichier en préfixant par la date 'yymmdd_'.
 
@@ -114,11 +112,11 @@ def copy_file_with_date(
         date_str = datetime.now().strftime("%y%m%d")
         dst = dst_dir / f"{date_str}_{stem}{ext}"
         dst.write_bytes(src.read_bytes())
-        logger.info("[copy] %s → %s", src, dst)
-        return dst
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.error("[copy] Échec %s → %s : %s", src, dst_dir, exc)
-        return None
+    except Exception as exc:
+        logger.error("[COPY] Échec %s → %s : %s", src, dst_dir, exc)
+        raise BrainOpsError("copy_file KO", code=ErrCode.UNEXPECTED, ctx={"filepath": filepath}) from exc
+    logger.info("[COPY] OK %s → %s", src, dst)
+    return dst
 
 
 @with_child_logger
@@ -127,7 +125,7 @@ def move_file_with_date(
     destination_folder: StrOrPath,
     *,
     logger: LoggerProtocol | None = None,
-) -> Path | None:
+) -> Path:
     """
     Déplace un fichier en préfixant par la date 'yymmdd_'.
 
@@ -145,7 +143,7 @@ def move_file_with_date(
         return dst
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("[move] Échec %s → %s : %s", src, dst_dir, exc)
-        return None
+        raise BrainOpsError("MOVE_file KO", code=ErrCode.UNEXPECTED, ctx={"filepath": filepath}) from exc
 
 
 @with_child_logger
@@ -213,21 +211,19 @@ def clean_content(content: str | list[str]) -> str:
 
 
 @with_child_logger
-def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) -> str | None:
+def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) -> str:
     """
     Lit le contenu d'une note (UTF-8).
 
-    None en cas d'erreur.
     """
     logger = ensure_logger(logger, __name__)
     p = Path(filepath)
     try:
         text = p.read_text(encoding="utf-8")
         logger.debug("[read] %s (%d chars)", p, len(text))
-        return text
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.error("[read] Impossible de lire %s : %s", p, exc)
-        return None
+    except Exception as exc:
+        raise BrainOpsError("Lecture KO", code=ErrCode.FILEERROR, ctx={"filepath": filepath}) from exc
+    return text
 
 
 def join_yaml_and_body(header_lines: list[str], body: str) -> str:

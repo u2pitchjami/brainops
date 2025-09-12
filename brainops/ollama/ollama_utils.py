@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_import.utils.divers import prompt_name_and_model_selection
 from brainops.process_import.utils.large_note import process_large_note
 from brainops.process_import.utils.standard_note import process_standard_note
@@ -95,7 +96,5 @@ def large_or_standard_note(
 
         logger.error("[ERREUR] Mode de traitement inconnu : %s", process_mode)
         return ""
-
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERREUR] large_or_standard_note : %s", exc)
-        return ""
+    except Exception as exc:
+        raise BrainOpsError("large_or_standard_note KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc

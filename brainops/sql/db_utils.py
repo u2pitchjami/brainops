@@ -5,40 +5,31 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+Row = tuple[Any, ...]  # ou dict[str, Any] si DictCursor
+C = TypeVar("C", bound="CursorProtocol")
 
 
 class CursorProtocol(Protocol):
-    """
-    Contrat minimal pour un curseur MySQL utilisé ici.
-    """
+    # Attributs DB-API fréquents
+    rowcount: int | None
 
-    def nextset(
+    # Exécution
+    def execute(
         self,
-    ) -> bool | None:  # True s'il reste un jeu de résultats, sinon None/False
-        """
-        Nextset _summary_
+        operation: str,
+        params: Sequence[Any] | Mapping[str, Any] | None = ...,
+    ) -> None: ...
+    def nextset(self) -> bool | None: ...
 
-        _extended_summary_
-
-        Returns:
-            Optional[bool]: _description_
-        """
-        ...
-
-    def execute(self, operation: str, params: Sequence[Any] | Mapping[str, Any] | None = ...) -> None:
-        """
-        Execute _summary_
-
-        _extended_summary_
-
-        Args:
-            operation (str): _description_
-            params (Optional[Sequence[Any]  |  Mapping[str, Any]], optional): _description_. Defaults to ....
-        """
-        ...
+    # Récupération
+    def fetchone(self) -> Row | None: ...
+    def fetchall(self) -> list[Row]: ...
+    def close(self) -> None: ...
 
 
 @with_child_logger
@@ -76,9 +67,12 @@ def safe_execute(
         Le même curseur (chaînable avec .fetchone() / .fetchall()).
     """
     logger = ensure_logger(logger, __name__)
-    flush_cursor(cursor, logger=logger)
-    if params is not None:
-        cursor.execute(query, params)
-    else:
-        cursor.execute(query)
-    return cursor
+    try:
+        flush_cursor(cursor, logger=logger)
+        if params is not None:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return cursor
+    except Exception as exc:
+        raise BrainOpsError("Erreur requête DB", code=ErrCode.DB, ctx={"query": query}) from exc

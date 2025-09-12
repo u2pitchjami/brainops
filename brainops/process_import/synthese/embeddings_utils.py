@@ -11,9 +11,10 @@ import numpy as np
 from numpy.typing import NDArray
 from sklearn.metrics.pairwise import cosine_similarity
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_call import call_ollama_with_retry
 from brainops.ollama.ollama_utils import large_or_standard_note
-from brainops.sql.notes.db_temp_blocs import get_blocks_and_embeddings_by_note
+from brainops.sql.temp_blocs.db_embeddings_temp_blocs import get_blocks_and_embeddings_by_note
 from brainops.utils.config import MODEL_EMBEDDINGS
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -25,32 +26,34 @@ def make_embeddings_synthesis(note_id: int, filepath: str, *, logger: LoggerProt
     3) Construit le prompt et appelle le modèle de synthèse Retourne le texte de synthèse ou None en cas d'échec.
     """
     logger = ensure_logger(logger, __name__)
+    try:
+        # 1) création des embeddings + stockage des blocs (process_large_note côté projet)
+        _ = large_or_standard_note(
+            filepath=filepath,
+            source="embeddings",
+            process_mode="large_note",
+            prompt_name="embeddings",
+            model_ollama=MODEL_EMBEDDINGS,
+            write_file=False,
+            split_method="words",
+            word_limit=100,
+            note_id=note_id,
+            persist_blocks=True,
+            send_to_model=True,
+            logger=logger,
+        )
 
-    # 1) création des embeddings + stockage des blocs (process_large_note côté projet)
-    _ = large_or_standard_note(
-        filepath=filepath,
-        source="embeddings",
-        process_mode="large_note",
-        prompt_name="embeddings",
-        model_ollama=MODEL_EMBEDDINGS,
-        write_file=False,
-        split_method="words",
-        word_limit=100,
-        note_id=note_id,
-        persist_blocks=True,
-        send_to_model=True,
-        logger=logger,
-    )
+        # 2) top blocs (avec score pour debug)
+        top_blocks = select_top_blocks(note_id=note_id, ratio=0.3, return_scores=True, logger=logger)
+        for bloc in top_blocks:
+            logger.debug("🧠 Score %.4f → %s...", bloc["score"], bloc["text"][:80])
 
-    # 2) top blocs (avec score pour debug)
-    top_blocks = select_top_blocks(note_id=note_id, ratio=0.3, return_scores=True, logger=logger)
-    for bloc in top_blocks:
-        logger.debug("🧠 Score %.4f → %s...", bloc["score"], bloc["text"][:80])
-
-    # 3) synthèse finale
-    prompt = build_summary_prompt(top_blocks)
-    final_response = call_ollama_with_retry(prompt, model_ollama="llama3.1:8b-instruct-q8_0", logger=logger)
-    return final_response
+        # 3) synthèse finale
+        prompt = build_summary_prompt(top_blocks)
+        final_response = call_ollama_with_retry(prompt, model_ollama="llama3.1:8b-instruct-q8_0", logger=logger)
+        return final_response
+    except Exception as exc:
+        raise BrainOpsError("Emvbeddings KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
 
 
 @with_child_logger

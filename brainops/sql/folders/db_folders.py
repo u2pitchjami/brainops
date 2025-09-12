@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder
 from brainops.sql.categs.db_categ_utils import remove_unused_category
 from brainops.sql.db_connection import get_db_connection
@@ -14,7 +15,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 @with_child_logger
-def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = None) -> int | None:
+def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = None) -> int:
     """
     Upsert idempotent par path à partir d'un modèle Folder.
 
@@ -22,8 +23,6 @@ def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = Non
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
-    if not conn:
-        return None
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -44,9 +43,22 @@ def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = Non
             cur.execute("SELECT LAST_INSERT_ID()")
             row = cur.fetchone()
             conn.commit()
-            fid = int(row[0]) if row and row[0] else None
+            if row and row[0]:
+                fid = int(row[0])
+            else:
+                raise BrainOpsError(
+                    "KO création folder",
+                    code=ErrCode.DB,
+                    ctx={"folder": folder},
+                )
             logger.debug("[DB] Upsert folder %s -> id=%s", folder.path, fid)
-            return fid
+        return fid
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "KO création folder",
+            code=ErrCode.DB,
+            ctx={"folder": folder},
+        ) from exc
     finally:
         conn.close()
 

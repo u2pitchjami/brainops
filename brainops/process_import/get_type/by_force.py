@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from brainops.models.exceptions import BrainOpsError
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_import.utils.divers import rename_file
-from brainops.sql.categs.db_categ_utils import categ_extract
+from brainops.sql.categs.db_extract_categ import categ_extract
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -44,14 +44,11 @@ def get_type_by_force(
 
         if not category_id or not subcategory_id:
             logger.warning("[FORCE_CATEG] Sous-catégorie non détectée, annulation.")
-            raise
+            raise BrainOpsError("sous categ non détectée KO", code=ErrCode.DB, ctx={"note_id": note_id})
 
         # Renommage
         new_path = str(rename_file(path.as_posix(), note_id))
-
-    except BrainOpsError:
-        raise
     except Exception as exc:
         logger.exception("Crash inattendu dans : %s", exc)
-        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
+        raise BrainOpsError("get_type_by_force KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     return new_path

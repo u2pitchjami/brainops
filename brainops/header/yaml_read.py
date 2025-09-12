@@ -4,43 +4,56 @@ header.yaml_read.
 
 from __future__ import annotations
 
-from brainops.header.extract_yaml_header import extract_yaml_header
-from brainops.header.header_utils import merge_yaml_header, patch_yaml_line
+from brainops.header.header_utils import merge_yaml_header
+from brainops.io.note_reader import read_metadata_field
+from brainops.io.note_writer import update_yaml_field
+from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.models.types import StrOrPath
 from brainops.utils.files import hash_file_content, read_note_content, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_yaml_title
 
 
 @with_child_logger
-def test_title(file_path: str, *, logger: LoggerProtocol | None = None) -> None:
+def test_title(file_path: StrOrPath, *, logger: LoggerProtocol | None = None) -> bool:
     """
-    test_title _summary_
+    Vérifie/corrige le champ YAML 'title' d'une note.
+    - Lit uniquement la valeur 'title' depuis l'entête.
+    - Si la version normalisée diffère, met à jour l'entête (champ unique).
 
-    _extended_summary_
-
-    Args:
-        file_path (str): _description_
-        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+    Returns:
+        bool: True si OK (déjà propre ou correction faite), False si échec I/O.
     """
     logger = ensure_logger(logger, __name__)
     try:
-        header_lines, body = extract_yaml_header(file_path, logger=logger)
-        if not header_lines:
-            logger.debug("[DEBUG] test_title: pas d'entête YAML pour %s", file_path)
-            return
+        current = read_metadata_field(file_path, "title", logger=logger)
 
-        yaml_text = "\n".join(header_lines)
-        corrected_yaml_text = patch_yaml_line(yaml_text, "title", sanitize_yaml_title, logger=logger)
+        if current is None or not current:
+            logger.debug("[test_title] Pas de champ 'title' pour %s", file_path)
+            raise BrainOpsError("Note sans titre", code=ErrCode.METADATA, ctx={"path": file_path})
 
-        if corrected_yaml_text != yaml_text:
-            new_content = f"{corrected_yaml_text}\n{body}"
-            success = safe_write(file_path, new_content, logger=logger)
-            if not success:
-                logger.error("[main] Problème d’écriture sécurisée: %s", file_path)
-                return
-            logger.info("[INFO] Titre corrigé dans : %s", file_path)
+        sanitized = sanitize_yaml_title(str(current))
+
+        if str(current) == sanitized:
+            logger.debug("[test_title] Titre déjà conforme pour %s: %r", file_path, current)
+            return False
+
+        # Écrit uniquement le champ 'title' (YAML merge interne)
+        if update_yaml_field(file_path, "title", sanitized, logger=logger):
+            logger.info("[test_title] Titre corrigé pour %s: %r -> %r", file_path, current, sanitized)
+            return True
+    except FileNotFoundError as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "Note absente !!",
+            code=ErrCode.NOFILE,
+            ctx={"path": file_path},
+        ) from exc
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("❌ [ERREUR] Erreur dans test_title : %s", exc)
+        raise BrainOpsError(
+            "Erreur inattendue exécutrice",
+            code=ErrCode.UNEXPECTED,
+            ctx={"path": file_path},
+        ) from exc
 
 
 @with_child_logger

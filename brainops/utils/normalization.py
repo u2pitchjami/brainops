@@ -9,6 +9,7 @@ from datetime import date, datetime
 import re
 import unicodedata
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -51,11 +52,23 @@ def sanitize_yaml_title(title: str | None) -> str:
     """
     if not title:
         return "Untitled"
-
-    title = unicodedata.normalize("NFC", title)
-    title = re.sub(r"[^\w\s\-']", "", title)
-    title = title.replace('"', "'").replace(":", " ")
-    return title.strip() or "Untitled"
+    try:
+        title = unicodedata.normalize("NFC", title)
+        title = re.sub(r"[^\w\s\-']", "", title)
+        title = title.replace('"', "'").replace(":", " ")
+        return title.strip() or "Untitled"
+    except FileNotFoundError as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "Note absente !!",
+            code=ErrCode.NOFILE,
+            ctx={"title": title},
+        ) from exc
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "Erreur inattendue exécutrice",
+            code=ErrCode.UNEXPECTED,
+            ctx={"title": title},
+        ) from exc
 
 
 @with_child_logger

@@ -14,8 +14,8 @@ from typing import Any
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from brainops.ollama.ollama_call import get_embedding  # <- c'est bien ici qu'elle vit
-from brainops.sql.notes.db_temp_blocs import get_blocks_and_embeddings_by_note
+from brainops.ollama.ollama_call import get_embedding
+from brainops.sql.temp_blocs.db_embeddings_temp_blocs import get_blocks_and_embeddings_by_note
 from brainops.utils.logger import LoggerProtocol, get_logger
 
 logger: LoggerProtocol = get_logger("semantic_search")

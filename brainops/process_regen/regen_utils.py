@@ -7,10 +7,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from brainops.header.headers import make_properties
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_import.synthese.import_synthese import process_import_syntheses
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_file_path
-from brainops.sql.notes.db_temp_blocs import delete_blocs_by_path_and_source
+from brainops.sql.temp_blocs.db_delete_temp_blocs import delete_blocs_by_path_and_source
 from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Regen")
@@ -26,21 +27,22 @@ def regen_synthese_from_archive(note_id: int, filepath: str | Path | None = None
     try:
         path = Path(str(filepath)) if filepath else Path(get_file_path(note_id) or "")
         if not path or not path.as_posix():
-            logger.error("[REGEN] Impossible de déterminer le filepath pour note_id=%s", note_id)
-            return
+            raise BrainOpsError("filepath KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
 
         logger.info("[REGEN] Synthèse → note_id=%s | path=%s", note_id, path.as_posix())
         # Purge de tous les blocs liés à ce chemin (embeddings, prompts, etc.)
         delete_blocs_by_path_and_source(note_id, path.as_posix(), source="all", logger=logger)
 
         # Relance synthèse
-        process_import_syntheses(path.as_posix(), note_id, logger=logger)
+        synthesis = process_import_syntheses(path.as_posix(), note_id, logger=logger)
+        if not synthesis:
+            return False
         logger.info("[REGEN] Synthèse régénérée pour note_id=%s", note_id)
         return True
-
-    except Exception as exc:  # pylint: disable=broad-except
+    except BrainOpsError as exc:
         logger.exception("[ERROR] regen_synthese_from_archive(%s) : %s", note_id, exc)
-        return False
+        exc.ctx.setdefault("note_id", note_id)
+        raise
 
 
 def regen_header(note_id: int, filepath: str | Path, parent_id: int | None = None) -> bool:
@@ -61,13 +63,12 @@ def regen_header(note_id: int, filepath: str | Path, parent_id: int | None = Non
             status = "archive" if any(part.lower() == "archives" for part in path.parts) else "synthesis"
 
         logger.info("[REGEN_HEADER] %s → status=%s", path.name, status)
-        make_properties(path.as_posix(), note_id, status)
+        properties = make_properties(path.as_posix(), note_id, status)
+        if not properties:
+            return False
         return True
 
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[ERROR] regen_header(%s) : %s",
-            path.as_posix() if "path" in locals() else filepath,
-            exc,
-        )
-        return False
+    except BrainOpsError as exc:
+        logger.exception("[ERROR] regen_header(%s) : %s", note_id, exc)
+        exc.ctx.setdefault("note_id", note_id)
+        raise

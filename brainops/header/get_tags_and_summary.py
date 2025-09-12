@@ -7,9 +7,11 @@ from __future__ import annotations
 import json
 import re
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_call import OllamaError, call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
 from brainops.process_import.utils.divers import prompt_name_and_model_selection
+from brainops.utils.config import MODEL_SUMMARY
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 _JSON_OBJECT_RE = re.compile(r"\{.*?\}", re.DOTALL)
@@ -117,7 +119,7 @@ def get_tags_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol |
 
 
 @with_child_logger
-def get_summary_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol | None = None) -> str | None:
+def get_summary_from_ollama(content: str, note_id: int, *, logger: LoggerProtocol | None = None) -> str:
     """
     Génère un résumé automatique avec Ollama.
     - Utilise le prompt 'summary' (via prompt_name_and_model_selection pour le nom),
@@ -132,20 +134,20 @@ def get_summary_from_ollama(content: str, note_id: int, *, logger: LoggerProtoco
         prompt_tpl = PROMPTS.get(prompt_name)
         if not prompt_tpl:
             logger.error("[ERREUR] Prompt '%s' introuvable dans PROMPTS.", prompt_name)
-            return None
+            raise BrainOpsError("Prompt absent KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id})
         prompt = prompt_tpl.format(content=content)
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[ERREUR] Construction du prompt résumé : %s", exc)
-        return None
+        raise BrainOpsError("Prompt KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
 
     # modèle voulu par ton implémentation actuelle
-    model_ollama = "cognitivetech/obook_summary:latest"
+    model_ollama = MODEL_SUMMARY
 
     try:
         logger.debug("[DEBUG] résumé ollama : appel modèle…")
         response = call_ollama_with_retry(prompt, model_ollama, logger=logger)
         if not response:
-            return None
+            raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id})
 
         # Nettoyage: chercher 'TEXT START ... TEXT END'
         m = re.search(r"TEXT START(.*?)TEXT END", response, re.DOTALL | re.IGNORECASE)
@@ -160,9 +162,9 @@ def get_summary_from_ollama(content: str, note_id: int, *, logger: LoggerProtoco
         logger.debug("[DEBUG] summary ollama : pas de balise, retour brut.")
         return response.strip()
 
-    except OllamaError:
+    except OllamaError as exc:
         logger.error("[ERROR] Appel Ollama échoué pour le résumé (OllamaError).")
-        return None
-    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
+    except Exception as exc:
         logger.exception("[ERREUR] résumé ollama : %s", exc)
-        return None
+        raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc

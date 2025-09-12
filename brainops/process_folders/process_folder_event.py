@@ -7,11 +7,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from brainops.models.event import DirEvent
 from brainops.process_folders.folders import add_folder, update_folder
 from brainops.sql.folders.db_folders import delete_folder_from_db
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import normalize_full_path
-from brainops.watcher.queue_manager import DirEvent
 
 # ----- Types d'événements -------------------------------------------------------
 
@@ -84,7 +84,7 @@ def process_folder_event(event: DirEvent, logger: LoggerProtocol | None = None) 
     if action == "created":
         ftype = _detect_folder_type(folder_path)
         logger.info("[FOLDERS] add_folder(%s, type=%s)", folder_path, ftype)
-        add_folder(folder_path, ftype, logger=logger)
+        add_folder(folder_path, logger=logger)
         return
 
     if action == "deleted":
@@ -102,7 +102,7 @@ def process_folder_event(event: DirEvent, logger: LoggerProtocol | None = None) 
         if src and dst:
             if src.startswith(".") or "untitled" in src.lower() or "sans titre" in src.lower():
                 folder_type = _detect_folder_type(dst)
-                add_folder(dst, folder_type, logger=logger)
+                add_folder(dst, logger=logger)
                 logger.info("[FOLDERS] add_folder(%s, type=%s)", dst, folder_type)
                 return
             logger.info("[FOLDERS] update_folder(src=%s, dst=%s)", src, dst)
@@ -122,7 +122,7 @@ def process_folder_event(event: DirEvent, logger: LoggerProtocol | None = None) 
         # Fallback (si on ne connaît pas la source) : add puis (éventuellement) delete via autre event
         ftype = _detect_folder_type(dst)
         logger.info("[FOLDERS] moved sans src → add_folder(%s, %s)", dst, ftype)
-        add_folder(dst, ftype, logger=logger)
+        add_folder(dst, logger=logger)
         return
 
     # action inconnue

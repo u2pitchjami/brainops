@@ -6,14 +6,15 @@ queue.
 from __future__ import annotations
 
 from queue import Queue
-from typing import Literal, NotRequired, TypedDict
 
 from brainops.header.yaml_read import test_title
+from brainops.models.event import DirEvent, Event
+from brainops.models.exceptions import BrainOpsError
 from brainops.process_folders.process_folder_event import process_folder_event
 from brainops.process_notes.new_note import new_note
 from brainops.process_notes.process_single_note import process_single_note
 from brainops.process_notes.update_note import update_note
-from brainops.sql.notes.db_notes import delete_note_by_path
+from brainops.sql.notes.db_delete_note import delete_note_by_path
 from brainops.sql.notes.db_notes_utils import file_path_exists_in_db
 from brainops.utils.files import wait_for_file
 from brainops.utils.logger import get_logger
@@ -22,46 +23,6 @@ from brainops.watcher.queue_utils import PendingNoteLockManager, get_lock_key
 logger = get_logger("Brainops Watcher")
 
 # ---- Typage des événements -----------------------------------------------------
-EventAction = Literal["created", "deleted", "modified", "moved"]
-EventType = Literal["file", "directory"]
-
-
-class DirEvent(TypedDict, total=True):
-    """
-    DirEvent _summary_
-
-    _extended_summary_
-
-    Args:
-        TypedDict (_type_): _description_
-        total (bool, optional): _description_. Defaults to True.
-    """
-
-    type: Literal["directory"]
-    action: EventAction
-    path: str
-    src_path: NotRequired[str]
-
-
-class Event(TypedDict, total=True):
-    """
-    Event _summary_
-
-    _extended_summary_
-
-    Args:
-        TypedDict (_type_): _description_
-        total (bool, optional): _description_. Defaults to True.
-    """
-
-    type: EventType
-    action: EventAction
-    path: str
-    # Clés optionnelles selon action/type
-    src_path: NotRequired[str]
-    note_id: NotRequired[int | None]
-    new_path: NotRequired[str]  # legacy (si jamais encore utilisé)
-
 
 # File d’attente unique et lock manager
 event_queue: Queue[Event] = Queue()
@@ -127,10 +88,13 @@ def process_queue() -> None:
                 if note_id is None:
                     note_id = file_path_exists_in_db(file_path, src_path, logger=logger)
                     if not note_id:
-                        logger.debug("[DEBUG] ===== Test Title")
-                        test_title(file_path, logger=logger)
-                        logger.debug(f"[DEBUG] {file_path} innexistant dans obsidian_notes")
-                        note_id = new_note(file_path, logger=logger)  # 🔥 Gère les événements des notes
+                        try:
+                            logger.debug("[DEBUG] ===== Test Title")
+                            title_test = test_title(file_path, logger=logger)
+                            note_id = new_note(file_path, logger=logger)
+                        except BrainOpsError as exc:
+                            logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+                            return False
                         logger.info("[INFO] Note créée : (id=%s) %s", note_id, file_path)
 
                 # Pose le lock si pas encore fait par enqueue_event
@@ -143,22 +107,22 @@ def process_queue() -> None:
                     if deleted:
                         logger.info("[SUPPR] ✅ Note Supprimée: (id=%s) %s", note_id, file_path)
                     else:
-                        logger.warning("[SUPPR] Rien à supprimer pour: %s", file_path)
+                        logger.warning("[SUPPR] ❌ Rien à supprimer pour: %s", file_path)
                     continue
 
                 # created / modified / moved
                 if action in ("created", "modified"):
-                    processed = process_single_note(file_path, note_id, logger=logger)  # type: ignore[arg-type]
+                    processed = process_single_note(file_path, note_id, logger=logger)
                     if not processed:
                         logger.warning("[IMPORT] Echec de l'import : (id=%s)", note_id)
-                        update_note(note_id, file_path, logger=logger)  # type: ignore[arg-type]
+                        update_note(note_id, file_path, logger=logger)
                     continue
 
                 if action == "moved":
                     logger.debug("[BUSY] Déplacement fichier : %s -> %s", src_path, file_path)
-                    processed = process_single_note(file_path, note_id, src_path=src_path, logger=logger)  # type: ignore[arg-type]
+                    processed = process_single_note(file_path, note_id, src_path=src_path, logger=logger)
                     if not processed:
-                        update_note(note_id, file_path, src_path)  # type: ignore[arg-type]
+                        update_note(note_id, file_path, src_path)
                     continue
 
             # Dossiers: déléguer au gestionnaire de dossiers
@@ -177,7 +141,6 @@ def process_queue() -> None:
                         "path": event["path"],
                     }
 
-                # si ton hub est décoré @with_child_logger / ensure_logger, tu peux lui passer logger
                 process_folder_event(dir_ev, logger=logger)
 
             logger.debug("[DEBUG] Fini: %s - %s", etype, action)

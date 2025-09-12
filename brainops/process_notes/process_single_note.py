@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 
+from brainops.models.exceptions import BrainOpsError
 from brainops.process_import.gpt.gpt_imports import (
     process_class_gpt_test,
     process_import_gpt,
@@ -16,6 +17,7 @@ from brainops.process_import.gpt.import_test import (
 from brainops.process_import.normal.import_normal import (
     import_normal,
 )
+from brainops.process_import.utils.move_error_file import handle_errored_file
 from brainops.process_import.utils.paths import path_is_inside
 from brainops.process_notes.update_note import update_note
 from brainops.process_notes.utils import should_trigger_process
@@ -23,7 +25,7 @@ from brainops.process_regen.regen_utils import (
     regen_header,
     regen_synthese_from_archive,
 )
-from brainops.sql.categs.db_categ_utils import categ_extract
+from brainops.sql.categs.db_extract_categ import categ_extract
 from brainops.utils.config import (
     GPT_IMPORT_DIR,
     GPT_TEST,
@@ -99,9 +101,13 @@ def process_single_note(
                 "[MOVED] ✈️ (id=%s) : uncategorized → storage : Lancement Import",
                 note_id,
             )
-            importok = import_normal(filepath, note_id, force_categ=False)
-            if not importok:
-                logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+            try:
+                importok = import_normal(filepath, note_id, force_categ=True)
+                if not importok:
+                    logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+            except BrainOpsError as exc:
+                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+                handle_errored_file(note_id, filepath, exc, logger=logger)
                 return False
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return True
@@ -109,9 +115,13 @@ def process_single_note(
         # 2) Destination dans IMPORTS : import normal + synthèse
         if path_is_inside(IMPORTS_PATH, base_folder):
             logger.info("[MOVED] ✈️ (id=%s) : → imports : Lancement Import", note_id)
-            importok = import_normal(filepath, note_id, force_categ=True)
-            if not importok:
-                logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+            try:
+                importok = import_normal(filepath, note_id, force_categ=False)
+                if not importok:
+                    logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+            except BrainOpsError as exc:
+                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+                handle_errored_file(note_id, filepath, exc, logger=logger)
                 return False
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return True
@@ -152,9 +162,13 @@ def process_single_note(
     # A) Note dans IMPORTS : import normal + synthèse
     if path_is_inside(IMPORTS_PATH, base_folder):
         logger.info("[CREATED] ✨ (id=%s) : Lancement Import", note_id)
-        importok = import_normal(filepath, note_id)
-        if not importok:
-            logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+        try:
+            importok = import_normal(filepath, note_id)
+            if not importok:
+                logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
+        except BrainOpsError as exc:
+            logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+            handle_errored_file(note_id, filepath, exc, logger=logger)
             return False
         logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
         return True
@@ -172,36 +186,46 @@ def process_single_note(
         )
 
         if not triggered:
+            update_note(note_id, filepath, logger=logger)
             logger.info("[MODIFIED] ✨ (id=%s) : Aucun retraitement requis", note_id)
             return True
         logger.info("[MODIFIED] ✨ (id=%s) : Lancement Regen", note_id)
         if status == "archive":
-            # On met à jour l'en-tête de l'archive, puis on relance la synthèse de sa synthèse parente
-            header = regen_header(note_id, filepath, parent_id)
-            if not header:
-                logger.warning(
-                    "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de l'en-tête",
-                    note_id,
-                )
+            try:
+                # On met à jour l'en-tête de l'archive, puis on relance la synthèse de sa synthèse parente
+                header = regen_header(note_id, filepath, parent_id)
+                if not header:
+                    logger.warning(
+                        "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de l'en-tête",
+                        note_id,
+                    )
+            except BrainOpsError as exc:
+                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
                 return False
             if parent_id is not None:
-                syntesis = regen_synthese_from_archive(note_id=parent_id)
-                if not syntesis:
-                    logger.warning(
-                        "[MODIFIED] 🚨 (parent_id=%s) : Échec de la régénération de la synthèse",
-                        parent_id,
-                    )
+                try:
+                    syntesis = regen_synthese_from_archive(note_id=parent_id)
+                    if not syntesis:
+                        logger.warning(
+                            "[MODIFIED] 🚨 (parent_id=%s) : Échec de la régénération de la synthèse",
+                            parent_id,
+                        )
+                except BrainOpsError as exc:
+                    logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
                     return False
             logger.info("[REGEN] ✅ (id=%s) : Regen Réussi", note_id)
             return True
         elif status == "synthesis":
-            # On relance la synthèse directement sur ce fichier
-            syntesis = regen_synthese_from_archive(note_id, filepath)
-            if not syntesis:
-                logger.warning(
-                    "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de la synthèse",
-                    note_id,
-                )
+            try:
+                # On relance la synthèse directement sur ce fichier
+                syntesis = regen_synthese_from_archive(note_id, filepath)
+                if not syntesis:
+                    logger.warning(
+                        "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de la synthèse",
+                        note_id,
+                    )
+            except BrainOpsError as exc:
+                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
                 return False
         logger.info("[REGEN] ✅ (id=%s) : Regen Synthèse Réussi", note_id)
         return True

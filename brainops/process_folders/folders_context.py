@@ -7,9 +7,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder, FolderType
 from brainops.process_import.utils.paths import get_relative_parts, path_is_inside
-from brainops.sql.categs.db_categ_utils import (
+from brainops.sql.categs.db_create_categ import (
     get_or_create_category,
     get_or_create_subcategory,
 )
@@ -118,43 +119,49 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
         None,
     )
     logger.debug("[DEBUG] resolve_folder_context(%s)", path)
-    p_str = normalize_folder_path(path)
 
-    # parent
-    p = Path(p_str)
-    parent_path = p.parent.as_posix() if p.parent != p else None
-    parent_id = get_folder_id(parent_path, logger=logger) if parent_path else None
+    try:
+        p_str = normalize_folder_path(path)
 
-    # type
-    ftype = _detect_folder_type(p_str)
-    if path_is_inside(Z_STORAGE_PATH, p_str):
-        relative_parts = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
-        if len(relative_parts) == 1:
-            category = relative_parts[0]
-        elif len(relative_parts) == 2:
-            category, subcategory = relative_parts
-        elif len(relative_parts) == 3 and relative_parts[2].lower() == "archives":
-            category, subcategory = relative_parts[0], relative_parts[1]
-            ftype = FolderType.ARCHIVE
+        # parent
+        p = Path(p_str)
+        parent_path = p.parent.as_posix() if p.parent != p else None
+        parent_id = get_folder_id(parent_path, logger=logger) if parent_path else None
 
-        if category:
-            category_id = get_or_create_category(category, logger=logger)
-            logger.debug(f"[DEBUG] category_id: {category_id} {category}")
-            if subcategory:
-                subcategory_id = get_or_create_subcategory(subcategory, category_id, logger=logger)
-                logger.debug(f"[DEBUG] subcategory_id: {subcategory_id} {subcategory}")
-        else:
-            raise
+        # type
+        ftype = _detect_folder_type(p_str)
+        if path_is_inside(Z_STORAGE_PATH, p_str):
+            relative_parts = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
+            if len(relative_parts) == 1:
+                category = relative_parts[0]
+            elif len(relative_parts) == 2:
+                category, subcategory = relative_parts
+            elif len(relative_parts) == 3 and relative_parts[2].lower() == "archives":
+                category, subcategory = relative_parts[0], relative_parts[1]
+                ftype = FolderType.ARCHIVE
 
-    return FolderContext(
-        parent_path=parent_path,
-        parent_id=parent_id,
-        category_id=category_id,
-        subcategory_id=subcategory_id,
-        category_name=category,
-        subcategory_name=subcategory,
-        folder_type=ftype,
-    )
+            if category:
+                category_id = get_or_create_category(category, logger=logger)
+                logger.debug(f"[DEBUG] category_id: {category_id} {category}")
+                if subcategory:
+                    subcategory_id = get_or_create_subcategory(subcategory, category_id, logger=logger)
+                    logger.debug(f"[DEBUG] subcategory_id: {subcategory_id} {subcategory}")
+
+        return FolderContext(
+            parent_path=parent_path,
+            parent_id=parent_id,
+            category_id=category_id,
+            subcategory_id=subcategory_id,
+            category_name=category,
+            subcategory_name=subcategory,
+            folder_type=ftype,
+        )
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError(
+            "KO création folder",
+            code=ErrCode.DB,
+            ctx={"path": path},
+        ) from exc
 
 
 @with_child_logger

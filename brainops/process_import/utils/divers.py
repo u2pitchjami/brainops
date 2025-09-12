@@ -9,6 +9,7 @@ from pathlib import Path
 
 from langdetect import detect
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_lang
 from brainops.utils.config import MODEL_EN, MODEL_FR
@@ -31,7 +32,7 @@ def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | 
     if not file_path.exists():
         msg = f"Le fichier {file_path} n'existe pas."
         logger.error("[ERROR] %s", msg)
-        raise FileNotFoundError(msg)
+        raise BrainOpsError("fichier absent KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
 
     # Récupère created_at depuis la DB si dispo, sinon now()
     created_at_raw: str | None = None
@@ -39,26 +40,28 @@ def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | 
         data = get_note_linked_data(note_id, "note", logger=logger)
         if isinstance(data, dict):
             created_at_raw = data.get("created_at")  # peut être str, date, datetime
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         logger.warning("[WARN] Impossible de lire created_at en DB : %s", exc)
-
-    created_str = (
-        sanitize_created(created_at_raw, logger=logger) if created_at_raw else datetime.now().strftime("%Y-%m-%d")
-    )
-    stem_sanitized = sanitize_filename(file_path.stem, logger=logger)
-    new_name = f"{created_str}_{stem_sanitized}{file_path.suffix}"
-    new_path = file_path.with_name(new_name)
-
-    # Résolution des collisions
-    counter = 1
-    while new_path.exists():
-        new_name = f"{created_str}_{stem_sanitized}_{counter}{file_path.suffix}"
+    try:
+        created_str = (
+            sanitize_created(created_at_raw, logger=logger) if created_at_raw else datetime.now().strftime("%Y-%m-%d")
+        )
+        stem_sanitized = sanitize_filename(file_path.stem, logger=logger)
+        new_name = f"{created_str}_{stem_sanitized}{file_path.suffix}"
         new_path = file_path.with_name(new_name)
-        counter += 1
 
-    file_path.rename(new_path)
-    logger.info("[INFO] Note renommée : %s → %s", file_path.name, new_path.name)
-    return new_path
+        # Résolution des collisions
+        counter = 1
+        while new_path.exists():
+            new_name = f"{created_str}_{stem_sanitized}_{counter}{file_path.suffix}"
+            new_path = file_path.with_name(new_name)
+            counter += 1
+
+        file_path.rename(new_path)
+        logger.info("[INFO] Note renommée : %s → %s", file_path.name, new_path.name)
+        return new_path
+    except Exception:
+        raise BrainOpsError("Rennomage fichier KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
 
 
 @with_child_logger

@@ -508,7 +508,7 @@ Texte original :
     "add_questions": """
     Tu es un assistant de recherche et de pensée critique, avec une sensibilité philosophique.
 
-À partir du texte ci-dessous, fournis exactement trois sections :
+À partir du texte ci-dessous, fournis exactement quatre sections :
 
 **1. Questions de réflexion (3 à 5)**
 - Des questions ouvertes permettant d'approfondir la compréhension du sujet,\
@@ -518,7 +518,12 @@ Texte original :
 - Concepts issus de la philosophie, de la psychologie,\
   de la sociologie, ou d’autres disciplines critiques, liés au thème.
 
-**3. Parallèles historiques ou figures philosophiques (si pertinent)**
+**3. Parallèles historiques (si pertinent)**
+- Courants de pensée, événements ou penseurs pouvant éclairer le sujet et surtout \
+  ce que le texte évoque directement ou indirectement de la nature humaine,\
+    en général ou sur le sujet du texte.
+
+**4. Ce que le texte dit de la nature humaine (si pertinent)**
 - Courants de pensée, événements ou penseurs pouvant éclairer le sujet.
 
 ⚠️ N’ajoute **aucune phrase d’introduction ou de conclusion**.

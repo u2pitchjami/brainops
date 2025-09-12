@@ -1,0 +1,42 @@
+"""
+sql/db_temp_blocs.py.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from brainops.sql.db_connection import get_db_connection
+from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+
+@with_child_logger
+def mark_bloc_as_error(filepath: str | Path, block_index: int, logger: LoggerProtocol | None = None) -> None:
+    """
+    Marque un bloc comme 'error' en se basant sur (note_path, block_index).
+
+    (Chemin "compat" avec les anciens appels qui ne passaient pas note_id/source.) On ne touche pas aux blocs déjà
+    'processed'.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            UPDATE obsidian_temp_blocks
+               SET status = 'error'
+             WHERE note_path = %s
+               AND block_index = %s
+               AND status <> 'processed'
+            """,
+            (str(filepath), block_index),
+        )
+        conn.commit()
+    except Exception as e:
+        logger.error("[ERROR] mark_bloc_as_error: %s", e)
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()

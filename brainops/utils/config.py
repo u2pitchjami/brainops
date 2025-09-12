@@ -110,6 +110,8 @@ IMPORTS_PATH: str = get_path_required("IMPORTS_PATH")
 GPT_TEST: str = get_path_required("GPT_TEST")
 IMPORTS_TEST: str = get_path_required("IMPORTS_TEST")
 BASE_SCRIPT: str = get_path_required("BASE_SCRIPT")
+ERRORED_PATH: str = get_path_required("ERRORED_PATH")
+ERRORED_JSON: str = get_str("ERRORED_JSON")
 
 WATCHDOG_POLL_INTERVAL: float = get_float("WATCHDOG_POLL_INTERVAL", 1.0)
 WATCHDOG_DEBOUNCE_WINDOW: float = get_float("WATCHDOG_DEBOUNCE_WINDOW", 0.5)
@@ -123,6 +125,7 @@ MODEL_FR: str = get_str("MODEL_FR", "llama3.1:8b-instruct-q8_0")
 MODEL_EN: str = get_str("MODEL_EN", "llama3.1:8b-instruct-q8_0")
 MODEL_GET_TYPE: str = get_str("MODEL_GET_TYPE", "mistral:latest")
 MODEL_EMBEDDINGS: str = get_str("MODEL_EMBEDDINGS", "nomic-embed-text:latest")
+MODEL_SUMMARY: str = get_str("MODEL_SUMMARY", "cognitivetech/obook_summary:latest")
 
 # DB
 DB_CONFIG = {

@@ -6,9 +6,43 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+
+@with_child_logger
+def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bool:
+    """
+    is_folder_exist _summary_
+
+    teste la présence d'un dossier dans la base
+
+    Args:
+        folderpath (str): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        bool: true si existe sinon false
+    """
+    conn = get_db_connection(logger=logger)
+    try:
+        with conn.cursor() as cur:
+            row = safe_execute(
+                cur,
+                "SELECT id FROM obsidian_folders WHERE path=%s",
+                (folderpath,),
+                logger=logger,
+            ).fetchone()
+            if row:
+                return True
+            else:
+                return False
+    except Exception as exc:
+        raise BrainOpsError("Erreur DB", code=ErrCode.DB, ctx={"folder": folderpath}) from exc
+    finally:
+        conn.close()
 
 
 @with_child_logger
@@ -75,7 +109,7 @@ def get_path_from_classification(
     subcategory_id: int | None = None,
     *,
     logger: LoggerProtocol | None = None,
-) -> tuple[int, str] | None:
+) -> tuple[int, str]:
     """
     Récupère (folder_id, path) à partir d'une classification (catégorie / sous-catégorie). Priorité à la sous-catégorie
     si fournie.
@@ -85,9 +119,6 @@ def get_path_from_classification(
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
-    if not conn:
-        return None
-
     try:
         with conn.cursor() as cur:
             # Priorité à (cat, subcat)
@@ -121,20 +152,9 @@ def get_path_from_classification(
             if row:
                 return int(row[0]), str(row[1])
 
-        logger.warning(
-            "[DB] Aucun dossier pour catégorie=%s, sous-catégorie=%s",
-            category_id,
-            subcategory_id,
-        )
-        return None
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception(
-            "[DB] get_path_from_classification(cat=%s, subcat=%s) erreur: %s",
-            category_id,
-            subcategory_id,
-            exc,
-        )
-        return None
+        raise BrainOpsError("get_path KO", code=ErrCode.DB, ctx={"category_id": "category_id"})
+    except Exception as exc:
+        raise BrainOpsError("get_path KO", code=ErrCode.DB, ctx={"category_id": "category_id"}) from exc
     finally:
         conn.close()
 

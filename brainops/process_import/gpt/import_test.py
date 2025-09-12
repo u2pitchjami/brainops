@@ -8,11 +8,12 @@ from pathlib import Path
 import re
 import shutil
 
-from brainops.header.extract_yaml_header import extract_yaml_header
+from brainops.header.join_header_body import apply_to_note_body
+from brainops.io.note_reader import read_metadata
 from brainops.process_import.utils.large_note import process_large_note
 from brainops.process_import.utils.standard_note import process_standard_note
 from brainops.utils.config import OUTPUT_TESTS_IMPORTS_DIR
-from brainops.utils.files import join_yaml_and_body, safe_write
+from brainops.utils.files import safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -84,7 +85,7 @@ def process_class_imports_test(filepath: str | Path, note_id: int, *, logger: Lo
             shutil.copy(dst2.as_posix(), dst3.as_posix())
 
             # Extraction YAML existant pour réassemblage
-            header_lines, _ = extract_yaml_header(dst3.as_posix(), logger=logger)
+            header_lines, _ = read_metadata(dst3.as_posix(), logger=logger)
 
             # Synthèse finale standard (sans écriture automatique)
             response = process_standard_note(
@@ -103,7 +104,12 @@ def process_class_imports_test(filepath: str | Path, note_id: int, *, logger: Lo
                 continue
 
             body_content = response.strip()
-            final_content = join_yaml_and_body(header_lines, body_content)
+            final_content = apply_to_note_body(
+                filepath=filepath,
+                transform=body_content,  # ← accepte un str si tu as pris ma version "Union[str, Callable]"
+                write_file=False,
+                logger=logger,
+            )
             logger.debug("[DEBUG] Contenu final généré (%s) : %s", dst3.name, final_content[:800])
 
             ok = safe_write(dst3.as_posix(), content=final_content, logger=logger)

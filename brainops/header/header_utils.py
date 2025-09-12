@@ -7,29 +7,27 @@ from __future__ import annotations
 from collections.abc import Callable
 import hashlib
 import re
+from typing import Any
 
 import yaml
 
+from brainops.models.types import _YAML_FENCE
 from brainops.utils.files import read_note_content, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
-_YAML_FENCE = re.compile(r"^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n)?", re.DOTALL)  # gère BOM/CRLF/espaces
-
 
 @with_child_logger
-def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str, str]:
-    """
-    Extrait et parse l'en-tête YAML.
-
-    Retourne {} si absent.
-    """
+def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str, Any]:
     logger = ensure_logger(logger, __name__)
     try:
         m = _YAML_FENCE.match(content)
         if m:
-            return yaml.safe_load(m.group(1)) or {}
+            loaded = yaml.safe_load(m.group(1)) or {}
+            if isinstance(loaded, dict):
+                return loaded
+            logger.warning("[get_yaml] YAML n'est pas un dict (%s), fallback {}", type(loaded).__name__)
+            return {}
     except Exception as exc:  # pylint: disable=broad-except
-        # on ne log pas le contenu complet pour éviter le bruit
         logger.warning(f"[get_yaml] Erreur parsing YAML : {exc}")
     return {}
 

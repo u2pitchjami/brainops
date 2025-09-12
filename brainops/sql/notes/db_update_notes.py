@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -66,9 +67,6 @@ def update_obsidian_note(
     values = list(filtered.values()) + [note_id]
 
     conn = get_db_connection(logger=logger)
-    if not conn:
-        return False
-
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -76,13 +74,12 @@ def update_obsidian_note(
                 values,
             )
         conn.commit()
-        logger.info("[NOTES] Mise à jour OK (id=%s): %s", note_id, list(filtered.keys()))
-        return True
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[NOTES] Erreur update_obsidian_note(id=%s): %s", note_id, exc)
-        return False
+    except Exception as exc:
+        raise BrainOpsError("update note DB KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     finally:
         conn.close()
+    logger.info("[NOTES] Mise à jour OK (id=%s): %s", note_id, list(filtered.keys()))
+    return True
 
 
 @with_child_logger
@@ -100,9 +97,6 @@ def update_obsidian_tags(note_id: int, tags: dict[str, Any], logger: LoggerProto
     logger = ensure_logger(logger, __name__)
     # Ouvre la connexion à la base de données
     conn = get_db_connection(logger=logger)
-    if not conn:
-        logger.error("[TAGS] Impossible de se connecter à la base de données.")
-        return
 
     # Crée un curseur pour exécuter la requête SQL
     cursor = conn.cursor()
@@ -122,9 +116,8 @@ def update_obsidian_tags(note_id: int, tags: dict[str, Any], logger: LoggerProto
         conn.commit()
         logger.info("[TAGS] Tags mis à jour pour la note %d.", note_id)
 
-    except Exception as e:
-        logger.error("[TAGS] Erreur lors de la mise à jour des tags : %s", e)
-
+    except Exception as exc:
+        raise BrainOpsError("update tags DB KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     finally:
         # Fermer le curseur et la connexion
         cursor.close()

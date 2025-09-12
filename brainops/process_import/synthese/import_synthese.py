@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.header.headers import make_properties
+from brainops.header.join_header_body import apply_to_note_body
+from brainops.io.note_reader import read_metadata, read_note_full
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_utils import large_or_standard_note
 from brainops.process_import.synthese.embeddings_utils import make_embeddings_synthesis
 from brainops.process_import.utils.archive import copy_to_archive
@@ -17,7 +19,6 @@ from brainops.sql.get_linked.db_get_linked_notes_utils import (
     get_note_lang,
     get_parent_id,
 )
-from brainops.utils.files import join_yaml_and_body, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import clean_fake_code_blocks
 
@@ -52,11 +53,10 @@ def process_import_syntheses(
                 return False
             final_response = make_embeddings_synthesis(note_id, path, logger=logger)
         else:
-            archive_path = get_file_path(parent_id, logger=logger)
+            archive_path = Path(get_file_path(parent_id, logger=logger))
             if not archive_path:
-                logger.error("[ERROR] archive_path introuvable pour parent_id=%s", parent_id)
-                return
-            final_response = make_embeddings_synthesis(note_id, archive_path, logger=logger)
+                raise BrainOpsError("archive_path introuvable KO", code=ErrCode.NOFILE, ctx={"note_id": note_id})
+            final_response = make_embeddings_synthesis(note_id, str(archive_path), logger=logger)
 
         if not final_response:
             logger.error("[ERROR] ❌ final_response None: abandon synthèse.")
@@ -96,7 +96,7 @@ def process_import_syntheses(
         make_syntheses(
             filepath=path,
             note_id=note_id,
-            original_path=original_path,
+            original_path=str(original_path),
             translate_synth=translate_synth,
             glossary=glossary,
             questions=questions,
@@ -248,9 +248,9 @@ def make_syntheses(
     try:
         # Lecture si besoin
         if not content_lines and header_lines:
-            header_lines, content_lines = extract_yaml_header(path, logger=logger)
+            header_lines, content_lines = read_note_full(path, logger=logger)
         elif not header_lines:
-            header_lines, _ = extract_yaml_header(path, logger=logger)
+            header_lines = read_metadata(path, logger=logger)
 
         # Fallbacks propres
         header_lines = header_lines or ["---\n---\n"]
@@ -276,12 +276,12 @@ def make_syntheses(
 
         body_content = "\n".join(blocks).strip()
         final_body_content = clean_fake_code_blocks(body_content)
-        final_content = join_yaml_and_body(header_lines, final_body_content)
-
-        # Écriture
-        success = safe_write(path, content=final_content, logger=logger)
-        if not success:
-            raise RuntimeError(f"Échec écriture: {path}")
+        final_content = apply_to_note_body(
+            filepath=filepath,
+            transform=final_body_content,
+            write_file=True,
+            logger=logger,
+        )
 
     except Exception as exc:  # pylint: disable=broad-except
         # Utiliser logger global si dispo (pas de décorateur ici)

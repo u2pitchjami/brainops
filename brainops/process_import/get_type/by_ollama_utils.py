@@ -13,18 +13,15 @@ import shutil
 from Levenshtein import ratio
 
 from brainops.models.classification import ClassificationResult
-from brainops.models.exceptions import BrainOpsError
-from brainops.ollama.ollama_call import (
-    OllamaError,
-    call_ollama_with_retry,
-)
+from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.ollama.ollama_call import call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
 from brainops.process_import.utils.divers import (
     prompt_name_and_model_selection,
 )
 from brainops.process_import.utils.paths import ensure_folder_exists
 from brainops.sql.categs.db_categ import get_path_safe
-from brainops.sql.categs.db_categ_utils import (
+from brainops.sql.categs.db_dictionary_categ import (
     generate_categ_dictionary,
     generate_optional_subcategories,
 )
@@ -46,14 +43,14 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 # ---------- Parse & nettoyage --------------------------------------------------
 
 
-def parse_category_response(llama_proposition: str) -> str | None:
+def parse_category_response(llama_proposition: str) -> str:
     """
     Extrait "Category/Subcategory" d'une réponse LLM.
     """
     match = re.search(r"([A-Za-z0-9_ ]+)/([A-Za-z0-9_ ]+)", llama_proposition or "")
     if match:
         return f"{match.group(1).strip()}/{match.group(2).strip()}"
-    return None
+    raise BrainOpsError("Parse Categ KO", code=ErrCode.METADATA, ctx={"llama_proposition": llama_proposition})
 
 
 def clean_note_type(parse_category: str) -> str:
@@ -97,10 +94,8 @@ def find_similar_levenshtein(
             # logger.debug(...) → logger injecté + décorateur dans les call sites
             if similarity >= threshold_low:
                 similar.append((existing, similarity))
-    except BrainOpsError:
-        raise
     except Exception as exc:
-        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
+        raise BrainOpsError("similar_levenshtein KO", code=ErrCode.METADATA, ctx={"name": name}) from exc
     return sorted(similar, key=lambda x: x[1], reverse=True)
 
 
@@ -185,36 +180,40 @@ def handle_uncategorized(
         with open(UNCATEGORIZED_JSON, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         logger.exception("[ERREUR] handle_uncategorized(%s) : %s", src.as_posix(), exc)
+        raise BrainOpsError("déplacement uncategorized KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc
 
 
 # ---------- Classification & déplacement --------------------------------------
 
 
-def _classify_with_llm(content: str, *, logger: LoggerProtocol) -> str:
+def _classify_with_llm(note_id: int, content: str, *, logger: LoggerProtocol | None = None) -> str:
     """
     Construit le prompt et appelle Ollama.
 
     Retourne la chaîne brute (ex: "Dev/Python").
     """
-    # dictionnaires pour guider le LLM
-    subcateg_dict = generate_optional_subcategories(logger=logger)
-    categ_dict = generate_categ_dictionary(logger=logger)
-
-    prompt_name, _ = prompt_name_and_model_selection(0, key="type", logger=logger)  # note_id pas requis ici
-    model_ollama = MODEL_GET_TYPE
-    prompt = PROMPTS[prompt_name].format(
-        categ_dict=categ_dict,
-        subcateg_dict=subcateg_dict,
-        content=content[:1500],
-    )
+    logger = ensure_logger(logger, __name__)
     try:
+        # dictionnaires pour guider le LLM
+        subcateg_dict = generate_optional_subcategories(logger=logger)
+        logger.debug("[DEBUG] subcateg_dict _classify_with_llm : %s", subcateg_dict)
+        categ_dict = generate_categ_dictionary(logger=logger)
+        logger.debug("[DEBUG] categ_dict _classify_with_llm : %s", categ_dict)
+
+        prompt_name, _ = prompt_name_and_model_selection(note_id, key="type", logger=logger)  # note_id pas requis ici
+        logger.debug("[DEBUG] prompt_name _classify_with_llm : %s", prompt_name)
+        model_ollama = MODEL_GET_TYPE
+        prompt = PROMPTS[prompt_name].format(
+            categ_dict=categ_dict,
+            subcateg_dict=subcateg_dict,
+            content=content[:1500],
+        )
+        logger.debug("[DEBUG] prompt _classify_with_llm : %s", prompt)
         return call_ollama_with_retry(prompt, model_ollama, logger=logger)
-    except BrainOpsError:
-        raise
-    except OllamaError:
-        raise BrainOpsError("Erreur inattendue")
+    except Exception as exc:
+        raise BrainOpsError("_classify_with_llm KO", code=ErrCode.OLLAMA, ctx={"status": "ollama"}) from exc
 
 
 @with_child_logger
@@ -229,19 +228,13 @@ def _resolve_destination(
         cat_id = None
         subcat_id = None
         path_result = get_path_safe(note_type, filepath, note_id, logger=logger)
-        if path_result is None:
-            logger.warning("get_path_safe a retourné None pour %s", note_type)
-            raise BrainOpsError(f"get_path_safe a retourné None pour {note_type}")
+
         cat_id, subcat_id = path_result
         res = get_path_from_classification(cat_id, subcat_id, logger=logger)
-        if not res:
-            logger.warning("Dossier cible introuvable pour %s", note_type)
-            raise BrainOpsError(f"Dossier cible introuvable pour {note_type}")
         folder_id, dest_folder = res
-    except BrainOpsError:
-        raise
+
     except Exception as exc:
-        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
+        raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
     return ClassificationResult(
         note_type=note_type,
         category_id=cat_id,

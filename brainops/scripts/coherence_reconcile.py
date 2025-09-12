@@ -29,7 +29,7 @@ from brainops.process_folders.folders import add_folder
 from brainops.process_notes.new_note import new_note
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.folders.db_folders import delete_folder_from_db
-from brainops.sql.notes.db_notes import delete_note_by_path
+from brainops.sql.notes.db_delete_note import delete_note_by_path
 from brainops.utils.config import BASE_PATH, LOG_FILE_PATH
 from brainops.utils.logger import LoggerProtocol, get_logger
 
@@ -153,7 +153,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
     conn = get_db_connection(logger=logger)
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
-    db_folders: list[FolderRow] = cursor.fetchall()  # type: ignore[assignment]
+    db_folders: list[FolderRow] = cursor.fetchall()
 
     physical_dirs = {p for p in _iter_physical_dirs(cfg.base_path)}
     db_folder_paths = {Path(row["path"]).resolve() for row in db_folders}
@@ -170,7 +170,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
 
     # --- Notes
     cursor.execute("SELECT id, file_path FROM obsidian_notes")
-    notes: list[NoteRow] = cursor.fetchall()  # type: ignore[assignment]
+    notes: list[NoteRow] = cursor.fetchall()
 
     notes_missing_file: list[str] = []
     for note in notes:
@@ -233,7 +233,7 @@ def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
                 if dry_run:
                     logger.info("DRY-RUN 📁 add_folder(%s)", path)
                 else:
-                    add_folder(folder_path=path, logger=logger)  # type: ignore[arg-type]
+                    add_folder(folder_path=path, logger=logger)
                 stats.added_folders += 1
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Erreur add_folder(%s): %s", path, exc)
@@ -244,7 +244,7 @@ def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
                 if dry_run:
                     logger.info("DRY-RUN 📁 delete_folder_from_db(%s)", path)
                 else:
-                    delete_folder_from_db(file_path=path, logger=logger)  # type: ignore[arg-type]
+                    delete_folder_from_db(folder_path=path, logger=logger)
                 stats.deleted_folders += 1
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Erreur delete_folder_from_db(%s): %s", path, exc)
@@ -258,7 +258,7 @@ def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
                 if dry_run:
                     logger.info("DRY-RUN 📝 new_note(%s)", path)
                 else:
-                    new_note(file_path=path, logger=logger)  # type: ignore[arg-type]
+                    new_note(file_path=path, logger=logger)
                 stats.added_notes += 1
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Erreur new_note(%s): %s", path, exc)
@@ -270,7 +270,7 @@ def apply_diffs(diffs: DiffSets, scope: Scope, dry_run: bool) -> ApplyStats:
                 if dry_run:
                     logger.info("DRY-RUN 📝 delete_note_by_path(%s)", path)
                 else:
-                    delete_note_by_path(file_path=path, logger=logger)  # type: ignore[arg-type]
+                    delete_note_by_path(file_path=path, logger=logger)
                 stats.deleted_notes += 1
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("Erreur delete_note_by_path(%s): %s", path, exc)

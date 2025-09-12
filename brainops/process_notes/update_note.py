@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from brainops.header.extract_yaml_header import extract_note_metadata
 from brainops.header.headers import add_metadata_to_yaml
+from brainops.io.note_reader import read_metadata_object
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_regen.regen_utils import regen_header, regen_synthese_from_archive
-from brainops.sql.categs.db_categ_utils import categ_extract
+from brainops.sql.categs.db_extract_categ import categ_extract
 from brainops.sql.folders.db_folder_utils import get_path_from_classification
 from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_tags
@@ -27,7 +28,7 @@ def update_note(
     dest_path: str | Path,
     src_path: str | Path | None = None,
     logger: LoggerProtocol | None = None,
-) -> int | None:
+) -> None:
     """
     Met à jour une note existante dans la base, y compris en cas de déplacement.
 
@@ -46,16 +47,15 @@ def update_note(
 
     try:
         # 1) Métadonnées depuis YAML
-        meta = extract_note_metadata(str(dp), logger=logger)
-        title_yaml = meta.get("title") or dp.stem.replace("_", " ").replace(":", " ")
-        status_yaml = meta.get("status", "draft")
-        tags_yaml = meta.get("tags", []) or []
-        summary_yaml = meta.get("summary")
-        source_yaml = meta.get("source")
-        author_yaml = meta.get("author")
-        project_yaml = meta.get("project")
-        created_yaml = meta.get("created")
-        print(f"created_yaml = {created_yaml}")
+        meta = read_metadata_object(str(dp), logger=logger)
+        title_yaml = meta.title or dp.stem.replace("_", " ").replace(":", " ")
+        status_yaml = meta.status or "draft"
+        tags_yaml = meta.tags or []
+        summary_yaml = meta.summary
+        source_yaml = meta.source
+        author_yaml = meta.author
+        project_yaml = meta.project
+        created_yaml = meta.created
 
         # 2) Contexte catégories depuis le chemin
         base_folder = str(dp.parent)
@@ -76,8 +76,7 @@ def update_note(
         # 3) Données actuelles DB
         data = get_note_linked_data(note_id, "note", logger=logger)
         if "error" in data:
-            logger.error("[UPDATE_NOTE] Note %s introuvable en DB: %s", note_id, data)
-            return None
+            raise BrainOpsError("Update note KO", code=ErrCode.DB, ctx={"data": data})
 
         parent_id = data.get("parent_id")
         folder_id = data.get("folder_id")
@@ -87,7 +86,6 @@ def update_note(
         # 4) Valeurs finales (YAML prioritaire si présent)
         title = title_yaml or data.get("title")
         created = created_yaml or data.get("created_at")  # colonne DB = created_at
-        print(f"created = {created}")
         author = author_yaml or data.get("author")
         source = source_yaml or data.get("source")
         project = project_yaml or data.get("project")
@@ -150,18 +148,13 @@ def update_note(
             check_synthesis_and_trigger_archive(note_id, str(dp), logger=logger)
         elif status == "regen":
             logger.debug("[UPDATE_NOTE] Post-action: regen_synthese_from_archive")
-            regen_synthese_from_archive(note_id, filepath=str(dp), logger=logger)
+            regen_synthese_from_archive(note_id, filepath=str(dp))
         elif status == "regen_header":
             logger.debug("[UPDATE_NOTE] Post-action: regen_header")
-            regen_header(note_id, str(dp), parent_id, logger=logger)
+            regen_header(note_id, str(dp), parent_id)
 
         return note_id
 
     except Exception as exc:
-        logger.error(
-            "[UPDATE_NOTE] Erreur lors de la mise à jour (id=%s, dest=%s): %s",
-            note_id,
-            dest_path,
-            exc,
-        )
+        raise BrainOpsError("Update Note KO", code=ErrCode.UNEXPECTED, ctx={"status": "ollama"}) from exc
         return None

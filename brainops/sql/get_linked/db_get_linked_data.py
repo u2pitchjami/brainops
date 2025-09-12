@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.db_connection import get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -27,8 +28,6 @@ def get_note_linked_data(
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
-    if not conn:
-        return {"error": "Connexion à la base échouée."}
 
     try:
         with conn.cursor(dictionary=True) as cur:
@@ -40,7 +39,7 @@ def get_note_linked_data(
                 logger=logger,
             ).fetchone()
             if not note:
-                return {"error": f"Aucune note avec l'ID {note_id}"}
+                raise BrainOpsError("Note id KO", code=ErrCode.DB, ctx={"note_id": note_id})
 
             if what == "note":
                 return note
@@ -78,8 +77,8 @@ def get_note_linked_data(
                         (folder_id,),
                         logger=logger,
                     ).fetchone()
-                    return row or {"error": f"Dossier {folder_id} introuvable"}
-                return {"error": "Aucun dossier associé à cette note"}
+                    return row
+                return {}
 
             if what == "tags":
                 rows = safe_execute(
@@ -88,7 +87,8 @@ def get_note_linked_data(
                     (note_id,),
                     logger=logger,
                 ).fetchall()
-                return [r["tag"] for r in rows] if rows else []
+                return [r["tag"] for r in rows]
+            return []
 
             if what == "temp_blocks":
                 row = safe_execute(
@@ -97,12 +97,16 @@ def get_note_linked_data(
                     (note_id,),
                     logger=logger,
                 ).fetchone()
-                return row or {"error": "temp_blocks introuvable"}
+                return row
+            return {}
 
-            return {"error": f"Type de donnée non reconnu : {what}"}
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[DB] get_note_linked_data(%s,%s) : %s", note_id, what, exc)
-        return {"error": f"Erreur SQL : {exc}"}
+            raise BrainOpsError("what KO", code=ErrCode.DB, ctx={"note_id": note_id})
+    except Exception as exc:
+        raise BrainOpsError(
+            "Récup get link Note KO",
+            code=ErrCode.DB,
+            ctx={"note_id": note_id},
+        ) from exc
     finally:
         conn.close()
 
@@ -121,8 +125,6 @@ def get_folder_linked_data(
     logger.debug(f"[DEBUG] get_folder_linked_data({folder_path}, {what})")
     try:
         conn = get_db_connection(logger=logger)
-        if not conn:
-            return {"error": "Connexion à la base échouée."}
 
         # ✅ buffered=True évite "Unread result found"
         cursor = conn.cursor(dictionary=True, buffered=True)
@@ -133,7 +135,7 @@ def get_folder_linked_data(
         )
         folder = cursor.fetchone()
         if not folder:
-            return {"error": f"Aucun dossier trouvé pour : {folder_path}"}
+            raise BrainOpsError("Récup Folder KO", code=ErrCode.DB, ctx={"path": folder_path})
 
         if what == "folder":
             return folder
@@ -169,11 +171,14 @@ def get_folder_linked_data(
                 return cursor.fetchone() or {}
             return {}
 
-        return {"error": f"Type de donnée '{what}' non pris en charge."}
+        raise BrainOpsError("what KO", code=ErrCode.DB, ctx={"path": folder_path})
 
-    except Exception as e:
-        logger.error("[FOLDER] get_folder_linked_data(%s,%s) : %s", folder_path, what, e)
-        return {"error": str(e)}
+    except Exception as exc:
+        raise BrainOpsError(
+            "Récup get link Folder KO",
+            code=ErrCode.DB,
+            ctx={"path": folder_path},
+        ) from exc
     finally:
         try:
             cursor.close()

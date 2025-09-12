@@ -9,17 +9,19 @@ import json
 from pathlib import Path
 import re
 
-from brainops.header.extract_yaml_header import extract_yaml_header
+from brainops.header.join_header_body import apply_to_note_body
+from brainops.io.note_reader import read_note_full
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_call import OllamaError, call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
-from brainops.sql.notes.db_temp_blocs import (
+from brainops.sql.temp_blocs.db_error_temp_blocs import mark_bloc_as_error
+from brainops.sql.temp_blocs.db_temp_blocs import (
     get_existing_bloc,
     insert_bloc,
-    mark_bloc_as_error,
     update_bloc_response,
 )
 from brainops.utils.config import MODEL_LARGE_NOTE
-from brainops.utils.files import join_yaml_and_body, maybe_clean, safe_write
+from brainops.utils.files import maybe_clean
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import clean_fake_code_blocks
 
@@ -53,7 +55,7 @@ def split_large_note(content: str, max_words: int = 1000) -> list[str]:
 
 @with_child_logger
 def process_large_note(
-    note_id: int | None,
+    note_id: int,
     filepath: str | Path,
     entry_type: str | None = None,
     word_limit: int = 1000,
@@ -67,38 +69,32 @@ def process_large_note(
     source: str = "normal",
     *,
     logger: LoggerProtocol | None = None,
-) -> str | None:
-    """
-    Traite une note volumineuse (split + appel LLM par bloc).
-
-    Si persist_blocks=True, chaque bloc est stocké en base dans `obsidian_temp_blocks`.
-    Retourne le contenu final (si write_file=False), sinon None.
-    """
+) -> str:
     logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).resolve()
     model_ollama = model_name or MODEL_LARGE_NOTE
 
     if not entry_type and not custom_prompts:
         logger.error("[ERROR] Aucun 'entry_type' (clé PROMPTS) ni 'custom_prompts' fournis.")
-        return None
+        raise BrainOpsError("large_note KO", code=ErrCode.UNEXPECTED, ctx={"note_id": note_id})
 
     try:
-        header_lines, content_lines = extract_yaml_header(path.as_posix(), logger=logger)
-        logger.debug("[DEBUG] content_lines extrait : %s", content_lines)
-        content = maybe_clean(content_lines)
+        # ⚠️ read_note_full → (NoteMetadata, body)
+        _meta, content_str = read_note_full(path.as_posix(), logger=logger)
+        logger.debug("[DEBUG] content_lines extrait : %s", content_str)
+        content = maybe_clean(content_str)
         logger.debug("[DEBUG] content nettoyé : %s", content)
 
-        # Choix de la méthode de split
+        # --- split
         if split_method == "titles_and_words":
             blocks = split_large_note_by_titles_and_words(content, word_limit=word_limit)
-            logger.debug("[DEBUG] blocks extrait : %s", blocks)
         elif split_method == "titles":
             blocks = split_large_note_by_titles(content)
         elif split_method == "words":
             blocks = split_large_note(content, max_words=word_limit)
         else:
             logger.error("[ERROR] Méthode de split inconnue : %s", split_method)
-            return None
+            raise BrainOpsError("Méthode de split inconnue", code=ErrCode.UNEXPECTED, ctx={"note_id": note_id})
 
         logger.info("[INFO] Note découpée en %d blocs", len(blocks))
         processed_blocks: list[str] = []
@@ -122,14 +118,14 @@ def process_large_note(
                         logger=logger,
                     )
                     if row:
-                        response, status = row
+                        response_pb, status = row
                         if status == "processed" and resume_if_possible:
                             logger.debug("[DEBUG] Bloc %d déjà traité, skip", i)
-                            if isinstance(response, list):
-                                response = "\n".join(map(str, response))
-                            elif not isinstance(response, str):
-                                response = str(response)
-                            processed_blocks.append(response.strip())
+                            if isinstance(response_pb, list):
+                                response_pb = "\n".join(map(str, response_pb))
+                            elif not isinstance(response_pb, str):
+                                response_pb = str(response_pb)
+                            processed_blocks.append(response_pb.strip())
                             continue
                     else:
                         insert_bloc(
@@ -144,11 +140,11 @@ def process_large_note(
                             source=source,
                             logger=logger,
                         )
-                except Exception as exc:  # pylint: disable=broad-except
-                    logger.exception("[ERROR] Insertion bloc %d échouée : %s", i, exc)
+                except Exception as exc:
+                    raise BrainOpsError("Insertion bloc KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
 
             # Traitement du bloc
-            response: str | list | None = block
+            response: str | list[str] | None = block
             if send_to_model:
                 # Sélection du prompt
                 if custom_prompts:
@@ -220,22 +216,21 @@ def process_large_note(
 
         # ✅ Correction: on assemble en texte puis nettoyage
         blocks_text = "\n\n".join(final_blocks)
-        final_body_content = clean_fake_code_blocks(maybe_clean(blocks_text))
-        final_content = join_yaml_and_body(header_lines, final_body_content)
+        final_body_content: str = clean_fake_code_blocks(maybe_clean(blocks_text))
 
-        if write_file:
-            success = safe_write(path.as_posix(), content=str(final_content), logger=logger)
-            if not success:
-                logger.error("[main] Problème lors de l’écriture de %s", path.as_posix())
-            else:
-                logger.info("[INFO] Note enregistrée : %s", path.as_posix())
-            return None
+        final_content = apply_to_note_body(
+            filepath=path,
+            transform=final_body_content,  # ← accepte un str si tu as pris ma version "Union[str, Callable]"
+            write_file=write_file,
+            logger=logger,
+        )
 
-        return str(final_content)
+        # ✨ respecte le contrat de retour
+        return final_content
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         logger.exception("[ERREUR] Traitement de %s échoué : %s", path.as_posix(), exc)
-        return None
+        raise BrainOpsError("large note KO", code=ErrCode.OLLAMA, ctx={"filepath": filepath}) from exc
 
 
 def split_large_note_by_titles(content: str) -> list[str]:

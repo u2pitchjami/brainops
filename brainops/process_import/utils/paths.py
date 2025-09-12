@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -77,6 +78,6 @@ def ensure_folder_exists(folder_path: str | Path, *, logger: LoggerProtocol | No
         return
     try:
         folder.mkdir(parents=True, exist_ok=True)
-        logger.info("[FOLDER] créé : %s", folder)
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.error("[FOLDER] échec création %s : %s", folder, exc)
+    except Exception as exc:
+        raise BrainOpsError("folder_exist KO", code=ErrCode.UNEXPECTED, ctx={"folder_path": folder_path}) from exc
+    logger.info("[FOLDER] créé : %s", folder)

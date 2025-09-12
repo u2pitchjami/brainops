@@ -9,7 +9,7 @@ from typing import Any
 
 import requests
 
-from brainops.models.exceptions import BrainOpsError
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.config import (
     OLLAMA_TIMEOUT,
     OLLAMA_URL_EMBEDDINGS,
@@ -50,8 +50,6 @@ def call_ollama_with_retry(
                 emb = get_embedding(prompt, model_ollama, logger=logger)
                 return json.dumps(emb)
             return ollama_generate(prompt, model_ollama, logger=logger)
-        except BrainOpsError:
-            raise
         except OllamaError as exc:
             logger.warning("[WARNING] Tentative %d/%d échouée : %s", attempt + 1, retries, exc)
             if attempt < retries - 1:
@@ -59,8 +57,10 @@ def call_ollama_with_retry(
                 time.sleep(delay)
             else:
                 logger.error("[ERREUR] Ollama ne répond pas après %d tentatives.", retries)
-                raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
-    raise
+                raise BrainOpsError(
+                    "KO récup ou création subcatg", code=ErrCode.DB, ctx={"name": "call_ollama_with_retry"}
+                ) from exc
+    raise BrainOpsError("KO récup ou création subcatg", code=ErrCode.DB, ctx={"name": "call_ollama_with_retry"})
 
 
 @with_child_logger
@@ -87,9 +87,11 @@ def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | 
             timeout=OLLAMA_TIMEOUT,
         ) as resp:
             if resp.status_code == 404:
-                raise OllamaError("Modèle introuvable sur Ollama (404).")
+                raise BrainOpsError(
+                    "Modèle introuvable sur Ollama (404)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}
+                )
             if resp.status_code in (500, 503):
-                raise OllamaError(f"Ollama indisponible ({resp.status_code}).")
+                raise BrainOpsError("Ollama indisponible)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code})
             resp.raise_for_status()
 
             full: list[str] = []
@@ -108,15 +110,17 @@ def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | 
             text = "".join(full).strip()
             if not text:
                 logger.warning("[WARNING] 🚨 Réponse Ollame vide")
-                raise
-    except BrainOpsError:
-        raise
+                raise BrainOpsError("Ollama indisponible)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code})
     except requests.exceptions.Timeout as exc:
-        raise OllamaError("Timeout sur l'appel generate.") from exc
+        raise BrainOpsError(
+            "Timeout sur l'appel generate", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}
+        ) from exc
     except requests.exceptions.ConnectionError as exc:
-        raise OllamaError("Connexion à Ollama impossible (Docker HS ?).") from exc
+        raise BrainOpsError(
+            "Connexion à Ollama impossible (Docker HS ?)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}
+        ) from exc
     except requests.HTTPError as exc:
-        raise OllamaError(f"HTTPError Ollama: {exc}") from exc
+        raise BrainOpsError("HTTPError Ollama", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}) from exc
     return text
 
 
@@ -144,14 +148,12 @@ def get_embedding(prompt: str, model_ollama: str, *, logger: LoggerProtocol | No
         emb = data.get("embedding", [])
         if not emb:
             logger.warning("[WARNING] 🚨 Embedding vide !")
-            raise
+            raise BrainOpsError("Embedding vide)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code})
         # S'assurer que c'est bien une liste de floats
         return [float(x) for x in emb]
-    except BrainOpsError:
-        raise
     except requests.exceptions.Timeout as exc:
-        logger.exception("Timeout sur l'appel embeddings : %s", exc)
-        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("Erreur lors de l'appel Ollama embeddings : %s", exc)
-        raise BrainOpsError(f"Erreur inattendue: {exc}") from exc
+        raise BrainOpsError(
+            "Timeout sur l'appel generate", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}
+        ) from exc
+    except Exception as exc:
+        raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}) from exc

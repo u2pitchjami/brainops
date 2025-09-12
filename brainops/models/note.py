@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ class Note:
     author: str | None = None
     project: str | None = None
 
-    created_at: date | None = None
+    created_at: str | None = None
     modified_at: datetime | None = None
     updated_at: datetime | None = None  # gérée par DB (timestamp ON UPDATE)
 
@@ -68,32 +68,43 @@ class Note:
     # ------------------- Mapping DB --------------------------------------------
 
     @classmethod
-    def from_row(cls, row: Mapping[str, Any]) -> Note:
+    def from_row(
+        cls,
+        row: Mapping[str, Any] | Sequence[Any],
+        columns: Sequence[str] | None = None,
+    ) -> Note:
         """
-        Construit une Note depuis un DictCursor (SELECT ...).
+        Accepte:
+          - un mapping (dict/Row) avec des clés => direct
+          - une séquence (tuple) + `columns` pour zipper
+        """
+        if isinstance(row, Mapping):
+            d = row
+        else:
+            if columns is None:
+                raise TypeError("columns est requis quand row est un tuple/sequence")
+            d = {k: v for k, v in zip(columns, row, strict=False)}
 
-        Les clés doivent correspondre aux noms de colonnes SQL.
-        """
         return cls(
-            id=row.get("id"),
-            parent_id=row.get("parent_id"),
-            title=row["title"],
-            file_path=row["file_path"],
-            folder_id=row["folder_id"],
-            category_id=row.get("category_id"),
-            subcategory_id=row.get("subcategory_id"),
-            status=row.get("status"),
-            summary=row.get("summary"),
-            source=row.get("source"),
-            author=row.get("author"),
-            project=row.get("project"),
-            created_at=row.get("created_at"),
-            modified_at=row.get("modified_at"),
-            updated_at=row.get("updated_at"),
-            word_count=row.get("word_count", 0) or 0,
-            content_hash=row.get("content_hash"),
-            source_hash=row.get("source_hash"),
-            lang=row.get("lang"),
+            id=d.get("id"),
+            parent_id=d.get("parent_id"),
+            title=str(d.get("title", "")),
+            file_path=str(d.get("file_path", "")),
+            folder_id=int(d.get("folder_id", 0)),
+            category_id=d.get("category_id"),
+            subcategory_id=d.get("subcategory_id"),
+            status=d.get("status"),
+            summary=d.get("summary"),
+            source=d.get("source"),
+            author=d.get("author"),
+            project=d.get("project"),
+            created_at=d.get("created_at"),
+            modified_at=d.get("modified_at"),
+            updated_at=d.get("updated_at"),
+            word_count=int(d.get("word_count", 0) or 0),
+            content_hash=d.get("content_hash"),
+            source_hash=d.get("source_hash"),
+            lang=d.get("lang"),
         )
 
     def to_upsert_params(self) -> tuple[Any, ...]:

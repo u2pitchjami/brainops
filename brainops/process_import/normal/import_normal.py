@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from brainops.header.headers import make_properties
+from brainops.models.exceptions import BrainOpsError
 from brainops.process_import.get_type.by_force import get_type_by_force
 from brainops.process_import.get_type.by_ollama import get_type_by_ollama
 from brainops.process_import.synthese.import_synthese import (
@@ -55,7 +56,10 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
         # 3) mise à jour DB (file_path uniquement ici)
         updates = {"file_path": final_path}
         logger.debug("[DEBUG] pre_import_normal MAJ DB : %s", updates)
-        update_obsidian_note(note_id, updates, logger=logger)
+        update = update_obsidian_note(note_id, updates, logger=logger)
+        if not update:
+            logger.warning("[WARN] ❌ Echec de l'update pour (id=%s)", note_id)
+            return False
 
         # Cas particulier : conversation GPT → on s'arrête là
         base_folder = Path(final_path).parent.as_posix()
@@ -94,7 +98,7 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
 
         logger.info("[INFO] 🏁 IMPORT terminé pour (id=%s)", note_id)
         return True
-
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERREUR] Problème lors de l'import : %s", exc)
-        return False
+    except BrainOpsError as exc:
+        logger.exception("Crash inattendu dans : %s", exc)
+        exc.ctx.setdefault("filepath", filepath)
+        raise

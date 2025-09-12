@@ -14,6 +14,7 @@ from typing import Union
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
 
+from brainops.models.event import EventType
 from brainops.utils.config import (
     BASE_PATH,
     WATCHDOG_DEBOUNCE_WINDOW,
@@ -22,7 +23,6 @@ from brainops.utils.config import (
 from brainops.utils.logger import LoggerProtocol, ensure_logger
 from brainops.utils.normalization import normalize_full_path
 from brainops.watcher.queue_manager import (
-    EventType,
     enqueue_event,
     get_logger,
     log_event_queue,
