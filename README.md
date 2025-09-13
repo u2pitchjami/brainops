@@ -1,104 +1,75 @@
 ![Projet Logo](brain_ops.svg)
 
+# 🧠 BrainOps
 
-## 🎯 Objectif principal
-
-Le but de ce projet est de créer un super assistant pour gérer mon organisation chaotique.
-Dans un premier temps je monte une base documentaires avec Obsidian, en mode second cerveau. Puis une base d'activités via des données diverses et variées.
-Dans un deuxième temps, implementer une IA générative pour analyser tout cela et gérer mon organisation et mon agenda.
-
-## 🔹 Contexte & Motivation
-
-J'ai de très gros problèmes d'organisation, le but est d'y remédier
+## 🚀 Objectif
+BrainOps est un projet Python (>3.1) qui automatise l’organisation et l’enrichissement d’un **second cerveau numérique** construit autour d’[Obsidian](https://obsidian.md).  
+Le système s’appuie sur une base de données, un moteur IA local (Ollama) et des scripts Python pour transformer des notes brutes (articles web, idées, documents) en archives propres, catégorisées, enrichies de métadonnées et accompagnées de synthèses intelligentes.
 
 ---
 
-### Objectif 01 - Création d'un base documentaires sous Obsidian.md
-
-Le but ici est de créer une base de connaissances avec Obsidian.
-Les différents articles insérés sont analysés, catégorisés, classés, retraités, reformulés et synthétisés par une IA locale Ollama.
- 
----
-### Objectif 02 - Collecter les données d'activités.md
-
-Le but ici est de collecter mes données d'activités issues de différentes sources.
-Mon activité informatique, android, les flux audios et vidéos via Listenbrainz, Youtube ou Trakt.tv.
-Mes données physiologiques via Garmin connect.
-Le but est d'intégrer tout cela dans une base de données MySQL afin de pouvoir les exploiter.
- 
-
----
-### Objectif 03 - Fiabiliser Listenbrainz.md
-
-Listenbrainz est alimenté par des scrobblers, mais la plupart ne sont réellement que pour la musique.
-Il s'agit donc de créer des règles pour intégrer correctement les vidéos et podcast.
- 
----
-### Objectif 04 - Process Android.md
-
-Autant pour des pc classiques, il est plus ou moins facile de récupérer l'activé.
-Sur un smartphone c'est un peu plus compliqué.
-Certaines applications permettent d'extraire l'activité mais demandent une intervention manuelle, le but ici est d'automatiser au maximum.
- 
----
-### Objectif 05 - Zexploiter les données.md
-
-Une fois les données récupérées il faut les mettre en musique.
-Comment ? via des règles définis au préalable ?
-via une IA ? si oui quel modèle ? locale ?
-
-
----
-### Objectif 06 - Process Garmin.md
-
-Garmin permet de récupérer plusieurs types de données, les activités sportives mais également les activités quotidiennes, pas, sommeil, calories, cardio etc...
- 
----
-## 🗺 Roadmap
-
-### 🚀 Roadmap Brain_Ops.md
-
-### **📌 MVP – Base Fonctionnelle (Obsidian & Données)**
-
-🎯 Objectif : Construire une **base documentaire et une base d’activités structurée**
-
-✅ **1. Structuration du Second Cerveau**
-
-
-✅ **2. Base d’Activités & Données**
-
+## 🧰 Stack technique
+- **Python 3.11+**
+- **Obsidian** (PC Windows, vault partagé sur serveur Unraid)
+- **MariaDB** (Docker officiel, hébergé sur VM Ubuntu Server)
+- **Ollama** (Docker officiel, multi-GPU avec équilibrage via Nginx reverse proxy)
+- **Unraid** (serveur principal : VM + stockage + GPU)
+- **Watcher de fichiers** (surveillance en temps réel du vault Obsidian)
 
 ---
 
-### **📌 V1 – Premiers outils d’analyse**
-
-🎯 Objectif : Extraire des insights utiles depuis les données
-
-✅ **1. Analyse basique des données**
-
-
-✅ **2. Intégration avec des outils externes**
-
-
----
-
-### **📌 V2 – IA Générative & Assistant Intelligent**
-
-🎯 Objectif : Rendre l’assistant **proactif et intelligent**
-
-✅ **1. Implémentation d’une IA générative**
-
-
-✅ **2. Planification et gestion automatisée**
-
+## ⚙️ Fonctionnalités principales
+- **Import automatique** de notes issues d’Obsidian Web Clipper  
+- **Détection des doublons** et rangement intelligent dans le vault  
+- **Nettoyage et uniformisation** des titres et contenus  
+- **Enrichissement avec IA** (via Ollama) :
+  - Catégorisation dynamique (création auto si inexistante)
+  - Génération d’un entête structuré (title, dates, source, auteur, status, catégorie, tags, résumé)
+  - Génération automatique de **tags** et **résumés courts**
+- **Archivage & synthèse** :
+  - Sauvegarde de l’article original (archive)
+  - Découpage en blocs + embeddings (`nomic-embed-text:latest`)
+  - Génération d’une **synthèse structurée** avec glossaire et axes d’approfondissement (`llama3.1:8b-instruct-q8_0`)
+  - Liens bidirectionnels entre archive et synthèse
+- **Mises à jour automatiques** :
+  - Synchronisation entre base MariaDB, vault Obsidian et notes
+  - Régénération possible via simple changement de status (`regen`, `regen_header`)
+  - Déplacement d’une note → mise à jour auto des catégories dans la DB et vault
+- **Service permanent** : démarrage automatique sur la VM + script de rattrapage des écarts
 
 ---
 
-🛠 **👉 Prochaines actions immédiates (MVP)** :
+## 🏗️ Architecture
 
-1. Définir clairement la structure d’Obsidian
-2. Choisir les types de données à collecter pour la base d’activités
-3. Mettre en place un système simple pour automatiser la capture d’infos
+Obsidian (notes) ──┐
+│
+Obsidian Clipper ─┼──▶ Vault partagé (Unraid)
+│
+Watcher (Python) ──┘
+│
+▼
+MariaDB (Docker) ◀──▶ Ollama (Docker multi-GPU via Nginx)
+│
+▼
+Notes enrichies (Archives + Synthèses) → Vault Obsidian
+
+---
+
+## 📊 Base de données
+- **obsidian_notes** : notes et métadonnées  
+- **obsidian_folders** : dossiers du vault  
+- **obsidian_categ** : catégories et sous-catégories  
+- **obsidian_tags** : tags associés  
+- **obsidian_temp_blocs** : blocs envoyés à Ollama  
+
+---
+
+## 📦 Roadmap & améliorations
+- 🎙️ Ajout d’imports audio/vidéo + génération de synthèses automatiques  
+- 📚 Création de synthèses multi-documents par catégorie  
+- 🧑‍💼 Extension de l’IA aux sections *personnal* et *projet* pour l’organisation personnelle  
+- 🔗 Connexion avec **ActivOps** pour la gestion des workflows  
+
 ---
 
 ## Authors
