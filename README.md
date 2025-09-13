@@ -40,7 +40,7 @@ Le système s’appuie sur une base de données, un moteur IA local (Ollama) et 
 ---
 
 ## 🏗️ Architecture
-
+```
 Obsidian (notes) 
        │
 Obsidian Clipper
@@ -59,7 +59,7 @@ Notes enrichies (Archives + Synthèses)
        │
        ▼
 Vault Obsidian
-
+```
 ---
 
 ## 📊 Base de données
