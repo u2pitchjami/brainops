@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.db_connection import get_db_connection
@@ -41,53 +41,58 @@ def get_note_linked_data(
             if not note:
                 raise BrainOpsError("Note id KO", code=ErrCode.DB, ctx={"note_id": note_id})
 
+            note_dict = cast(dict[str, Any], note)
             if what == "note":
-                return note
+                return note_dict
 
             if what == "category":
-                cat_id = note.get("category_id")
+                cat_id = note_dict.get("category_id")
                 if cat_id:
-                    row = safe_execute(
+                    row_categ = safe_execute(
                         cur,
                         "SELECT * FROM obsidian_categories WHERE id=%s",
                         (cat_id,),
                         logger=logger,
                     ).fetchone()
-                    return row or {"error": f"Catégorie {cat_id} introuvable"}
+                    row_categ_dict = cast(dict[str, Any], row_categ)
+                    return row_categ_dict or {"error": f"Catégorie {cat_id} introuvable"}
                 return {"error": "Aucune catégorie associée à cette note"}
 
             if what == "subcategory":
-                subcat_id = note.get("subcategory_id")
+                subcat_id = note_dict.get("subcategory_id")
                 if subcat_id:
-                    row = safe_execute(
+                    row_sub = safe_execute(
                         cur,
                         "SELECT * FROM obsidian_categories WHERE id=%s",
                         (subcat_id,),
                         logger=logger,
                     ).fetchone()
-                    return row or {"error": f"Sous-catégorie {subcat_id} introuvable"}
+                    row_sub_dict = cast(dict[str, Any], row_sub)
+                    return row_sub_dict or {"error": f"Sous-catégorie {subcat_id} introuvable"}
                 return {"error": "Aucune sous-catégorie associée à cette note"}
 
             if what == "folder":
-                folder_id = note.get("folder_id")
+                folder_id = note_dict.get("folder_id")
                 if folder_id:
-                    row = safe_execute(
+                    row_folder = safe_execute(
                         cur,
                         "SELECT * FROM obsidian_folders WHERE id=%s",
                         (folder_id,),
                         logger=logger,
                     ).fetchone()
-                    return row
+                    row_folder_dict = cast(dict[str, Any], row_folder)
+                    return row_folder_dict
                 return {}
 
             if what == "tags":
-                rows = safe_execute(
+                rows_tags = safe_execute(
                     cur,
                     "SELECT tag FROM obsidian_tags WHERE note_id=%s",
                     (note_id,),
                     logger=logger,
                 ).fetchall()
-                return [r["tag"] for r in rows]
+                rows_tags_list = cast(list[dict[str, Any]], rows_tags)
+                return [r["tag"] for r in rows_tags_list]
             return []
 
             if what == "temp_blocks":
@@ -137,8 +142,9 @@ def get_folder_linked_data(
         if not folder:
             raise BrainOpsError("Récup Folder KO", code=ErrCode.DB, ctx={"path": folder_path})
 
+        folder_dict = cast(dict[str, Any], folder)
         if what == "folder":
-            return folder
+            return folder_dict
 
         if what == "category":
             cat_id = folder.get("category_id")

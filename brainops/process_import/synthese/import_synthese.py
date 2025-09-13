@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from brainops.header.headers import make_properties
 from brainops.header.join_header_body import apply_to_note_body
@@ -233,7 +234,7 @@ def make_syntheses(
     translate_synth: str | None = None,
     glossary: str | None = None,
     questions: str | None = None,
-    header_lines: list[str] | None = None,
+    header_lines: dict[str, Any] | None = None,
     content_lines: str | None = None,
     logger: LoggerProtocol | None = None,
 ) -> None:

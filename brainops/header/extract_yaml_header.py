@@ -6,9 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from brainops.header.header_utils import (  # import tardif pour éviter cycles
-    get_yaml,
-)
+from brainops.header.header_utils import get_yaml
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
 from brainops.models.types import StrOrPath

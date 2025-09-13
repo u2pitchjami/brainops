@@ -83,7 +83,7 @@ def update_obsidian_note(
 
 
 @with_child_logger
-def update_obsidian_tags(note_id: int, tags: dict[str, Any], logger: LoggerProtocol | None = None) -> None:
+def update_obsidian_tags(note_id: int, tags: list[str], logger: LoggerProtocol | None = None) -> None:
     """
     update_obsidian_tags _summary_
 

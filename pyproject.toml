@@ -100,7 +100,7 @@ exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "RUF"]
-ignore = ["RUF002", "RUF003", "B010"]
+ignore = ["RUF002", "RUF002", "RUF003", "B010"]
 unfixable = [
   "B010"
 ]

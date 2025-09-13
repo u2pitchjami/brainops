@@ -55,7 +55,7 @@ def write_metadata_to_note(
 
 @with_child_logger
 def merge_metadata_in_note(
-    filepath: StrOrPath, updates: dict[str, str | int | list], *, logger: LoggerProtocol | None = None
+    filepath: StrOrPath, updates: dict[str, str | int | list[str]], *, logger: LoggerProtocol | None = None
 ) -> bool:
     """
     Fusionne des métadonnées dans l'entête YAML existant (sans perdre les anciennes).

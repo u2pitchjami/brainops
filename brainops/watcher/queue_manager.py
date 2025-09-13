@@ -94,7 +94,7 @@ def process_queue() -> None:
                             note_id = new_note(file_path, logger=logger)
                         except BrainOpsError as exc:
                             logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
-                            return False
+                            return
                         logger.info("[INFO] Note créée : (id=%s) %s", note_id, file_path)
 
                 # Pose le lock si pas encore fait par enqueue_event

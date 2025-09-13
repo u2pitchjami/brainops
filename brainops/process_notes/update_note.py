@@ -78,42 +78,43 @@ def update_note(
         if "error" in data:
             raise BrainOpsError("Update note KO", code=ErrCode.DB, ctx={"data": data})
 
-        parent_id = data.get("parent_id")
-        folder_id = data.get("folder_id")
-        category_id_db = data.get("category_id")
-        subcategory_id_db = data.get("subcategory_id")
+        if isinstance(data, dict):
+            parent_id = data.get("parent_id")
+            folder_id = data.get("folder_id")
+            category_id_db = data.get("category_id")
+            subcategory_id_db = data.get("subcategory_id")
 
-        # 4) Valeurs finales (YAML prioritaire si présent)
-        title = title_yaml or data.get("title")
-        created = created_yaml or data.get("created_at")  # colonne DB = created_at
-        author = author_yaml or data.get("author")
-        source = source_yaml or data.get("source")
-        project = project_yaml or data.get("project")
-        status = status_yaml or data.get("status")
-        summary = summary_yaml if summary_yaml is not None else data.get("summary")
+            # 4) Valeurs finales (YAML prioritaire si présent)
+            title = title_yaml or data.get("title")
+            created = created_yaml or data.get("created_at")  # colonne DB = created_at
+            author = author_yaml or data.get("author")
+            source = source_yaml or data.get("source")
+            project = project_yaml or data.get("project")
+            status = status_yaml or data.get("status")
+            summary = summary_yaml if summary_yaml is not None else data.get("summary")
 
-        # 5) Si categ/subcateg diffèrent → retrouver folder_id cible
-        category_id = category_id_db
-        subcategory_id = subcategory_id_db
-        if (category_id_db != category_id_dest) or (subcategory_id_db != subcategory_id_dest):
-            category_id = category_id_dest
-            subcategory_id = subcategory_id_dest
+            # 5) Si categ/subcateg diffèrent → retrouver folder_id cible
+            category_id = category_id_db
+            subcategory_id = subcategory_id_db
+            if (category_id_db != category_id_dest) or (subcategory_id_db != subcategory_id_dest):
+                category_id = category_id_dest
+                subcategory_id = subcategory_id_dest
 
-            fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
-            if fp:
-                folder_id = fp[0]  # (folder_id, path)
-                logger.debug(
-                    "[UPDATE_NOTE] Nouvelle classification → folder_id=%s (path=%s)",
-                    folder_id,
-                    fp[1],
-                )
-                categ_trigger = True
-            else:
-                logger.warning(
-                    "[UPDATE_NOTE] Aucune folder pour categ_id=%s / subcat_id=%s",
-                    category_id,
-                    subcategory_id,
-                )
+                fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
+                if fp:
+                    folder_id = fp[0]  # (folder_id, path)
+                    logger.debug(
+                        "[UPDATE_NOTE] Nouvelle classification → folder_id=%s (path=%s)",
+                        folder_id,
+                        fp[1],
+                    )
+                    categ_trigger = True
+                else:
+                    logger.warning(
+                        "[UPDATE_NOTE] Aucune folder pour categ_id=%s / subcat_id=%s",
+                        category_id,
+                        subcategory_id,
+                    )
 
         # 6) Update DB principal
         updates = {
@@ -153,7 +154,7 @@ def update_note(
             logger.debug("[UPDATE_NOTE] Post-action: regen_header")
             regen_header(note_id, str(dp), parent_id)
 
-        return note_id
+        return
 
     except Exception as exc:
         raise BrainOpsError("Update Note KO", code=ErrCode.UNEXPECTED, ctx={"status": "ollama"}) from exc

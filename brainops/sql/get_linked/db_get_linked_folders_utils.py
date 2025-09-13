@@ -13,31 +13,46 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def get_folder_id(folder_path: str, *, logger: LoggerProtocol | None = None) -> int:
     """
-    Retourne l'identifiant du dossier pour un chemin donné, ou None si introuvable.
+    Retourne l'identifiant du dossier pour un chemin donné.
+    Lève BrainOpsError si introuvable / invalide.  # <- doc alignée
     """
-    logger = ensure_logger(logger, __name__)
+    log = ensure_logger(logger, __name__)
     try:
-        exist = is_folder_exist(folderpath=folder_path, logger=logger)
+        exist = is_folder_exist(folderpath=folder_path, logger=log)
         if not exist:
             from brainops.process_folders.folders import add_folder
 
-            logger.warning("[FOLDER] 🚨 Dossier absent de la DB")
-            folder_id = add_folder(folder_path=folder_path, logger=logger)
-            if not folder_id:
+            log.warning("[FOLDER] 🚨 Dossier absent de la DB")
+            new_id = add_folder(folder_path=folder_path, logger=log)  # <- nom différent
+            if not new_id:
                 raise BrainOpsError("Récup FolderID KO", code=ErrCode.DB, ctx={"folder": folder_path})
-            return int(folder_id)
+            return int(new_id)
 
-        folder = get_folder_linked_data(folder_path, "folder", logger=logger)
+        folder = get_folder_linked_data(folder_path, "folder", logger=log)
+
         if isinstance(folder, dict) and "error" not in folder:
-            folder_id = folder.get("id")
-            logger.debug("[DEBUG] get_folder_id(%s) -> %s", folder_path, folder_id)
-            return int(folder_id)
+            raw_id = folder.get("id")  # type: Any | None
+            if raw_id is None:
+                raise BrainOpsError("FolderID manquant", code=ErrCode.DB, ctx={"folder": folder_path})
+            try:
+                return int(raw_id)
+            except (TypeError, ValueError) as exc:
+                raise BrainOpsError(
+                    "FolderID invalide",
+                    code=ErrCode.DB,
+                    ctx={"folder": folder_path, "id": raw_id},
+                ) from exc
+
         raise BrainOpsError("Récup FolderID KO", code=ErrCode.DB, ctx={"folder": folder_path})
+
+    except BrainOpsError:
+        raise
     except Exception as exc:  # pylint: disable=broad-except
+        # filet : on remonte proprement
         raise BrainOpsError(
-            "Récup FolderID KO",
+            "Erreur inattendue get_folder_id",
             code=ErrCode.DB,
-            ctx={"path": folder_path},
+            ctx={"folder": folder_path},
         ) from exc
 
 
