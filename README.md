@@ -41,20 +41,25 @@ Le système s’appuie sur une base de données, un moteur IA local (Ollama) et 
 
 ## 🏗️ Architecture
 
-```mermaid
-flowchart TD
+Obsidian (notes) 
+       │
+Obsidian Clipper
+       │
+       ▼
+Vault partagé (Unraid)
+       │
+       ▼
+Watcher (Python)
+       │
+       ▼
+MariaDB (Docker) <──> Ollama (Docker multi-GPU via Nginx)
+       │
+       ▼
+Notes enrichies (Archives + Synthèses)
+       │
+       ▼
+Vault Obsidian
 
-    A[Obsidian (notes)] --> C[Vault partagé (Unraid)]
-    B[Obsidian Clipper] --> C
-
-    C --> D[Watcher (Python)]
-    D --> E[MariaDB (Docker)]
-
-    E <--> F[Ollama (Docker multi-GPU via Nginx)]
-    E --> G[Notes enrichies (Archives + Synthèses)]
-    G --> C
-
-```
 ---
 
 ## 📊 Base de données
