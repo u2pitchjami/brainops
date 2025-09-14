@@ -107,6 +107,6 @@ def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int
                 logger.warning("[NOTES] 🚨 Echec Ajout métadonnées YAML (Archives)")
             logger.info("[NOTES] Ajout métadonnées YAML (Archives)")
 
-    except Exception:  # pylint: disable=broad-except
-        raise BrainOpsError("Note Upsert KO", code=ErrCode.DB, ctx={"note_id": note_id})
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError("Note Upsert KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     return note_id

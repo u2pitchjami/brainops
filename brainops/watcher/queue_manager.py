@@ -90,7 +90,7 @@ def process_queue() -> None:
                     if not note_id:
                         try:
                             logger.debug("[DEBUG] ===== Test Title")
-                            title_test = test_title(file_path, logger=logger)
+                            test_title(file_path, logger=logger)
                             note_id = new_note(file_path, logger=logger)
                         except BrainOpsError as exc:
                             logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)

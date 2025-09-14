@@ -12,6 +12,7 @@ from brainops.process_folders.folders_context import (
     add_folder_context,
     normalize_folder_path,
 )
+from brainops.process_import.utils.paths import ensure_folder_exists
 from brainops.sql.categs.db_categ_utils import remove_unused_category
 from brainops.sql.folders.db_folders import (
     add_folder_from_model,
@@ -77,7 +78,9 @@ def add_folder(
             subcategory_id=ctx.subcategory_id,
         )
 
-        return add_folder_from_model(new_folder, logger=logger)
+        folder_id = add_folder_from_model(new_folder, logger=logger)
+        ensure_folder_exists(folder_path=p_str, logger=logger)
+        return folder_id
     except Exception as exc:  # pylint: disable=broad-except
         raise BrainOpsError(
             "KO création folder",

@@ -9,8 +9,7 @@ from pathlib import Path
 from brainops.header.headers import make_properties
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_import.synthese.import_synthese import process_import_syntheses
-from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
-from brainops.sql.get_linked.db_get_linked_notes_utils import get_file_path
+from brainops.sql.get_linked.db_get_linked_notes_utils import get_file_path, get_note_status
 from brainops.sql.temp_blocs.db_delete_temp_blocs import delete_blocs_by_path_and_source
 from brainops.utils.logger import get_logger
 
@@ -56,8 +55,7 @@ def regen_header(note_id: int, filepath: str | Path, parent_id: int | None = Non
     try:
         path = Path(str(filepath)).resolve()
         if parent_id:
-            parent = get_note_linked_data(parent_id, "note", logger=logger)
-            parent_status = (parent or {}).get("status")
+            parent_status = get_note_status(parent_id, logger=logger)
             status = "synthesis" if parent_status == "archive" else "archive"
         else:
             status = "archive" if any(part.lower() == "archives" for part in path.parts) else "synthesis"

@@ -6,13 +6,12 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
 import json
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from numpy.typing import ArrayLike, NDArray
 
 from brainops.ollama.ollama_call import get_embedding
 from brainops.sql.temp_blocs.db_embeddings_temp_blocs import get_blocks_and_embeddings_by_note
@@ -21,11 +20,36 @@ from brainops.utils.logger import LoggerProtocol, get_logger
 logger: LoggerProtocol = get_logger("semantic_search")
 
 
-def _as_np2d(vectors: Sequence[Sequence[float]]) -> np.ndarray:
+class SearchHit(TypedDict):
+    text: str
+    score: float
+
+
+def _as_np2d(vectors: ArrayLike) -> NDArray[np.float32]:
+    """
+    Convertit un vecteur 1D ou une matrice 2D en np.float32 2D :
+
+    - (1, d) si l'entrée est 1D
+    - (n, d) si l'entrée est 2D
+    """
     arr = np.asarray(vectors, dtype=np.float32)
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
+    if arr.ndim != 2:
+        raise ValueError(f"Expected 1D or 2D input, got ndim={arr.ndim}")
     return arr
+
+
+def _cosine_sim_row_to_matrix(q: NDArray[np.float32], M: NDArray[np.float32]) -> NDArray[np.float32]:
+    """
+    Cosine similarity entre un seul vecteur (1, d) et une matrice (n, d).
+
+    Retourne un tableau (1, n).
+    """
+    eps = np.finfo(np.float32).eps
+    qn = q / (np.linalg.norm(q, axis=1, keepdims=True) + eps)
+    Mn = M / (np.linalg.norm(M, axis=1, keepdims=True) + eps)
+    return qn @ Mn.T
 
 
 def search_blocks_by_semantic(
@@ -34,7 +58,7 @@ def search_blocks_by_semantic(
     note_id: int | None,
     top_n: int = 5,
     embed_model: str = "nomic-embed-text:latest",
-) -> list[dict[str, Any]]:
+) -> list[SearchHit]:
     """
     Recherche sémantique des blocs d'une note via embeddings + cosine similarity.
 
@@ -58,6 +82,9 @@ def search_blocks_by_semantic(
     try:
         emb_mat = _as_np2d(embeddings)  # (N, D)
         q = _as_np2d(query_vec)  # (1, D)
+        if emb_mat.size == 0 or q.size == 0:
+            logger.info("Embeddings vides (size=0) pour note_id=%s.", note_id)
+            return []
         if emb_mat.shape[1] != q.shape[1]:
             logger.error(
                 "Dimension embedding incohérente: blocs=%s vs query=%s",
@@ -65,8 +92,13 @@ def search_blocks_by_semantic(
                 q.shape,
             )
             return []
-        sims = cosine_similarity(q, emb_mat)[0]
-        top_idx = sims.argsort()[-top_n:][::-1]
+        sims = _cosine_sim_row_to_matrix(q, emb_mat).ravel()  # (N,)
+        k = min(max(int(top_n), 0), sims.shape[0])
+        if k == 0:
+            return []
+        top_idx = np.argpartition(sims, -k)[-k:]  # O(N) sélection
+        # tri final décroissant
+        top_idx = top_idx[np.argsort(sims[top_idx])[::-1]]
         return [{"text": blocks[i], "score": float(sims[i])} for i in top_idx]
     except Exception as exc:
         logger.exception("Erreur similarity: %s", exc)

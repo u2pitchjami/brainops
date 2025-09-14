@@ -60,8 +60,8 @@ def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | 
         file_path.rename(new_path)
         logger.info("[INFO] Note renommée : %s → %s", file_path.name, new_path.name)
         return new_path
-    except Exception:
-        raise BrainOpsError("Rennomage fichier KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
+    except Exception as exc:
+        raise BrainOpsError("Rennomage fichier KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id}) from exc
 
 
 @with_child_logger

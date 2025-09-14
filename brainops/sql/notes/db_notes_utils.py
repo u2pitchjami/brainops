@@ -84,8 +84,8 @@ def check_synthesis_and_trigger_archive(
                 )
             else:
                 logger.warning("[SYNC] Aucune archive liée à la synthesis %s", note_id)
-    except Exception:
-        raise BrainOpsError("check_synthesis_and_trigger KO", code=ErrCode.DB, ctx={"note_id": note_id})
+    except Exception as exc:
+        raise BrainOpsError("check_synthesis_and_trigger KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     finally:
         conn.close()
 

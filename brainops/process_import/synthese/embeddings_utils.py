@@ -45,8 +45,6 @@ def make_embeddings_synthesis(note_id: int, filepath: str, *, logger: LoggerProt
 
         # 2) top blocs (avec score pour debug)
         top_blocks = select_top_blocks(note_id=note_id, ratio=0.3, return_scores=True, logger=logger)
-        for bloc in top_blocks:
-            logger.debug("🧠 Score %.4f → %s...", bloc["score"], bloc["text"][:80])
 
         # 3) synthèse finale
         prompt = build_summary_prompt(top_blocks)

@@ -1,5 +1,5 @@
 """
-note_reader.py — Fonctions centralisées de lecture de notes Obsidian
+note_reader.py — Fonctions centralisées de lecture de notes Obsidian.
 """
 
 from __future__ import annotations

@@ -64,7 +64,7 @@ def update_obsidian_note(
         return False
 
     set_clause = ", ".join(f"{k} = %s" for k in filtered.keys())
-    values = list(filtered.values()) + [note_id]
+    values = [*list(filtered.values()), note_id]
 
     conn = get_db_connection(logger=logger)
     try:

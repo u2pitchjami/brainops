@@ -100,7 +100,7 @@ def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None)
         except Exception as exc:
             logger.error(f"❌ [ERROR] Erreur lors de la suppression de la note {file_path} : {exc}")
             conn.rollback()
-            raise BrainOpsError("Note supprt KO", code=ErrCode.DB, ctx={"file_path": file_path})
+            raise BrainOpsError("Note supprt KO", code=ErrCode.DB, ctx={"file_path": file_path}) from exc
         finally:
             cur.close()
             conn.close()

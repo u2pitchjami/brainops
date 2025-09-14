@@ -214,7 +214,6 @@ def clean_content(content: str | list[str]) -> str:
 def read_note_content(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) -> str:
     """
     Lit le contenu d'une note (UTF-8).
-
     """
     logger = ensure_logger(logger, __name__)
     p = Path(filepath)

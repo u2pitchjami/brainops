@@ -45,10 +45,10 @@ def large_or_standard_note(
             if prompt_key:
                 pn, mdl = prompt_name_and_model_selection(note_id, key=prompt_key, logger=logger)
                 prompt_name = pn
-                model_ollama = model_ollama or mdl
+                def_model_ollama: str = model_ollama or mdl
                 logger.debug(
-                    "[DEBUG] large_or_standard_note resolved model_ollama : %s",
-                    model_ollama,
+                    "[DEBUG] large_or_standard_note resolved def_model_ollama : %s",
+                    def_model_ollama,
                 )
             else:
                 logger.error("[ERREUR] Aucun prompt_name/prompt_key fourni. Abandon.")
@@ -64,7 +64,7 @@ def large_or_standard_note(
                     split_method=split_method,
                     write_file=write_file,
                     send_to_model=send_to_model,
-                    model_name=model_ollama,
+                    model_name=def_model_ollama,
                     custom_prompts=custom_prompts,
                     persist_blocks=persist_blocks,
                     resume_if_possible=resume_if_possible,
@@ -84,7 +84,7 @@ def large_or_standard_note(
                     note_id=note_id,
                     filepath=filepath,
                     content=content or "",
-                    model_ollama=model_ollama,
+                    model_ollama=def_model_ollama,
                     prompt_name=prompt_name,
                     source=source,
                     write_file=write_file,

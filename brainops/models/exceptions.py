@@ -16,7 +16,9 @@ class ErrCode(StrEnum):
 
 
 class BrainOpsError(RuntimeError):
-    """Erreur métier avec code + contexte structuré."""
+    """
+    Erreur métier avec code + contexte structuré.
+    """
 
     __slots__ = ("code", "ctx")
 

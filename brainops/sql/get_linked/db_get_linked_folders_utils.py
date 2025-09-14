@@ -14,6 +14,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def get_folder_id(folder_path: str, *, logger: LoggerProtocol | None = None) -> int:
     """
     Retourne l'identifiant du dossier pour un chemin donné.
+
     Lève BrainOpsError si introuvable / invalide.  # <- doc alignée
     """
     log = ensure_logger(logger, __name__)
@@ -31,7 +32,7 @@ def get_folder_id(folder_path: str, *, logger: LoggerProtocol | None = None) -> 
         folder = get_folder_linked_data(folder_path, "folder", logger=log)
 
         if isinstance(folder, dict) and "error" not in folder:
-            raw_id = folder.get("id")  # type: Any | None
+            raw_id = folder.get("id")
             if raw_id is None:
                 raise BrainOpsError("FolderID manquant", code=ErrCode.DB, ctx={"folder": folder_path})
             try:

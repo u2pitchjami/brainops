@@ -155,3 +155,24 @@ def get_file_path(note_id: int, *, logger: LoggerProtocol | None = None) -> str:
     if not isinstance(note, dict):
         raise BrainOpsError("Aucune données récup", code=ErrCode.DB, ctx={"note_id": note_id})
     return str(note["file_path"])
+
+
+@with_child_logger
+def get_note_status(note_id: int, *, logger: LoggerProtocol | None = None) -> str:
+    """
+    get_note_status _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[str]: _description_
+    """
+    logger = ensure_logger(logger, __name__)
+    note = get_note_linked_data(note_id, "note", logger=logger)
+    if not isinstance(note, dict):
+        raise BrainOpsError("Aucune données récup", code=ErrCode.DB, ctx={"note_id": note_id})
+    return str(note["status"])

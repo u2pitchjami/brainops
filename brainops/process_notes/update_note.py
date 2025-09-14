@@ -81,8 +81,8 @@ def update_note(
         if isinstance(data, dict):
             parent_id = data.get("parent_id")
             folder_id = data.get("folder_id")
-            category_id_db = data.get("category_id")
-            subcategory_id_db = data.get("subcategory_id")
+            category_id_db = data.get("category_id") or None
+            subcategory_id_db = data.get("subcategory_id") or None
 
             # 4) Valeurs finales (YAML prioritaire si présent)
             title = title_yaml or data.get("title")
@@ -99,22 +99,22 @@ def update_note(
             if (category_id_db != category_id_dest) or (subcategory_id_db != subcategory_id_dest):
                 category_id = category_id_dest
                 subcategory_id = subcategory_id_dest
-
-                fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
-                if fp:
-                    folder_id = fp[0]  # (folder_id, path)
-                    logger.debug(
-                        "[UPDATE_NOTE] Nouvelle classification → folder_id=%s (path=%s)",
-                        folder_id,
-                        fp[1],
-                    )
-                    categ_trigger = True
-                else:
-                    logger.warning(
-                        "[UPDATE_NOTE] Aucune folder pour categ_id=%s / subcat_id=%s",
-                        category_id,
-                        subcategory_id,
-                    )
+                if category_id is not None:
+                    fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
+                    if fp:
+                        folder_id = fp[0]  # (folder_id, path)
+                        logger.debug(
+                            "[UPDATE_NOTE] Nouvelle classification → folder_id=%s (path=%s)",
+                            folder_id,
+                            fp[1],
+                        )
+                        categ_trigger = True
+                    else:
+                        logger.warning(
+                            "[UPDATE_NOTE] Aucune folder pour categ_id=%s / subcat_id=%s",
+                            category_id,
+                            subcategory_id,
+                        )
 
         # 6) Update DB principal
         updates = {

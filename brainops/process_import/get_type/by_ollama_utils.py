@@ -16,19 +16,20 @@ from brainops.models.classification import ClassificationResult
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_call import call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
+from brainops.process_folders.folders import add_folder
 from brainops.process_import.utils.divers import (
     prompt_name_and_model_selection,
 )
 from brainops.process_import.utils.paths import ensure_folder_exists
-from brainops.sql.categs.db_categ import get_path_safe
 from brainops.sql.categs.db_dictionary_categ import (
     generate_categ_dictionary,
     generate_optional_subcategories,
 )
 from brainops.sql.folders.db_folder_utils import (
-    get_path_from_classification,
+    get_folder_path_by_id,
 )
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
+    get_category_context_from_folder,
     get_folder_id,
 )
 from brainops.sql.notes.db_update_notes import update_obsidian_note
@@ -37,6 +38,7 @@ from brainops.utils.config import (
     SIMILARITY_WARNINGS_LOG,
     UNCATEGORIZED_JSON,
     UNCATEGORIZED_PATH,
+    Z_STORAGE_PATH,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -227,11 +229,25 @@ def _resolve_destination(
     try:
         cat_id = None
         subcat_id = None
-        path_result = get_path_safe(note_type, filepath, note_id, logger=logger)
+        try:
+            parts = [p.strip() for p in note_type.split("/", 1)]
+            category = parts[0]
+            subcategory = parts[1] if len(parts) == 2 and parts[1] else None
+        except Exception as exc:  # pylint: disable=broad-except
+            raise BrainOpsError(
+                "Format inattendu de note_type", code=ErrCode.METADATA, ctx={"note_type": note_type}
+            ) from exc
 
-        cat_id, subcat_id = path_result
-        res = get_path_from_classification(cat_id, subcat_id, logger=logger)
-        folder_id, dest_folder = res
+        categ_path = Path(Z_STORAGE_PATH) / category
+        cat_folder_id = add_folder(folder_path=categ_path, logger=logger)
+        if subcategory is not None:
+            subcateg_path = Path(Z_STORAGE_PATH) / category / subcategory
+            sub_folder_id = add_folder(folder_path=subcateg_path, logger=logger)
+            def_path = get_folder_path_by_id(sub_folder_id, logger=logger)
+            cat_id, subcat_id, _, _ = get_category_context_from_folder(def_path, logger=logger)
+        else:
+            def_path = get_folder_path_by_id(cat_folder_id, logger=logger)
+            cat_id, _, _, _ = get_category_context_from_folder(def_path, logger=logger)
 
     except Exception as exc:
         raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
@@ -239,7 +255,7 @@ def _resolve_destination(
         note_type=note_type,
         category_id=cat_id,
         subcategory_id=subcat_id,
-        folder_id=folder_id,
-        dest_folder=dest_folder,
+        folder_id=sub_folder_id or cat_folder_id,
+        dest_folder=def_path,
         status="archive",
     )

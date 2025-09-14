@@ -80,7 +80,7 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
             "status": classification.status,
         }
         logger.debug("[DEBUG] updates : %s", updates)
-        update_note = update_obsidian_note(note_id, updates, logger=logger)
+        update_obsidian_note(note_id, updates, logger=logger)
 
     except Exception as exc:
         logger.exception("Crash inattendu dans : %s", exc)

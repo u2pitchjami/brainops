@@ -26,6 +26,7 @@ class NoteMetadata:
     def from_yaml_dict(cls, data: Mapping[str, Any] | None) -> NoteMetadata:
         """
         Construit un NoteMetadata à partir d'un dict YAML.
+
         - Tolère data == None ou data non-mapping (ex: str) -> renvoie des valeurs par défaut.
         - Normalise 'subcategory' / 'sub category'.
         - Normalise 'tags' (liste attendue ; si str CSV, split).

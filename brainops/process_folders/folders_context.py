@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Never
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder, FolderType
@@ -89,7 +90,7 @@ def resolve_folder_context(path: str | Path, logger: LoggerProtocol | None = Non
     ftype = _detect_folder_type(p_str)
     logger.debug("[DEBUG] initial folder_type: %s", ftype)
     if path_is_inside(Z_STORAGE_PATH, p_str):
-        parts: str = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
+        parts: tuple[str, ...] | list[Never] = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
         if len(parts) >= 3 and parts[2].lower() == "archives":
             ftype = FolderType.ARCHIVE
 
@@ -131,7 +132,9 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
         # type
         ftype = _detect_folder_type(p_str)
         if path_is_inside(Z_STORAGE_PATH, p_str):
-            relative_parts = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
+            relative_parts: tuple[str, ...] | list[Never] = (
+                get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
+            )
             if len(relative_parts) == 1:
                 category = relative_parts[0]
             elif len(relative_parts) == 2:
@@ -193,7 +196,7 @@ def build_folder(
 
     ftype = override_type or _detect_folder_type(p)
     if path_is_inside(Z_STORAGE_PATH, p):
-        parts = get_relative_parts(p, Z_STORAGE_PATH, logger=logger) or []
+        parts: tuple[str, ...] | list[Never] = get_relative_parts(p, Z_STORAGE_PATH, logger=logger) or []
         if len(parts) >= 3 and parts[2].lower() == "archives":
             ftype = FolderType.ARCHIVE
 

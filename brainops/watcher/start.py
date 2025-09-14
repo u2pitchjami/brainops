@@ -9,7 +9,6 @@ import os
 import re
 import threading
 import time
-from typing import Union
 
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
 from watchdog.observers.polling import PollingObserver
@@ -105,7 +104,7 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
         logger.info("Watcher arrêté proprement.")
 
 
-Pathish = Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]
+Pathish = str | bytes | os.PathLike[str] | os.PathLike[bytes]
 
 
 class NoteHandler(FileSystemEventHandler):
@@ -203,7 +202,7 @@ class NoteHandler(FileSystemEventHandler):
                 self._logger.info("[MODIFICATION] FILE → %s", path)
             enqueue_event({"type": "file", "action": "modified", "path": path})
 
-    def on_moved(self, event: FileMovedEvent) -> None:  # type: ignore[override]
+    def on_moved(self, event: FileMovedEvent) -> None:
         """
         Traite les déplacements/renommages.
         """

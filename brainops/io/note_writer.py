@@ -1,5 +1,5 @@
 """
-note_writer.py — Fonctions de mise à jour de l'entête YAML des notes Obsidian
+note_writer.py — Fonctions de mise à jour de l'entête YAML des notes Obsidian.
 """
 
 from __future__ import annotations

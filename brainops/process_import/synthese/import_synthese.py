@@ -5,11 +5,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from brainops.header.headers import make_properties
 from brainops.header.join_header_body import apply_to_note_body
-from brainops.io.note_reader import read_metadata, read_note_full
+from brainops.io.note_reader import read_note_body
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_utils import large_or_standard_note
 from brainops.process_import.synthese.embeddings_utils import make_embeddings_synthesis
@@ -234,27 +233,23 @@ def make_syntheses(
     translate_synth: str | None = None,
     glossary: str | None = None,
     questions: str | None = None,
-    header_lines: dict[str, Any] | None = None,
     content_lines: str | None = None,
     logger: LoggerProtocol | None = None,
 ) -> None:
     """
     Construit le contenu final de la synthèse et l’écrit dans le fichier.
 
-    - header_lines/content_lines peuvent être fournis ; sinon on relit le fichier.
+    - content_lines peut être fournis ; sinon on relit le fichier.
     """
     logger = ensure_logger(logger, __name__)
     path = Path(str(filepath)).expanduser().resolve().as_posix()
 
     try:
         # Lecture si besoin
-        if not content_lines and header_lines:
-            header_lines, content_lines = read_note_full(path, logger=logger)
-        elif not header_lines:
-            header_lines = read_metadata(path, logger=logger)
+        if not content_lines:
+            content_lines = read_note_body(path, logger=logger)
 
         # Fallbacks propres
-        header_lines = header_lines or ["---\n---\n"]
         content_lines = (content_lines or "").strip()
 
         # Lien vers la note originale
@@ -277,7 +272,7 @@ def make_syntheses(
 
         body_content = "\n".join(blocks).strip()
         final_body_content = clean_fake_code_blocks(body_content)
-        final_content = apply_to_note_body(
+        apply_to_note_body(
             filepath=filepath,
             transform=final_body_content,
             write_file=True,

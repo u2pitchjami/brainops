@@ -36,6 +36,7 @@ def process_standard_note(
 ) -> str:
     """
     Traite une note entière (bloc unique) et, si write_file=True, réécrit le corps via apply_to_note_body.
+
     Retourne la réponse brute (texte) si write_file=False, sinon None.
     """
     log = ensure_logger(logger, __name__)

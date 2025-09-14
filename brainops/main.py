@@ -1,4 +1,6 @@
-"""# runner.py"""
+"""
+# runner.py
+"""
 
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ logger = get_logger("Brainops Watcher")
 @safe_main
 def main() -> None:
     """
-    main _summary_
+    Main _summary_
 
     _extended_summary_
     """

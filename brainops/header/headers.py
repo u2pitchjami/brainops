@@ -128,10 +128,8 @@ def make_properties(
     """
     Génère/rafraîchit les propriétés d'une note :
 
-    1) Lecture YAML + body
-    2) Appels IA (tags + summary) sur le body
-    3) Mise à jour DB (status, summary, tags, word_count)
-    4) Réécriture YAML consolidée via NoteMetadata
+    1) Lecture YAML + body 2) Appels IA (tags + summary) sur le body 3) Mise à jour DB (status, summary, tags,
+    word_count) 4) Réécriture YAML consolidée via NoteMetadata
 
     Retourne True si tout s'est bien passé.
     """

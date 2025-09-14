@@ -83,7 +83,7 @@ class Note:
         else:
             if columns is None:
                 raise TypeError("columns est requis quand row est un tuple/sequence")
-            d = {k: v for k, v in zip(columns, row, strict=False)}
+            d = dict(zip(columns, row, strict=False))
 
         return cls(
             id=d.get("id"),

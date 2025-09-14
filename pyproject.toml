@@ -89,6 +89,16 @@ module = "langdetect"
 ignore_missing_imports = true
 follow_imports = "skip"
 
+[[tool.mypy.overrides]]
+module = "watchdog.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "Levenshtein"
+ignore_missing_imports = true
+follow_imports = "skip"
+
 # --- Ruff (v0.6+) -----------------------------------------------------------
 [tool.ruff]
 line-length = 120
@@ -100,7 +110,7 @@ exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "RUF"]
-ignore = ["RUF002", "RUF002", "RUF003", "B010"]
+ignore = ["RUF001", "RUF002", "RUF003", "B010"]
 unfixable = [
   "B010"
 ]

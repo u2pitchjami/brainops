@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Union, overload
+from typing import Any, overload
 
 from brainops.header.extract_yaml_header import extract_yaml_header
 from brainops.header.header_utils import merge_yaml_header
@@ -13,7 +13,7 @@ from brainops.utils.files import safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 BodyTransform = Callable[[str], str | tuple[str, dict[str, Any]]]
-BodyTransformInput = Union[str, BodyTransform]
+BodyTransformInput = str | BodyTransform
 
 
 @overload
@@ -52,6 +52,7 @@ def apply_to_note_body(
 ) -> str:
     """
     Applique `transform` au CORPS d'une note (frontmatter YAML conservé), puis:
+
       - si write_file=True : écrit le fichier et retourne None
       - sinon : retourne le contenu complet (YAML + body) sous forme de str
 

@@ -1,4 +1,6 @@
-"""prompts pour ollama"""
+"""
+Prompts pour ollama.
+"""
 
 PROMPTS = {
     "reformulation": """

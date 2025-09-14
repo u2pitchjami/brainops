@@ -1,1 +1,3 @@
-"""sql pour notes"""
+"""
+Sql pour notes.
+"""

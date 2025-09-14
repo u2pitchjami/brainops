@@ -32,7 +32,7 @@ def sanitize_created(created: object, *, logger: LoggerProtocol | None = None) -
     """
     logger = ensure_logger(logger, __name__)
     try:
-        if isinstance(created, (datetime, date)):
+        if isinstance(created, (datetime | date)):
             return created.strftime("%Y-%m-%d")
         if isinstance(created, str) and created.strip():
             try:

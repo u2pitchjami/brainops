@@ -31,7 +31,7 @@ def determine_max_words(filepath: str | Path) -> int:
     Détermine dynamiquement la taille des blocs en fonction du fichier.
     """
     fp = str(filepath).lower()
-    return 1000 if "gpt_import" in fp else 1000
+    return 1000 if "gpt_import" in fp else 1500
 
 
 def split_large_note(content: str, max_words: int = 1000) -> list[str]:
@@ -153,9 +153,7 @@ def process_large_note(
                     elif i == len(blocks) - 1 and "last" in custom_prompts:
                         prompt = custom_prompts["last"].format(content=block)
                     else:
-                        prompt = custom_prompts.get("middle", PROMPTS.get(entry_type, "{content}")).format(
-                            content=block
-                        )
+                        prompt = custom_prompts["middle"].format(content=block)
                 else:
                     prompt_tpl = PROMPTS.get(entry_type or "")
                     if not prompt_tpl:

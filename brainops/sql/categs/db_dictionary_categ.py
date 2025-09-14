@@ -39,8 +39,8 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
         for cat, subs in groups.items():
             lines.append(f'- "{cat}": {", ".join(sorted(subs))}')
         return "\n".join(lines)
-    except Exception:
-        raise BrainOpsError("KO récup optionnal subcateg", code=ErrCode.DB, ctx={"results": results})
+    except Exception as exc:
+        raise BrainOpsError("KO récup optionnal subcateg", code=ErrCode.DB, ctx={"results": results}) from exc
     finally:
         conn.close()
 

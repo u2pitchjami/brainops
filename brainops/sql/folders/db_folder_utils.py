@@ -209,3 +209,31 @@ def get_folder_type_by_id(folder_id: int, *, logger: LoggerProtocol | None = Non
         return None
     finally:
         conn.close()
+
+
+@with_child_logger
+def get_folder_path_by_id(folder_id: int, *, logger: LoggerProtocol | None = None) -> str:
+    """
+    Retourne le `path` pour un identifiant de dossier, ou None si introuvable.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+
+    try:
+        with conn.cursor() as cur:
+            row = safe_execute(
+                cur,
+                "SELECT path FROM obsidian_folders WHERE id=%s",
+                (folder_id,),
+                logger=logger,
+            ).fetchone()
+        if row is not None:
+            return str(row[0])
+        raise BrainOpsError(f"Aucun Path pour le folder id {folder_id}", code=ErrCode.DB, ctx={"folder_id": folder_id})
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.exception("[DB] get_folder_type_by_id(%s) erreur: %s", folder_id, exc)
+        raise BrainOpsError(
+            f"Aucun Path pour le folder id {folder_id}", code=ErrCode.DB, ctx={"folder_id": folder_id}
+        ) from exc
+    finally:
+        conn.close()

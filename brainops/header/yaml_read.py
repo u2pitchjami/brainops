@@ -18,6 +18,7 @@ from brainops.utils.normalization import sanitize_yaml_title
 def test_title(file_path: StrOrPath, *, logger: LoggerProtocol | None = None) -> bool:
     """
     Vérifie/corrige le champ YAML 'title' d'une note.
+
     - Lit uniquement la valeur 'title' depuis l'entête.
     - Si la version normalisée diffère, met à jour l'entête (champ unique).
 
@@ -42,6 +43,8 @@ def test_title(file_path: StrOrPath, *, logger: LoggerProtocol | None = None) ->
         if update_yaml_field(file_path, "title", sanitized, logger=logger):
             logger.info("[test_title] Titre corrigé pour %s: %r -> %r", file_path, current, sanitized)
             return True
+        logger.error("[test_title] Échec d'écriture sécurisée pour %s", file_path)
+        return False
     except FileNotFoundError as exc:  # pylint: disable=broad-except
         raise BrainOpsError(
             "Note absente !!",

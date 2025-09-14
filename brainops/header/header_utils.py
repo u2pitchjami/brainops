@@ -35,7 +35,7 @@ def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str,
 @with_child_logger
 def get_yaml_value(
     content: str, key: str, default: str | None = None, *, logger: LoggerProtocol | None = None
-) -> str | None:
+) -> Any | None:
     """
     get_yaml_value _summary_
 
@@ -52,6 +52,8 @@ def get_yaml_value(
     """
     logger = ensure_logger(logger, __name__)
     y = get_yaml(content, logger=logger)
+    if y is None:
+        return None
     return y.get(key, default)
 
 
@@ -70,7 +72,9 @@ def update_yaml_header(content: str, new_metadata: dict[str, str], *, logger: Lo
 
 
 @with_child_logger
-def merge_yaml_header(content: str, new_metadata: dict[str, str], *, logger: LoggerProtocol | None = None) -> str:
+def merge_yaml_header(
+    content: str, new_metadata: dict[str, str | int | list[str]], *, logger: LoggerProtocol | None = None
+) -> str:
     """
     Fusionne de nouvelles métadonnées dans l’en-tête YAML (conserve le reste).
     """
@@ -143,7 +147,7 @@ def clean_yaml_spacing_in_file(file_path: str, *, logger: LoggerProtocol | None 
         while body_start < len(lines) and lines[body_start].strip() == "":
             body_start += 1
 
-        new_lines = lines[: yaml_end_idx + 1] + [""] + lines[body_start:]
+        new_lines = [*lines[: yaml_end_idx + 1], "", *lines[body_start:]]
         new_content = "\n".join(new_lines).strip() + "\n"
         return safe_write(file_path, new_content, logger=logger)
     except Exception as exc:  # pylint: disable=broad-except

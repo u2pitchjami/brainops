@@ -155,7 +155,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
     cursor.execute("SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
     db_folders: list[FolderRow] = cursor.fetchall()
 
-    physical_dirs = {p for p in _iter_physical_dirs(cfg.base_path)}
+    physical_dirs: set[Path] = set(_iter_physical_dirs(cfg.base_path))
     db_folder_paths = {Path(row["path"]).resolve() for row in db_folders}
 
     folders_missing_in_db = sorted(str(p) for p in (physical_dirs - db_folder_paths))
@@ -180,7 +180,7 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
             errors.append(("note_missing_file", str(fpath)))
             logger.info("📝 - Note fantôme en DB (fichier absent) : %s", fpath)
 
-    all_md_files = {p for p in _iter_md_files(cfg.base_path)}
+    all_md_files: set[Path] = set(_iter_md_files(cfg.base_path))
     db_note_paths = {Path(n["file_path"]).resolve() for n in notes}
     notes_missing_in_db = sorted(str(p) for p in (all_md_files - db_note_paths))
     for p in notes_missing_in_db:
