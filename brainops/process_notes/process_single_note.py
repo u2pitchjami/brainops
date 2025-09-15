@@ -113,7 +113,7 @@ def process_single_note(
             return True
 
         # 2) Destination dans IMPORTS : import normal + synthèse
-        if path_is_inside(IMPORTS_PATH, base_folder):
+        elif path_is_inside(IMPORTS_PATH, base_folder):
             logger.info("[MOVED] ✈️ (id=%s) : → imports : Lancement Import", note_id)
             try:
                 importok = import_normal(filepath, note_id, force_categ=False)
@@ -126,13 +126,13 @@ def process_single_note(
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return True
 
-        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(Z_STORAGE_PATH, src_folder):
-            logger.info("[MOVED] ✈️ (id=%s) : storage → storage : Lancement Import", note_id)
-            cat_name, subcat_name, _, _ = categ_extract(src_path)
-            new_cat_name, new_subcat_name, _, _ = categ_extract(filepath)
+        else:
+            logger.info("[MOVED] ✈️ (id=%s) : %s → %s : Lancement Import", note_id, src_folder, base_folder)
+            cat_name, subcat_name, _, _ = categ_extract(src_folder)
+            new_cat_name, new_subcat_name, _, _ = categ_extract(base_folder)
             if not new_cat_name or not new_subcat_name:
                 logger.warning(
-                    "[WARN] ✈️ (id=%s) : storage → storage : Catégories non détectées",
+                    "[WARN] ✈️ (id=%s) : Catégories non détectées",
                     note_id,
                 )
                 return False
@@ -149,7 +149,7 @@ def process_single_note(
 
         # 3) Autres déplacements ignorés
         logger.info("[MOVED] 🚨 Déplacement inconnu : %s → %s", src_path, filepath)
-        return True
+        return False
 
     # ---------------------------------
     # CAS CRÉATION / MODIFICATION (no move)
@@ -260,5 +260,5 @@ def process_single_note(
             return False
 
     # E) Tous les autres cas : aucun traitement
-    logger.warning("🚨 (id=%s) Aucune règle indentifiée", note_id)
-    return True
+    logger.info("🚨 (id=%s) Aucune règle indentifiée", note_id)
+    return False

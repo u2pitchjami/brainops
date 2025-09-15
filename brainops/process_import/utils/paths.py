@@ -77,7 +77,7 @@ def ensure_folder_exists(folder_path: str | Path, *, logger: LoggerProtocol | No
         logger.debug("[FOLDER] déjà présent : %s", folder)
         return
     try:
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=False, exist_ok=True)
     except Exception as exc:
         raise BrainOpsError("folder_exist KO", code=ErrCode.UNEXPECTED, ctx={"folder_path": folder_path}) from exc
     logger.info("[FOLDER] créé : %s", folder)

@@ -19,6 +19,7 @@ from brainops.sql.notes.db_update_notes import (
     update_obsidian_note,
     update_obsidian_tags,
 )
+from brainops.utils.files import wait_for_file
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -43,11 +44,16 @@ def update_note(
     sp = Path(src_path) if src_path is not None else None
     logger.debug("[UPDATE_NOTE] note_id=%s | dest=%s | src=%s", note_id, dp, sp)
 
+    if not wait_for_file(dp, logger=logger):
+        logger.warning("⚠️ Fichier introuvable, skip : %s", dp)
+        return
+
     categ_trigger = False
 
     try:
         # 1) Métadonnées depuis YAML
         meta = read_metadata_object(str(dp), logger=logger)
+        logger.warning(f"meta : {meta}")
         title_yaml = meta.title or dp.stem.replace("_", " ").replace(":", " ")
         status_yaml = meta.status or "draft"
         tags_yaml = meta.tags or []
@@ -83,9 +89,14 @@ def update_note(
             folder_id = data.get("folder_id")
             category_id_db = data.get("category_id") or None
             subcategory_id_db = data.get("subcategory_id") or None
+            db_title = data.get("title")
+            logger.info("[UPDATE_NOTE] db_title=%s", db_title)
+            if "untitled" or "sans titre" in str(db_title).strip().lower():
+                db_title = Path(dp).stem
+                logger.info("[UPDATE_NOTE 2] db_title=%s", db_title)
 
             # 4) Valeurs finales (YAML prioritaire si présent)
-            title = title_yaml or data.get("title")
+            title = title_yaml or db_title
             created = created_yaml or data.get("created_at")  # colonne DB = created_at
             author = author_yaml or data.get("author")
             source = source_yaml or data.get("source")

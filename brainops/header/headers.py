@@ -167,15 +167,13 @@ def make_properties(
             meta_yaml,  # puis l’existant
         )
 
-        # 7) Recalcul word_count (après réécriture YAML)
-        word_count = count_words(filepath=path, logger=log)
-        update_obsidian_note(note_id, {"word_count": word_count}, logger=log)
-
-        log.info("[make_properties] OK (id=%s, wc=%s)", note_id, word_count)
-        # 6) Écriture YAML consolidée
         if not write_metadata_to_note(path, meta_final, logger=log):
             log.error("[make_properties] Échec écriture YAML pour %s", path)
             return False
+        # 7) Recalcul word_count (après réécriture YAML)
+        word_count = count_words(filepath=path, logger=log)
+        update_obsidian_note(note_id, {"word_count": word_count}, logger=log)
+        log.info("[make_properties] OK (id=%s, wc=%s)", note_id, word_count)
         return True
     except Exception as exc:  # pylint: disable=broad-except
         raise BrainOpsError("construction header KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc

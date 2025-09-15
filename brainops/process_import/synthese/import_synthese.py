@@ -54,6 +54,7 @@ def process_import_syntheses(
             final_response = make_embeddings_synthesis(note_id, path, logger=logger)
         else:
             archive_path = Path(get_file_path(parent_id, logger=logger))
+            logger.debug("[DEBUG] archive_path %s", archive_path)
             if not archive_path:
                 raise BrainOpsError("archive_path introuvable KO", code=ErrCode.NOFILE, ctx={"note_id": note_id})
             final_response = make_embeddings_synthesis(note_id, str(archive_path), logger=logger)

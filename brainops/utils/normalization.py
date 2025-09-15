@@ -78,8 +78,8 @@ def sanitize_filename(filename: str, *, logger: LoggerProtocol | None = None) ->
     """
     logger = ensure_logger(logger, __name__)
     try:
-        sanitized = re.sub(r'[<>:"/\\|?*]', "_", filename)
-        sanitized = sanitized.replace(" ", "_")
+        sanitized = re.sub(r'[<>:"/\\|?*]', " ", filename)
+        # sanitized = sanitized.replace(" ", "_")
         return sanitized
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("[sanitize_filename] erreur: %s", exc)

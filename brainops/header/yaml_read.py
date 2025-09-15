@@ -31,7 +31,6 @@ def test_title(file_path: StrOrPath, *, logger: LoggerProtocol | None = None) ->
 
         if current is None or not current:
             logger.debug("[test_title] Pas de champ 'title' pour %s", file_path)
-            raise BrainOpsError("Note sans titre", code=ErrCode.METADATA, ctx={"path": file_path})
 
         sanitized = sanitize_yaml_title(str(current))
 

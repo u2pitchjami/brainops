@@ -214,12 +214,12 @@ def get_logger(script_name: str) -> LoggerProtocol:
         rotate_logs(LOG_FILE_PATH, LOG_ROTATION_DAYS, logf=script_log_file)
     except Exception as exc:
         base_fallback = logging.getLogger(script_name)
-        base_fallback.setLevel(logging.INFO)
+        base_fallback.setLevel(logging.DEBUG)
         _ensure_handlers(base_fallback, global_log_file, script_log_file)
         BrainopsLogger(base_fallback).warning(f"Rotation des logs échouée: {exc}")
 
     base = logging.getLogger(script_name)
-    base.setLevel(logging.INFO)
+    base.setLevel(logging.DEBUG)
     _ensure_handlers(base, global_log_file, script_log_file)
     return BrainopsLogger(base)  # ← classe concrète, pas le Protocol
 

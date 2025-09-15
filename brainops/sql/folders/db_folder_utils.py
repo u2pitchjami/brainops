@@ -26,6 +26,8 @@ def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bo
     Returns:
         bool: true si existe sinon false
     """
+    logger = ensure_logger(logger, __name__)
+    logger.debug("[is_folder_exist] entrée is_folder_exist %s", folderpath)
     conn = get_db_connection(logger=logger)
     try:
         with conn.cursor() as cur:

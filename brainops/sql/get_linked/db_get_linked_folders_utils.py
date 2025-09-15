@@ -17,19 +17,22 @@ def get_folder_id(folder_path: str, *, logger: LoggerProtocol | None = None) -> 
 
     Lève BrainOpsError si introuvable / invalide.  # <- doc alignée
     """
-    log = ensure_logger(logger, __name__)
+    logger = ensure_logger(logger, __name__)
+    logger.debug("[get_folder_id] entrée get_folder_id")
     try:
-        exist = is_folder_exist(folderpath=folder_path, logger=log)
+        exist = is_folder_exist(folderpath=folder_path, logger=logger)
+        logger.debug("[get_folder_id] exist: %s", exist)
         if not exist:
+            logger.debug("[get_folder_id] not exist")
             from brainops.process_folders.folders import add_folder
 
-            log.warning("[FOLDER] 🚨 Dossier absent de la DB")
-            new_id = add_folder(folder_path=folder_path, logger=log)  # <- nom différent
+            logger.warning("[FOLDER] 🚨 Dossier absent de la DB")
+            new_id = add_folder(folder_path=folder_path, logger=logger)  # <- nom différent
             if not new_id:
                 raise BrainOpsError("Récup FolderID KO", code=ErrCode.DB, ctx={"folder": folder_path})
             return int(new_id)
-
-        folder = get_folder_linked_data(folder_path, "folder", logger=log)
+        logger.debug("[get_folder_id] exist")
+        folder = get_folder_linked_data(folder_path, "folder", logger=logger)
 
         if isinstance(folder, dict) and "error" not in folder:
             raw_id = folder.get("id")

@@ -19,7 +19,7 @@ from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
     get_folder_id,
 )
-from brainops.utils.config import Z_STORAGE_PATH
+from brainops.utils.config import BASE_PATH, Z_STORAGE_PATH
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -76,7 +76,7 @@ def resolve_folder_context(path: str | Path, logger: LoggerProtocol | None = Non
     logger = ensure_logger(logger, __name__)
     logger.debug("[DEBUG] resolve_folder_context(%s)", path)
     p_str = normalize_folder_path(path)
-
+    logger.debug("[DEBUG] p_str: %s", p_str)
     # parent
     p = Path(p_str)
     parent_path = p.parent.as_posix() if p.parent != p else None
@@ -119,15 +119,18 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
         None,
         None,
     )
-    logger.debug("[DEBUG] resolve_folder_context(%s)", path)
+    logger.debug("[DEBUG] add_folder_context(%s)", path)
 
     try:
         p_str = normalize_folder_path(path)
+        logger.debug("[DEBUG] add_folder_context p_str normalize_folder_path (%s)", path)
 
         # parent
         p = Path(p_str)
         parent_path = p.parent.as_posix() if p.parent != p else None
+        logger.debug("[DEBUG] add_folder_context parent_path (%s)", parent_path)
         parent_id = get_folder_id(parent_path, logger=logger) if parent_path else None
+        logger.debug("[DEBUG] add_folder_context parent_id (%s)", parent_id)
 
         # type
         ftype = _detect_folder_type(p_str)
@@ -142,13 +145,19 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
             elif len(relative_parts) == 3 and relative_parts[2].lower() == "archives":
                 category, subcategory = relative_parts[0], relative_parts[1]
                 ftype = FolderType.ARCHIVE
+        else:
+            relative_parts = get_relative_parts(p_str, BASE_PATH, logger=logger) or []
+            if len(relative_parts) == 1:
+                category = relative_parts[0]
+            elif len(relative_parts) >= 2:
+                category, subcategory = relative_parts[0], relative_parts[1]
 
-            if category:
-                category_id = get_or_create_category(category, logger=logger)
-                logger.debug(f"[DEBUG] category_id: {category_id} {category}")
-                if subcategory:
-                    subcategory_id = get_or_create_subcategory(subcategory, category_id, logger=logger)
-                    logger.debug(f"[DEBUG] subcategory_id: {subcategory_id} {subcategory}")
+        if category:
+            category_id = get_or_create_category(category, logger=logger)
+            logger.debug(f"[DEBUG] category_id: {category_id} {category}")
+            if subcategory:
+                subcategory_id = get_or_create_subcategory(subcategory, category_id, logger=logger)
+                logger.debug(f"[DEBUG] subcategory_id: {subcategory_id} {subcategory}")
 
         return FolderContext(
             parent_path=parent_path,

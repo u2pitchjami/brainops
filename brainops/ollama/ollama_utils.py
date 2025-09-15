@@ -45,14 +45,18 @@ def large_or_standard_note(
             if prompt_key:
                 pn, mdl = prompt_name_and_model_selection(note_id, key=prompt_key, logger=logger)
                 prompt_name = pn
-                def_model_ollama: str = model_ollama or mdl
+                model_ollama = model_ollama or mdl
                 logger.debug(
                     "[DEBUG] large_or_standard_note resolved def_model_ollama : %s",
-                    def_model_ollama,
+                    model_ollama,
                 )
             else:
                 logger.error("[ERREUR] Aucun prompt_name/prompt_key fourni. Abandon.")
-                return ""
+                raise BrainOpsError(
+                    "large_or_standard_note : Aucun prompt_name/prompt_key fourni. Abandon",
+                    code=ErrCode.OLLAMA,
+                    ctx={"note_id": note_id},
+                )
 
         if process_mode == "large_note":
             return (
@@ -64,7 +68,7 @@ def large_or_standard_note(
                     split_method=split_method,
                     write_file=write_file,
                     send_to_model=send_to_model,
-                    model_name=def_model_ollama,
+                    model_name=model_ollama,
                     custom_prompts=custom_prompts,
                     persist_blocks=persist_blocks,
                     resume_if_possible=resume_if_possible,
@@ -75,6 +79,13 @@ def large_or_standard_note(
             )
 
         if process_mode == "standard_note":
+            if not model_ollama:
+                raise BrainOpsError(
+                    "large_or_standard_note : Aucun prompt_name/prompt_key fourni. Abandon",
+                    code=ErrCode.OLLAMA,
+                    ctx={"note_id": note_id},
+                )
+
             logger.debug(
                 "[DEBUG] large_or_standard_note → standard_note (model=%s)",
                 model_ollama,
@@ -84,7 +95,7 @@ def large_or_standard_note(
                     note_id=note_id,
                     filepath=filepath,
                     content=content or "",
-                    model_ollama=def_model_ollama,
+                    model_ollama=model_ollama,
                     prompt_name=prompt_name,
                     source=source,
                     write_file=write_file,
