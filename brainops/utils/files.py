@@ -110,7 +110,7 @@ def copy_file_with_date(
         dst_dir.mkdir(parents=True, exist_ok=True)
         stem, ext = src.stem, src.suffix
         date_str = datetime.now().strftime("%y%m%d")
-        dst = dst_dir / f"{date_str}_{stem}{ext}"
+        dst = dst_dir / f"{date_str} {stem}{ext}"
         dst.write_bytes(src.read_bytes())
     except Exception as exc:
         logger.error("[COPY] Échec %s → %s : %s", src, dst_dir, exc)
@@ -137,7 +137,7 @@ def move_file_with_date(
     try:
         dst_dir.mkdir(parents=True, exist_ok=True)
         date_str = datetime.now().strftime("%y%m%d")
-        dst = dst_dir / f"{date_str}_{src.name}"
+        dst = dst_dir / f"{date_str} {src.name}"
         src.replace(dst)
         logger.info("[move] %s → %s", src, dst)
         return dst

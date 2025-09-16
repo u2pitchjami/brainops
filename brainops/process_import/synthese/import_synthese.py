@@ -16,7 +16,6 @@ from brainops.process_import.utils.archive import copy_to_archive
 from brainops.process_import.utils.divers import make_relative_link
 from brainops.sql.get_linked.db_get_linked_notes_utils import (
     get_file_path,
-    get_note_lang,
     get_parent_id,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -88,10 +87,10 @@ def process_import_syntheses(
         logger.info("[SYNTH] 👌 Questions OK : (id=%s)", note_id)
 
         translate_synth: str | None = None
-        note_lang = get_note_lang(note_id, logger=logger)
-        if note_lang and note_lang != "fr":
-            logger.debug("[DEBUG] Traduction synthèse (lang=%s → fr)…", note_lang)
-            translate_synth = make_translate(path, note_id, logger=logger)
+        # note_lang = get_note_lang(note_id, logger=logger)
+        # if note_lang and note_lang != "fr":
+        #     logger.debug("[DEBUG] Traduction synthèse (lang=%s → fr)…", note_lang)
+        #     translate_synth = make_translate(path, note_id, logger=logger)
 
         logger.debug("[DEBUG] Assemblage de la synthèse…")
         make_syntheses(
@@ -257,15 +256,15 @@ def make_syntheses(
         original_link = f"[[{original_path}|Voir la note originale]]"
 
         # Blocs optionnels
-        translate_block = format_optional_block("Traduction française", translate_synth)
+        # translate_block = format_optional_block("Traduction française", translate_synth)
         glossary_block = format_optional_block("Glossaire", glossary)
         questions_block = format_optional_block("Questions", questions)
 
         # Assemblage
         blocks = [original_link, "", content_lines]
         # Séparateurs facultatifs
-        if translate_block:
-            blocks += ["", "---", "", translate_block]
+        # if translate_block:
+        # blocks += ["", "---", "", translate_block]
         if glossary_block:
             blocks += ["", "---", "", glossary_block]
         if questions_block:

@@ -35,3 +35,30 @@ def should_trigger_process(
     if status == "synthesis":
         return True, "synthesis", parent_id
     return True, None, parent_id
+
+
+@with_child_logger
+def detect_update_status_by_folder(path: str, logger: LoggerProtocol | None = None) -> str | None:
+    """
+    Détection par règles simples sur le chemin complet (fallback) → Enum.
+    """
+    new_status = None
+    lower = path.lower()
+    if "/z_technical/duplicates/" in lower:
+        new_status = "duplicates"
+    elif "/z_technical/error/" in lower:
+        new_status = "error"
+    elif "/z_technical/imports/" in lower:
+        new_status = "draft"
+    elif "/z_technical/uncategorized/" in lower:
+        new_status = "uncategorized"
+    elif "/z_technical/templates/" in lower:
+        new_status = "templates"
+    elif "/DailyNotes/" in lower:
+        new_status = "daily_notes"
+    elif "/notes/Personnal/" in lower:
+        new_status = "personnal"
+    elif "/notes/projects/" in lower:
+        new_status = "projects"
+
+    return new_status

@@ -144,6 +144,7 @@ def process_single_note(
                 new_cat_name,
                 new_subcat_name,
             )
+
             update_note(note_id, filepath, src_path)
             return True
 

@@ -9,6 +9,7 @@ from pathlib import Path
 from brainops.header.headers import add_metadata_to_yaml
 from brainops.io.note_reader import read_metadata_object
 from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.process_notes.utils import detect_update_status_by_folder
 from brainops.process_regen.regen_utils import regen_header, regen_synthese_from_archive
 from brainops.sql.categs.db_extract_categ import categ_extract
 from brainops.sql.folders.db_folder_utils import get_path_from_classification
@@ -53,7 +54,7 @@ def update_note(
     try:
         # 1) Métadonnées depuis YAML
         meta = read_metadata_object(str(dp), logger=logger)
-        logger.warning(f"meta : {meta}")
+        logger.debug(f"meta : {meta}")
         title_yaml = meta.title or dp.stem.replace("_", " ").replace(":", " ")
         status_yaml = meta.status or "draft"
         tags_yaml = meta.tags or []
@@ -101,8 +102,12 @@ def update_note(
             author = author_yaml or data.get("author")
             source = source_yaml or data.get("source")
             project = project_yaml or data.get("project")
-            status = status_yaml or data.get("status")
+            status_temp = status_yaml or data.get("status")
             summary = summary_yaml if summary_yaml is not None else data.get("summary")
+
+            new_status = detect_update_status_by_folder(path=str(dp), logger=logger)
+
+            def_status = new_status or status_temp
 
             # 5) Si categ/subcateg diffèrent → retrouver folder_id cible
             category_id = category_id_db
@@ -134,7 +139,7 @@ def update_note(
             "folder_id": folder_id,
             "category_id": category_id,
             "subcategory_id": subcategory_id,
-            "status": status,
+            "status": def_status,
             "summary": summary,
             "source": source,
             "author": author,
@@ -155,13 +160,13 @@ def update_note(
         logger.info("[UPDATE_NOTE] Note mise à jour: %s (id=%s)", dp, note_id)
 
         # 9) Actions selon status
-        if status == "synthesis":
+        if def_status == "synthesis":
             logger.debug("[UPDATE_NOTE] Post-action: check_synthesis_and_trigger_archive")
             check_synthesis_and_trigger_archive(note_id, str(dp), logger=logger)
-        elif status == "regen":
+        elif def_status == "regen":
             logger.debug("[UPDATE_NOTE] Post-action: regen_synthese_from_archive")
             regen_synthese_from_archive(note_id, filepath=str(dp))
-        elif status == "regen_header":
+        elif def_status == "regen_header":
             logger.debug("[UPDATE_NOTE] Post-action: regen_header")
             regen_header(note_id, str(dp), parent_id)
 
