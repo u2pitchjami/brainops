@@ -43,3 +43,4 @@ dist/
 config.env
 *.cfg
 z_old/
+docker/

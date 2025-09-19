@@ -133,6 +133,7 @@ def prompt_name_and_model_selection(
         "glossaires_regroup",
         "synth_translate",
         "add_questions",
+        "window_gpt",
     }
     if key not in valid_keys:
         raise ValueError(f"Clé inconnue : {key}")

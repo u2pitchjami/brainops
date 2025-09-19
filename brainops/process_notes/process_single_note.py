@@ -9,7 +9,6 @@ import os
 from brainops.models.exceptions import BrainOpsError
 from brainops.process_import.gpt.gpt_imports import (
     process_class_gpt_test,
-    process_import_gpt,
 )
 from brainops.process_import.gpt.import_test import (
     process_class_imports_test,
@@ -27,7 +26,6 @@ from brainops.process_regen.regen_utils import (
 )
 from brainops.sql.categs.db_extract_categ import categ_extract
 from brainops.utils.config import (
-    GPT_IMPORT_DIR,
     GPT_TEST,
     IMPORTS_PATH,
     IMPORTS_TEST,
@@ -106,7 +104,10 @@ def process_single_note(
                 if not importok:
                     logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
             except BrainOpsError as exc:
-                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+                exc.with_context(
+                    {"step": "process_single_note", "filepath": filepath, "src_path": src_path, "note_id": note_id}
+                )
+                logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
                 handle_errored_file(note_id, filepath, exc, logger=logger)
                 return False
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
@@ -120,7 +121,10 @@ def process_single_note(
                 if not importok:
                     logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
             except BrainOpsError as exc:
-                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+                exc.with_context(
+                    {"step": "process_single_note", "filepath": filepath, "src_path": src_path, "note_id": note_id}
+                )
+                logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
                 handle_errored_file(note_id, filepath, exc, logger=logger)
                 return False
             logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
@@ -168,7 +172,8 @@ def process_single_note(
             if not importok:
                 logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
         except BrainOpsError as exc:
-            logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
+            exc.with_context({"step": "process_single_note", "filepath": filepath, "note_id": note_id})
+            logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
             handle_errored_file(note_id, filepath, exc, logger=logger)
             return False
         logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
@@ -230,16 +235,6 @@ def process_single_note(
                 return False
         logger.info("[REGEN] ✅ (id=%s) : Regen Synthèse Réussi", note_id)
         return True
-
-    # C) Fichiers dans GPT_IMPORT : split & export
-    if path_is_inside(GPT_IMPORT_DIR, base_folder):
-        logger.info("Fichier GPT à splitter : %s", filepath)
-        try:
-            process_import_gpt(filepath)
-            return True
-        except Exception as exc:
-            logger.exception("Erreur import GPT : %s", exc)
-            return False
 
     # D) Scénarios de test
     if path_is_inside(GPT_TEST, base_folder):

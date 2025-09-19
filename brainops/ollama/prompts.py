@@ -3,86 +3,6 @@ Prompts pour ollama.
 """
 
 PROMPTS = {
-    "reformulation": """
-    Tu es un assistant intelligent et bienveillant,\
-      spécialisé dans l’amélioration douce et la clarification des textes tout en respectant leur intention d’origine.
-
-Ta mission est d’améliorer la lisibilité sans modifier la structure ni supprimer les détails importants.
-
-Suis les instructions suivantes :
-  1 - Supprime les sections de navigation, les menus, les liens externes et les listes de catégories.
-  2 - Conserve uniquement le contenu principal de l’article.
-  3 - Extrait les idées clés, réécris le contenu pour en améliorer la clarté,\
-    la concision et la fluidité logique, tout en préservant le sens d’origine.
-  4 - Simplifie le langage complexe, élimine le jargon inutile,\
-    et veille à ce que le contenu soit accessible à un public général.
-  5 - Utilise un ton professionnel mais accessible.
-  6 - Supprime les redondances et les détails superflus.
-  7 - Préserve tous les titres et sous-titres d’origine au format Markdown.
-  8 - Si le texte ne contient pas de titre,\
-    génère un titre pertinent et concis au format Markdown (ex. : # Introduction).
-  9 - Supprime les sauts de ligne inutiles.
-  10 - Retire toute publicité ou contenu promotionnel.
-  11 - La sortie doit être en **français** et lisible dans **Obsidian**.
-
-Voici le texte à traiter :
-        {content}
-            """,
-    "reformulation_en": """
-    You are a helpful and intelligent assistant specialized in gently\
-      refining and clarifying text while maintaining its original intent.
-
-Your task is to gently improve readability **without altering the structure or removing key details**.
-Follow these instructions:
-
-1. **Delete** navigation sections, menus, external links, and category lists.
-2. **Keep only the main content** of the article.
-3. Extract key ideas, rewrite the content to enhance clarity,\
-  conciseness, and logical flow while preserving the original meaning.
-4. Simplify complex language, eliminate unnecessary jargon, and ensure the content is accessible to a general audience.
-5. Use a professional yet approachable tone.
-6. Remove redundancies and unnecessary details.
-7. Preserve all original **titles and headings** in the Markdown format.
-8. If the text does not contain a title,\
-  generate a relevant and concise title in Markdown format (e.g., # Introduction).
-9. Clean up unnecessary line breaks.
-10. Remove ads and promotional content.
-
-        Here is the text to refine:
-        {content}
-            """,
-    "reformulation2": """
-    Tu es un assistant utile et précis. Ton rôle est de nettoyer un article en français sans le résumer.
-
-Tes tâches :
-  1 - Conserver uniquement le contenu principal : supprime les menus,\
-    éléments de navigation, catégories, liens externes, publicités et contenus promotionnels.
-  2 - Préserver tous les titres et sous-titres d’origine,\
-    en utilisant le format Markdown. S’il n’y a pas de titre, crée-en un (ex. : # Introduction).
-  3 - La sortie doit être en **français** en Markdown propre, sans sauts de ligne inutiles.
-
-Langue : Français
-
-    Voici le contenu :
-        {content}
-            """,
-    "reformulation2_en": """
-    You are a helpful and precise assistant.\
-      Your role is to clean and lightly improve a French article **without summarizing or altering its core structure**.
-
-Your tasks:
-1. **Keep only the main content**: remove menus, navigation, categories, external links, ads, and promotional content.
-2. **Preserve all original titles and headings**,\
-  using Markdown format. If there’s no title, create one (e.g., `# Introduction`).
-3. Gently improve the text: clarify awkward phrasing,\
-  remove redundancies, simplify overly complex language — but **do not cut or rephrase entire paragraphs**.
-4. Output should be in **clean Markdown**, with no unnecessary line breaks.
-
-Style: **Professional and accessible**
-
-        Here is the content:
-        {content}
-            """,
     "divers": """
   Tu es un assistant intelligent spécialisé dans la synthèse d’articles.
 
@@ -286,129 +206,6 @@ Instructions:
 5. Do not include any introductory or concluding remarks, only one category and one subcategory.
 6. If the content is ambiguous or does not fit, return "uncategorized/unknown".
 """,
-    "first_block": """
-    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
-    This text is the first part of a larger document divided into sections.\
-      Ensure logical continuity between sections and avoid repetition of previous summaries.
-Follow the specific instructions below:
-
-  01 - Extract key ideas and rewrite the content to improve clarity,\
-    conciseness, and logical flow while preserving the original meaning.
-  02 - Simplify complex language, eliminate unnecessary jargon,\
-    and ensure the content is accessible to a general audience.
-  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
-  04 - Remove redundancies and unnecessary details.
-  05 - Omit polite exchanges or general conversation.
-  06 - Eliminate unnecessary line breaks.
-  07 - Remove advertisements and promotional content.
-  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**, and must **avoid unnecessary introductory or concluding phrases**.
-
-Here is the text to process:
-    {content}
-  """,
-    "last_block": """
-    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
-    This text is the final part of a larger document divided into sections.\
-      Ensure logical continuity between sections and avoid repetition of previous summaries.
-Follow the specific instructions below:
-
-  01 - Extract key ideas and rewrite the content to improve clarity,\
-    conciseness, and logical flow while preserving the original meaning.
-  02 - Simplify complex language, eliminate unnecessary jargon,\
-    and ensure the content is accessible to a general audience.
-  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
-  04 - Remove redundancies and unnecessary details.
-  05 - Omit polite exchanges or general conversation.
-  06 - Eliminate unnecessary line breaks.
-  07 - Remove advertisements and promotional content.
-  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**, and must **avoid unnecessary introductory phrases**.
-
-
-
-This is the final section. Ensure a coherent conclusion:
-    {content}
-  """,
-    "middle_block": """
-    Tu es un assistant intelligent et structuré, spécialisé dans l’organisation de notes et l’amélioration de textes.
-
-Ce texte fait partie d’un document plus large divisé en sections.\
-  Assure-toi de maintenir une continuité logique\
-    avec les autres sections et d’éviter toute répétition de résumés précédents.
-
-Suis précisément les instructions suivantes :
-
-01 – Extrait les idées clés et réécris le contenu pour en améliorer la clarté,\
-  la concision et la logique, tout en préservant le sens d’origine.
-02 – Simplifie le langage complexe, élimine le jargon inutile, et rends le texte accessible à un public non spécialiste.
-03 – Adopte un style clair, structuré et professionnel, tout en restant naturel à la lecture.
-04 – Supprime les redondances et les détails superflus.
-05 – Omet les échanges polis ou les conversations générales.
-06 – Élimine les sauts de ligne inutiles.
-07 – Supprime toute publicité ou contenu promotionnel.
-08 – Conserve les titres existants (`#`, `##`, `###`), en les clarifiant si nécessaire.
-09 – Le résultat doit être rédigé en **français**, sans phrases introductives ou conclusives inutiles.
-
-Voici la section à traiter :
-{content}
-
-  """,
-    "middle_block_en": """
-    You are an intelligent and structured note-organizing assistant, specializing in text processing and enhancement.
-    This text is a part of a larger document divided into sections.\
-      Ensure logical continuity between sections and avoid repetition of previous summaries.
-Follow the specific instructions below:
-
-  01 - Extract key ideas and rewrite the content to improve clarity,\
-    conciseness, and logical flow while preserving the original meaning.
-  02 - Simplify complex language, eliminate unnecessary jargon,\
-    and ensure the content is accessible to a general audience.
-  03 - Ensure a clear, structured, and professional style while maintaining natural readability.
-  04 - Remove redundancies and unnecessary details.
-  05 - Omit polite exchanges or general conversation.
-  06 - Eliminate unnecessary line breaks.
-  07 - Remove advertisements and promotional content.
-  08 - Preserve existing headings and subheadings (`#`, `##`, `###`) while improving their clarity if needed.
-  09 - The output must be in **French**, and must **avoid unnecessary introductory or concluding phrases**.
-
-
-
-        Now, process the following section:
-        {content}
-  """,
-    "test_tags_gpt": """
-    Tu es un assistant de structuration de journaux de développement.
-
-Ton rôle est de lire un échange de discussion brute (entre développeur et assistant IA),\
-  et de produire un journal clair en format Markdown structuré.
-
-Voici ce que tu dois faire :
-
-1. Analyse la conversation ligne par ligne.
-2. Regroupe les lignes en blocs cohérents autour d’un sujet\
-  (ex : discussion sur un bug, une solution, une amélioration…).
-3. Pour chaque bloc, ajoute un titre Markdown adapté parmi :
-   - ## 🔍 Contexte
-   - ## 🐛 Problème
-   - ## ✅ Solution
-   - ## 🚀 Amélioration possible
-   - ## 📌 À faire
-
-4. À la fin de chaque bloc, ajoute une ligne `_tags: #...` avec 1 à 3 tags pertinents.
-   (ex : `#bug`, `#note_id`, `#prompt`, `#watcher`, `#refacto`, `#obsidian`, `#todo`...)
-
-5. N’invente rien, ne reformule pas. Structure uniquement.
-
-Format de sortie : Markdown Obsidian directement utilisable.
-
-Commence directement par le contenu Markdown structuré.
-
-
-
-        contenu à traiter :
-        {content}
-  """,
     "glossaires": """
     Tu es un assistant chargé d'extraire un glossaire à partir d'une section de texte.
 
@@ -558,6 +355,37 @@ Here is the text:
 {content}
 """,
     "clean_gpt": """
+Tu es un assistant chargé de NETTOYER une conversation Utilisateur ↔ IA pour des embeddings.
+But: enlever le bruit SANS perdre les informations techniques et décisionnelles. AUCUNE invention.
+
+Règles de CONSERVATION (garder tel quel) :
+- Code, commandes, config, chemins, logs/erreurs, sorties d’outils
+(ex: "Traceback", "HTTP 500", "docker run", "pip install").
+- Données chiffrées, paramètres, options, versions, URLs, noms de fichiers/services.
+- Questions précises, réponses explicatives, décisions, 
+TODO/actions, résultats de tests (succès/échec/partiel), contournements.
+
+Règles de SUPPRESSION (retirer) :
+- Filler/rituels: "attends", "je teste", "tu peux me refaire ça ?", "merci", "ok", "haha", 
+emojis, excuses, relances méta ("répète", "plus court").
+- Reformulations sans nouveau contenu, hésitations ("euh", "hum"), apartés sociaux.
+- Répétitions évidentes du même code/commande sans variation (garder la 1re + la dernière si différente).
+
+Format de SORTIE (pas de Markdown) :
+- Une ligne par tour, strictement :
+  [T{numéro}][user]: texte…
+  [T{numéro}][assistant]: texte…
+- Conserver l’ordre, phrases complètes, ponctuation normalisée.
+- Pour le code/logs/commandes, conserver le verbatim (pas de réindentation ni décoration).
+- Si un tour est vide après nettoyage, ne pas l’émettre.
+- Langue: FR, sauf extraits techniques déjà en EN.
+
+Ne pas ajouter de commentaires ni de résumé.
+
+Texte à nettoyer :
+{content}
+""",
+    "window_gpt": """
 Tu es un assistant chargé de nettoyer des conversations entre un utilisateur et une IA.
 
 Ton objectif est de préparer ce texte pour un traitement automatique (embedding).
@@ -575,4 +403,36 @@ Tu dois :
 Voici la conversation à nettoyer :
 {content}
 """,
+    "test_tags_gpt": """
+    Tu es un assistant de structuration de journaux de développement.
+
+Ton rôle est de lire un échange de discussion brute (entre développeur et assistant IA),\
+  et de produire un journal clair en format Markdown structuré.
+
+Voici ce que tu dois faire :
+
+1. Analyse la conversation ligne par ligne.
+2. Regroupe les lignes en blocs cohérents autour d’un sujet\
+  (ex : discussion sur un bug, une solution, une amélioration…).
+3. Pour chaque bloc, ajoute un titre Markdown adapté parmi :
+   - ## 🔍 Contexte
+   - ## 🐛 Problème
+   - ## ✅ Solution
+   - ## 🚀 Amélioration possible
+   - ## 📌 À faire
+
+4. À la fin de chaque bloc, ajoute une ligne `_tags: #...` avec 1 à 3 tags pertinents.
+   (ex : `#bug`, `#note_id`, `#prompt`, `#watcher`, `#refacto`, `#obsidian`, `#todo`...)
+
+5. N’invente rien, ne reformule pas. Structure uniquement.
+
+Format de sortie : Markdown Obsidian directement utilisable.
+
+Commence directement par le contenu Markdown structuré.
+
+
+
+        contenu à traiter :
+        {content}
+  """,
 }

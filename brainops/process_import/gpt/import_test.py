@@ -10,8 +10,8 @@ import shutil
 
 from brainops.header.join_header_body import apply_to_note_body
 from brainops.io.note_reader import read_metadata
-from brainops.process_import.utils.large_note import process_large_note
-from brainops.process_import.utils.standard_note import process_standard_note
+from brainops.process_import.split.large_note import process_large_note
+from brainops.process_import.split.standard_note import process_standard_note
 from brainops.utils.config import OUTPUT_TESTS_IMPORTS_DIR
 from brainops.utils.files import safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger

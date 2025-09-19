@@ -50,9 +50,14 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
         if any(term in note_type.lower() for term in ["uncategorized", "unknow"]):
             handle_uncategorized(note_id, filepath, note_type, llama_proposition, logger=logger)
             raise BrainOpsError(
-                "Classification invalide → 'uncategorized",
-                code=ErrCode.OLLAMA,
-                ctx={"llama_proposition": llama_proposition},
+                "[METADATA] ❌ Classification invalide → 'uncategorized",
+                code=ErrCode.METADATA,
+                ctx={
+                    "step": "get_type_by_ollama",
+                    "llama_proposition": llama_proposition,
+                    "note_id": note_id,
+                    "filepath": filepath,
+                },
             )
 
         logger.info("[TYPE] 👌 Type de note détecté pour (ID=%s) : %s", note_id, note_type)
@@ -68,7 +73,16 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
         new_path: str = shutil.move(src.as_posix(), classification.dest_folder)
         logger.debug("[DEBUG] new_path %s", new_path)
         if not new_path or not Path(new_path).exists():
-            raise BrainOpsError("Echec déplacement", code=ErrCode.UNEXPECTED, ctx={"note_id": note_id})
+            raise BrainOpsError(
+                "[METADATA] ❌ Echec déplacement",
+                code=ErrCode.METADATA,
+                ctx={
+                    "step": "get_type_by_ollama",
+                    "llama_proposition": llama_proposition,
+                    "note_id": note_id,
+                    "filepath": filepath,
+                },
+            )
         logger.info("[DEPLACEMENT] 👌 Réussi : %s", new_path)
 
         # 5) Update de la base
@@ -81,9 +95,20 @@ def get_type_by_ollama(filepath: str, note_id: int, *, logger: LoggerProtocol | 
         }
         logger.debug("[DEBUG] updates : %s", updates)
         update_obsidian_note(note_id, updates, logger=logger)
-
+    except BrainOpsError as exc:
+        exc.with_context({"step": "get_type_by_ollama", "note_id": note_id, "filepath": filepath})
+        raise
     except Exception as exc:
-        logger.exception("Crash inattendu dans : %s", exc)
         handle_uncategorized(note_id, filepath, note_type, llama_proposition, logger=logger)
-        raise BrainOpsError("get_type_by_ollama KO", code=ErrCode.UNEXPECTED, ctx={"note_id": note_id}) from exc
+        raise BrainOpsError(
+            "[METADATA] ❌ Definition du type par Ollama KO",
+            code=ErrCode.UNEXPECTED,
+            ctx={
+                "step": "get_type_by_ollama",
+                "note_id": note_id,
+                "filepath": filepath,
+                "root_exc": type(exc).__name__,
+                "root_msg": str(exc),
+            },
+        ) from exc
     return new_path

@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from brainops.header.headers import make_properties
-from brainops.models.exceptions import BrainOpsError
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_import.get_type.by_force import get_type_by_force
 from brainops.process_import.get_type.by_ollama import get_type_by_ollama
 from brainops.process_import.synthese.import_synthese import (
@@ -99,6 +99,19 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
         logger.info("[INFO] 🏁 IMPORT terminé pour (id=%s)", note_id)
         return True
     except BrainOpsError as exc:
-        logger.exception("Crash inattendu dans : %s", exc)
-        exc.ctx.setdefault("filepath", filepath)
+        exc.with_context(
+            {"step": "import_normal", "note_id": note_id, "filepath": filepath, "force_categ": force_categ}
+        )
         raise
+    except Exception as exc:
+        raise BrainOpsError(
+            "[METADATA] ❌ Definition du type par Ollama KO",
+            code=ErrCode.UNEXPECTED,
+            ctx={
+                "step": "get_type_by_ollama",
+                "note_id": note_id,
+                "filepath": filepath,
+                "root_exc": type(exc).__name__,
+                "root_msg": str(exc),
+            },
+        ) from exc

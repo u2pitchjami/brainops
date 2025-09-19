@@ -18,6 +18,7 @@ from brainops.process_notes.new_note_utils import (
     _safe_stat_times,
     compute_wc_and_hash,
 )
+from brainops.process_notes.utils import detect_update_status_by_folder
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
     get_folder_id,
@@ -50,10 +51,13 @@ def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int
 
     try:
         # ---- construire le modèle Note ---------------------------------------
+        status = detect_update_status_by_folder(str(file_path), logger=logger)
+        # if status == "gpt":
+
         metadata = read_metadata_object(str(fp), logger=logger)
         # 🔹 Fallback et nettoyage
         title = sanitize_yaml_title(metadata.title)
-        status = metadata.status
+        status = detect_update_status_by_folder(str(file_path), logger=logger)
         created = sanitize_created(metadata.created)
         source = metadata.source
         author = metadata.author

@@ -27,5 +27,11 @@ class BrainOpsError(RuntimeError):
         self.code = code
         self.ctx: dict[str, Any] = dict(ctx or {})
 
+    def with_context(self, extra: dict[str, Any]) -> BrainOpsError:
+        # N’écrase pas ce qui existe déjà
+        for k, v in extra.items():
+            self.ctx.setdefault(k, v)
+        return self
+
     def __str__(self) -> str:  # utile dans les logs
         return f"{self.code}: {super().__str__()}"

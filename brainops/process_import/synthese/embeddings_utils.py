@@ -4,54 +4,97 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 from sklearn.metrics.pairwise import cosine_similarity
 
-from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.ollama.ollama_call import call_ollama_with_retry
-from brainops.ollama.ollama_utils import large_or_standard_note
+from brainops.io.note_reader import read_note_body
 from brainops.sql.temp_blocs.db_embeddings_temp_blocs import get_blocks_and_embeddings_by_note
-from brainops.utils.config import MODEL_EMBEDDINGS
+from brainops.utils.files import count_words
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
+MODES = {
+    "quick": {"ratio": 0.20, "use_mmr": True, "mmr_lambda": 0.8},
+    "standard": {"ratio": 0.30, "use_mmr": True, "mmr_lambda": 0.7},
+    "audit": {"ratio": 0.50, "use_mmr": True, "mmr_lambda": 0.6},
+    "gpt": {"ratio": 0.45, "use_mmr": True, "mmr_lambda": 0.6},
+}
 
-@with_child_logger
-def make_embeddings_synthesis(note_id: int, filepath: str, *, logger: LoggerProtocol | None = None) -> str | None:
+
+def select_top_blocks_by_mode(
+    note_id: int,
+    filepath: str,
+    mode: str = "standard",
+    *,
+    logger: LoggerProtocol | None = None,
+    **overrides: float | bool,
+) -> list[dict[str, Any]] | list[str]:
     """
-    1) Génère/persiste des embeddings via 'large_or_standard_note' (mode embeddings) 2) Sélectionne les meilleurs blocs
-    3) Construit le prompt et appelle le modèle de synthèse Retourne le texte de synthèse ou None en cas d'échec.
+    Wrapper pratique pour appliquer MODES et permettre des overrides:
+    ex: select_top_blocks_by_mode(note_id, "audit", ratio=0.55)
     """
     logger = ensure_logger(logger, __name__)
-    try:
-        # 1) création des embeddings + stockage des blocs (process_large_note côté projet)
-        _ = large_or_standard_note(
-            filepath=filepath,
-            source="embeddings",
-            process_mode="large_note",
-            prompt_name="embeddings",
-            model_ollama=MODEL_EMBEDDINGS,
-            write_file=False,
-            split_method="words",
-            word_limit=100,
-            note_id=note_id,
-            persist_blocks=True,
-            send_to_model=True,
-            logger=logger,
-        )
+    logger.debug("[DEBUG] select_top_blocks_by_mode mode: %s", mode)
 
-        # 2) top blocs (avec score pour debug)
-        top_blocks = select_top_blocks(note_id=note_id, ratio=0.3, return_scores=True, logger=logger)
+    if mode == "ajust":
+        content = read_note_body(filepath=filepath, logger=logger)
+        nb_words = count_words(content=content, logger=logger)
+        if nb_words < 300:
+            assert mode == "quick"
+        else:
+            assert mode == "standard"
 
-        # 3) synthèse finale
-        prompt = build_summary_prompt(top_blocks)
-        final_response = call_ollama_with_retry(prompt, model_ollama="llama3.1:8b-instruct-q8_0", logger=logger)
-        return final_response
-    except Exception as exc:
-        raise BrainOpsError("Emvbeddings KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
+    cfg = MODES.get(mode, MODES["standard"]).copy()
+    logger.debug("[DEBUG] select_top_blocks_by_mode cfg: %s", cfg)
+    cfg.update(overrides)  # ex: ratio=0.55 locale
+    logger.info("[SELECT] mode=%s cfg=%s", mode, cfg)
+
+    return select_top_blocks(
+        note_id=note_id,
+        ratio=float(cfg["ratio"]),
+        return_scores=bool(cfg.get("return_scores", True)),
+        use_mmr=bool(cfg["use_mmr"]),
+        mmr_lambda=float(cfg["mmr_lambda"]),
+        logger=logger,
+    )
+
+
+def _mmr_select(
+    query_vec: NDArray[np.float64],
+    doc_matrix: NDArray[np.float64],
+    top_k: int,
+    lambda_mult: float = 0.7,
+) -> list[int]:
+    """
+    Sélectionne top_k indices par MMR (Maximal Marginal Relevance).
+
+    - lambda_mult proche de 1 = pertinence, proche de 0 = diversité.
+    """
+    sims_to_query = cosine_similarity(query_vec.reshape(1, -1), doc_matrix)[0]  # (m,)
+    selected: list[int] = []
+    candidates = set(range(doc_matrix.shape[0]))
+
+    while candidates and len(selected) < top_k:
+        if not selected:
+            i = int(np.argmax(sims_to_query))
+            selected.append(i)
+            candidates.remove(i)
+            continue
+
+        # diversité: max similarité à un déjà sélectionné
+        selected_matrix = doc_matrix[selected]
+        sims_to_selected = cosine_similarity(doc_matrix[list(candidates)], selected_matrix)
+        max_sim_to_selected = sims_to_selected.max(axis=1)  # (|candidats|,)
+
+        cand_indices = np.array(list(candidates))
+        mmr_scores = lambda_mult * sims_to_query[cand_indices] - (1 - lambda_mult) * max_sim_to_selected
+        best_idx = int(cand_indices[np.argmax(mmr_scores)])
+        selected.append(best_idx)
+        candidates.remove(best_idx)
+
+    return selected
 
 
 @with_child_logger
@@ -62,76 +105,54 @@ def select_top_blocks(
     return_scores: bool = False,
     *,
     logger: LoggerProtocol | None = None,
+    use_mmr: bool = True,
+    mmr_lambda: float = 0.7,
 ) -> list[dict[str, Any]] | list[str]:
     """
-    Sélectionne les N blocs les plus proches pour une note donnée.
+    Variante MMR (par défaut) pour obtenir un mix pertinence/diversité.
 
-    - Récupère (blocks, embeddings) depuis la DB.
-    - Calcule l'embedding moyen comme 'requête'.
-    - Retourne une liste de dicts {"text": str, "score": float} si return_scores=True,
-      sinon une liste de textes.
+    Retourne soit [{"text","score"}], soit ["text", ...] pour compatibilité.
     """
     logger = ensure_logger(logger, __name__)
-    logger.debug("[DEBUG] select_top_blocks(note_id=%s, N=%s, ratio=%.2f)", note_id, N, ratio)
+    logger.debug(
+        "[DEBUG] select_top_blocks(note_id=%s, N=%s, ratio=%.2f, MMR=%s, lambda=%.2f)",
+        note_id,
+        N,
+        ratio,
+        use_mmr,
+        mmr_lambda,
+    )
 
     blocks, embeddings = get_blocks_and_embeddings_by_note(note_id, logger=logger)
     if not blocks or not embeddings:
-        logger.warning("[SELECT] Aucun bloc ou embedding trouvé (note_id=%s).", note_id)
+        logger.warning("[SELECT] Aucun bloc/embedding (note_id=%s).", note_id)
         return []
 
     total_blocks = len(blocks)
+    logger.debug("[DEBUG] select_top_blocks(total_blocks=%s)", total_blocks)
     if N is None:
         N = max(1, int(total_blocks * ratio))
 
     try:
-        arr: NDArray[np.float64] = np.asarray(embeddings, dtype=float)  # shape: (m, d)
+        arr: NDArray[np.float64] = np.asarray(embeddings, dtype=float)  # (m, d)
         if arr.ndim != 2:
             logger.error("[SELECT] Forme embeddings invalide: %s", arr.shape)
             return []
         target: NDArray[np.float64] = np.mean(arr, axis=0)  # (d,)
+        sims: NDArray[np.float64] = cosine_similarity(target.reshape(1, -1), arr)[0]
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[SELECT] Erreur calcul moyenne embedding : %s", exc)
+        logger.exception("[SELECT] Erreur pré-calcul similarités : %s", exc)
         return []
 
     try:
-        sims: NDArray[np.float64] = cosine_similarity(target.reshape(1, -1), arr)[0]
-        top_idx = sims.argsort()[-N:][::-1]
+        if use_mmr:
+            top_idx = _mmr_select(target, arr, top_k=N, lambda_mult=mmr_lambda)
+        else:
+            top_idx = sims.argsort()[-N:][::-1].tolist()
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[SELECT] Erreur lors du calcul de similarité : %s", exc)
-        return []
+        logger.exception("[SELECT] Erreur MMR/fallback : %s", exc)
+        top_idx = sims.argsort()[-N:][::-1].tolist()
 
     if return_scores:
-        return [{"text": blocks[i], "score": float(sims[i])} for i in top_idx]
+        return [{"text": blocks[i], "score": float(sims[i]), "idx": i} for i in top_idx]
     return [blocks[i] for i in top_idx]
-
-
-def build_summary_prompt(blocks: Sequence[str] | Sequence[dict[str, Any]], structure: str = "simple") -> str:
-    """
-    Construit un prompt de synthèse à partir d'une liste de blocs sélectionnés.
-
-    Accepte soit une liste de strings, soit une liste de dicts {"text": ..., "score": ...}.
-    """
-    intro = (
-        "Voici des extraits importants d'une note. Résume-les de façon concise et claire.\n\n"
-        if structure == "simple"
-        else "Voici plusieurs extraits pertinents issus d'une note. "
-        "Organise les idées par thème, puis fais une synthèse claire.\n\n"
-    )
-
-    def extract_text(b: Any) -> str:
-        if isinstance(b, dict) and "text" in b:
-            return str(b["text"])
-        return str(b)
-
-    parts = [f"Bloc {i + 1}:\n{extract_text(b)}\n" for i, b in enumerate(blocks)]
-    content = "\n".join(parts)
-
-    end = (
-        "\nFais une synthèse complète et compréhensible.\n"
-        "La sortie doit être en **français** et lisible dans **Obsidian**.\n"
-        "N'ajoute aucune introduction ni conclusion superflue."
-        if structure == "simple"
-        else "\nFournis une synthèse en plusieurs parties (par thème) si pertinent."
-    )
-
-    return f"{intro}{content}{end}"

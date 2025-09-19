@@ -60,5 +60,15 @@ def detect_update_status_by_folder(path: str, logger: LoggerProtocol | None = No
         new_status = "personnal"
     elif "/notes/projects/" in lower:
         new_status = "projects"
+    elif "/z_technical/test_gpt/" in lower:
+        new_status = "gpt"
+    elif "/z_storage/" in lower:
+        new_status = None
+    else:
+        new_status = "inconnu"
 
     return new_status
+
+
+# @with_child_logger
+# def parse_gpt_title(path: str, logger: LoggerProtocol | None = None) -> str:

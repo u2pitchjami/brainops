@@ -30,7 +30,7 @@ def _unique_dest(dest: Path) -> Path:
     return dest.with_name(f"{dest.stem}__{ts}{dest.suffix}")
 
 
-def _exc_payload(exc: BrainOpsError) -> dict[str, Any]:
+def _exc_payload(exc: BrainOpsError | list[str]) -> dict[str, Any]:
     return {
         "type": exc.__class__.__name__,
         "code": getattr(exc, "code", None),
@@ -43,7 +43,7 @@ def _exc_payload(exc: BrainOpsError) -> dict[str, Any]:
 def handle_errored_file(
     note_id: int,
     filepath: str | Path,
-    exc: BrainOpsError,
+    exc: BrainOpsError | list[str],
     *,
     logger: LoggerProtocol | None = None,
 ) -> None:
@@ -60,7 +60,7 @@ def handle_errored_file(
         ensure_folder_exists(Path(ERRORED_PATH), logger=logger)
         always = wait_for_file(file_path=filepath, logger=logger)
         if not always:
-            logger.warning("[WARNING] ❌ Note déjà supprimée")
+            logger.warning("[WARNING] 🚨 Note déjà supprimée")
             return
 
         status, parent_id, _ = get_data_for_should_trigger(note_id=note_id, logger=logger)
@@ -73,9 +73,6 @@ def handle_errored_file(
             update_obsidian_note(parent_id, updates, logger=logger)
         else:
             parent_filepath = None
-
-        if not status:
-            raise BrainOpsError("status introuvable", code=ErrCode.METADATA, ctx={"note_id": note_id})
 
         # Déterminer src (fichier déplacé) et éventuellement path_to_delete (fichier à supprimer)
         if status == "synthesis":

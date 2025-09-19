@@ -38,8 +38,7 @@ def check_duplicate(
         content_hash = hash_file_content(file_path)
 
         conn = get_db_connection(logger=logger)
-        if not conn:
-            return False, []
+
         matches: list[dict[str, Any]] = []
         seen_ids: set[int] = set()
         try:
@@ -106,6 +105,7 @@ def check_duplicate(
 
         if matches:
             logger.info("[DUP] %s doublon(s) détecté(s) pour note_id=%s", len(matches), note_id)
+            logger.debug("[DUP] matches =%s", matches)
             return True, matches
         return False, []
     except Exception as exc:  # pylint: disable=broad-except

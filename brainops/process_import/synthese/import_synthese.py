@@ -11,7 +11,7 @@ from brainops.header.join_header_body import apply_to_note_body
 from brainops.io.note_reader import read_note_body
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_utils import large_or_standard_note
-from brainops.process_import.synthese.embeddings_utils import make_embeddings_synthesis
+from brainops.process_import.synthese.embeddings import make_embeddings_synthesis
 from brainops.process_import.utils.archive import copy_to_archive
 from brainops.process_import.utils.divers import make_relative_link
 from brainops.sql.get_linked.db_get_linked_notes_utils import (

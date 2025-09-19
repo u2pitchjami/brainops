@@ -5,9 +5,9 @@
 from __future__ import annotations
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.process_import.split.large_note import process_large_note
+from brainops.process_import.split.standard_note import process_standard_note
 from brainops.process_import.utils.divers import prompt_name_and_model_selection
-from brainops.process_import.utils.large_note import process_large_note
-from brainops.process_import.utils.standard_note import process_standard_note
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -69,7 +69,6 @@ def large_or_standard_note(
                     write_file=write_file,
                     send_to_model=send_to_model,
                     model_name=model_ollama,
-                    custom_prompts=custom_prompts,
                     persist_blocks=persist_blocks,
                     resume_if_possible=resume_if_possible,
                     source=source,

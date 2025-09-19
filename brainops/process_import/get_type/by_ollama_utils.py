@@ -52,7 +52,11 @@ def parse_category_response(llama_proposition: str) -> str:
     match = re.search(r"([A-Za-z0-9_ ]+)/([A-Za-z0-9_ ]+)", llama_proposition or "")
     if match:
         return f"{match.group(1).strip()}/{match.group(2).strip()}"
-    raise BrainOpsError("Parse Categ KO", code=ErrCode.METADATA, ctx={"llama_proposition": llama_proposition})
+    raise BrainOpsError(
+        "[METADATA] ❌ Parse Categ KO",
+        code=ErrCode.METADATA,
+        ctx={"fonction": "parse_category_response", "llama_proposition": llama_proposition},
+    )
 
 
 def clean_note_type(parse_category: str) -> str:
@@ -97,7 +101,11 @@ def find_similar_levenshtein(
             if similarity >= threshold_low:
                 similar.append((existing, similarity))
     except Exception as exc:
-        raise BrainOpsError("similar_levenshtein KO", code=ErrCode.METADATA, ctx={"name": name}) from exc
+        raise BrainOpsError(
+            "[METADATA] ❌ Erreur dans la recherche de similarité",
+            code=ErrCode.METADATA,
+            ctx={"fonction": "find_similar_levenshtein", "name": name},
+        ) from exc
     return sorted(similar, key=lambda x: x[1], reverse=True)
 
 
@@ -147,7 +155,7 @@ def check_and_handle_similarity(
 def handle_uncategorized(
     note_id: int,
     filepath: str | Path,
-    note_type: str,
+    note_type: str | None,
     llama_proposition: str,
     *,
     logger: LoggerProtocol | None = None,
@@ -183,8 +191,11 @@ def handle_uncategorized(
             json.dump(data, f, indent=4)
 
     except Exception as exc:
-        logger.exception("[ERREUR] handle_uncategorized(%s) : %s", src.as_posix(), exc)
-        raise BrainOpsError("déplacement uncategorized KO", code=ErrCode.METADATA, ctx={"note_id": note_id}) from exc
+        raise BrainOpsError(
+            "[METADATA] ❌ déplacement uncategorized KO",
+            code=ErrCode.METADATA,
+            ctx={"fonction": "handle_uncategorized", "note_id": note_id, "llama_proposition": llama_proposition},
+        ) from exc
 
 
 # ---------- Classification & déplacement --------------------------------------
@@ -215,7 +226,11 @@ def _classify_with_llm(note_id: int, content: str, *, logger: LoggerProtocol | N
         logger.debug("[DEBUG] prompt _classify_with_llm : %s", prompt)
         return call_ollama_with_retry(prompt, model_ollama, logger=logger)
     except Exception as exc:
-        raise BrainOpsError("_classify_with_llm KO", code=ErrCode.OLLAMA, ctx={"status": "ollama"}) from exc
+        raise BrainOpsError(
+            "[METADATA] ❌ Construction prompt get_type KO",
+            code=ErrCode.METADATA,
+            ctx={"fonction": "_classify_with_llm", "note_id": note_id},
+        ) from exc
 
 
 @with_child_logger
@@ -235,7 +250,9 @@ def _resolve_destination(
             subcategory = parts[1] if len(parts) == 2 and parts[1] else None
         except Exception as exc:  # pylint: disable=broad-except
             raise BrainOpsError(
-                "Format inattendu de note_type", code=ErrCode.METADATA, ctx={"note_type": note_type}
+                "[METADATA] ❌ Impossible de parser la proposition Ollama",
+                code=ErrCode.METADATA,
+                ctx={"fonction": "_resolve_destination", "note_id": note_id, "note_type": note_type},
             ) from exc
 
         categ_path = Path(Z_STORAGE_PATH) / category
@@ -250,7 +267,11 @@ def _resolve_destination(
             cat_id, _, _, _ = get_category_context_from_folder(def_path, logger=logger)
 
     except Exception as exc:
-        raise BrainOpsError("Ollama KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc
+        raise BrainOpsError(
+            "[METADATA] ❌ Impossible d'indentifier une localisation à partir de la proposition Ollama",
+            code=ErrCode.METADATA,
+            ctx={"fonction": "_resolve_destination", "note_id": note_id, "note_type": note_type},
+        ) from exc
     return ClassificationResult(
         note_type=note_type,
         category_id=cat_id,

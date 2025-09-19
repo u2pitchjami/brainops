@@ -268,7 +268,9 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
             )
             db_folders: list[FolderRow] = cursor.fetchall()
 
+        BASE = Path(cfg.base_path).resolve()
         physical_dirs: set[Path] = set(_iter_physical_dirs(cfg.base_path))
+        physical_dirs.add(BASE)
         db_folder_paths = {Path(row["path"]).resolve() for row in db_folders}
 
         folders_missing_in_db = sorted(str(p) for p in (physical_dirs - db_folder_paths))
@@ -309,7 +311,10 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
             errors_rows.append(("note_missing_in_db", p))
             logger.info("📝 + Note à ajouter (DB) : %s", p)
 
-        _export_to_csv(errors_rows, cfg.out_dir, prefix="coherence_diffs")
+        if len(errors_rows) > 0:
+            _export_to_csv(errors_rows, cfg.out_dir, prefix="coherence_diffs")
+        else:
+            logger.info("✅ - Aucune erreur détectée")
 
         return DiffSets(
             folders_missing_in_db=folders_missing_in_db,
@@ -615,19 +620,20 @@ def check_synthesis_archive_pairs(dispatch_blocking: bool) -> list[Anomaly]:
                 continue
             ids = list(anom.note_ids)
             paths = list(anom.paths)
+            mess = list(anom.message)
             n = max(len(ids), len(paths))
             for i in range(n):
                 note_id = ids[i] if i < len(ids) else (ids[0] if ids else -1)
                 path = paths[i] if i < len(paths) else (paths[0] if paths else "")
                 if note_id == -1 or not path:
                     logger.warning("Skip dispatch (missing id/path) for anomaly %s", anom.code)
-                    err = BrainOpsError(
+                    BrainOpsError(
                         f"Coherence blocking: {anom.code}",
                         code=ErrCode.METADATA,
                         ctx={"anomaly": anom.code, "note_id": note_id},
                     )
                 try:
-                    handle_errored_file(note_id=note_id, filepath=path, exc=err, logger=logger)
+                    handle_errored_file(note_id=note_id, filepath=path, exc=mess, logger=logger)
                 except Exception as exc:  # pylint: disable=broad-except
                     logger.exception(
                         "Erreur handle_errored_file(id=%s,path=%s,code=%s): %s",

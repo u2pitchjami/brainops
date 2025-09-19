@@ -4,173 +4,239 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import re
 import shutil
 
-from brainops.header.headers import make_properties
 from brainops.ollama.ollama_utils import large_or_standard_note
-from brainops.process_import.synthese.embeddings_utils import make_embeddings_synthesis
+from brainops.process_import.synthese.embeddings import make_embeddings_synthesis
 from brainops.process_import.utils.paths import ensure_folder_exists
-from brainops.utils.config import GPT_IMPORT_DIR, GPT_OUTPUT_DIR, MODEL_FR, SAV_PATH
 from brainops.utils.files import (
-    clean_content,
-    copy_file_with_date,
-    move_file_with_date,
-    read_note_content,
     safe_write,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
+TURN_RE = re.compile(r"^\[T(?P<idx>\d+)\]\[(?P<role>user|assistant)\]:\s*(?P<text>.+)$")
 
-@with_child_logger
-def process_clean_gpt(filepath: str | Path, *, logger: LoggerProtocol | None = None) -> None:
-    """
-    Nettoie une note 'GPT' (content cleaning léger) et sauvegarde.
-    """
-    logger = ensure_logger(logger, __name__)
-    path = Path(str(filepath)).resolve()
-    logger.debug("[DEBUG] démarrage process_clean_gpt pour : %s", path)
-
-    try:
-        copy_file_with_date(path.as_posix(), Path(SAV_PATH), logger=logger)
-        content = read_note_content(path.as_posix(), logger=logger)
-        cleaned = clean_content(content)
-
-        ok = safe_write(path.as_posix(), content=cleaned, logger=logger)
-        if not ok:
-            logger.error("[ERROR] Écriture sécurisée échouée pour %s", path)
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERROR] process_clean_gpt(%s) : %s", path, exc)
+# Patterns possibles dans ta sortie "clean"
+RE_BRACKETED = re.compile(r"^\[T(?P<idx>\d+)\]\[(?P<role>user|assistant)\]:\s*(?P<text>.+)$", re.I)
+RE_LABELED = re.compile(r"^(?P<label>Utilisateur|User|Assistant|IA|Bot)\s*:\s*(?P<text>.+)$", re.I)
 
 
-@with_child_logger
-def process_import_gpt(filepath: str | Path | None = None, *, logger: LoggerProtocol | None = None) -> None:
-    """
-    Traite toutes les notes dans GPT_IMPORT_DIR, si la ligne 1 contient un titre.
-
-    (Le paramètre 'filepath' est ignoré, conservé pour compat.)
-    """
-    logger = ensure_logger(logger, __name__)
-    in_dir = Path(GPT_IMPORT_DIR).resolve()
-    out_dir = Path(GPT_OUTPUT_DIR).resolve()
-
-    ensure_folder_exists(in_dir, logger=logger)
-    ensure_folder_exists(out_dir, logger=logger)
-
-    logger.info("[INFO] GPT import → in=%s | out=%s", in_dir, out_dir)
-
-    processed = 0
-    ignored = 0
-
-    for file in in_dir.glob("*.md"):
-        try:
-            if is_ready_for_split(file):
-                logger.info("[INFO] Traitement : %s", file.name)
-                process_gpt_conversation(file, out_dir, prefix="GPT_Conversation", logger=logger)
-                processed += 1
-                # Archivage dans SAV_PATH
-                move_file_with_date(file.as_posix(), SAV_PATH, logger=logger)
-            else:
-                logger.info("[INFO] Ignorée (pas de titre en ligne 1) : %s", file.name)
-                ignored += 1
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.exception("[ERROR] Fichier %s : %s", file, exc)
-
-    logger.info("[INFO] GPT import terminé — traités=%d | ignorés=%d", processed, ignored)
-
-
-def is_ready_for_split(filepath: str | Path) -> bool:
-    """
-    True si la 1re ligne commence par '# '.
-    """
-    path = Path(str(filepath))
-    try:
-        with path.open("r", encoding="utf-8") as f:
-            first_line = (f.readline() or "").strip()
-        return first_line.startswith("# ")
-    except FileNotFoundError:
-        return False
-
-
-@with_child_logger
-def process_gpt_conversation(
-    filepath: str | Path,
-    output_dir: str | Path,
+def parse_turns_from_clean_text(
+    cleaned_text: str,
     *,
-    prefix: str = "GPT_Conversation",
+    start_idx: int = 1,
     logger: LoggerProtocol | None = None,
-) -> None:
+) -> list[Turn]:
     """
-    Découpe une conversation GPT (titres '# ') en sections et crée 1 fichier par section.
+    Convertit un texte 'clean' (retourné par large_or_standard_note en mode nettoyage)
+
+    en liste de Turn(idx, role, text).
+    - Supporte deux formats: [T#][role]: ...  OU  'Utilisateur :' / 'Assistant :'
+    - Assigne des idx croissants si manquants.
     """
     logger = ensure_logger(logger, __name__)
-    src = Path(str(filepath)).resolve()
-    out = Path(str(output_dir)).resolve()
+    turns: list[Turn] = []
+    next_idx = start_idx
 
-    if not is_ready_for_split(src):
-        logger.debug("[DEBUG] Ignorée (pas de titre en ligne 1) : %s", src)
-        return
+    for raw in (cleaned_text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
 
-    content = read_note_content(src.as_posix(), logger=logger)
-    sections = split_gpt_conversation(content)
-    ensure_folder_exists(out, logger=logger)
+        m = RE_BRACKETED.match(line)
+        if m:
+            role = m.group("role").lower()
+            idx = int(m.group("idx"))
+            text = m.group("text").strip()
+            turns.append(Turn(idx=idx, role="user" if role == "user" else "assistant", text=text))
+            next_idx = max(next_idx, idx + 1)
+            continue
 
-    for title, body in sections:
-        safe_title = re.sub(r"[^\w\s-]", "_", title).strip()
-        filename = f"{prefix}_{safe_title}.md"
-        dst = out / filename
-        # On ajoute un titre H1 au début du fichier
-        text = f"# {title}\n\n{body}"
-        ok = safe_write(dst.as_posix(), content=text, logger=logger)
-        if not ok:
-            logger.error("[ERROR] Écriture section échouée : %s", dst)
+        m = RE_LABELED.match(line)
+        if m:
+            label = m.group("label").lower()
+            text = m.group("text").strip()
+            role = "user" if label in {"utilisateur", "user"} else "assistant"
+            turns.append(Turn(idx=next_idx, role=role, text=text))
+            next_idx += 1
+            continue
+
+        # Ligne orpheline : on l'accole au dernier tour si possible
+        if turns:
+            turns[-1].text = f"{turns[-1].text}\n{line}"
+        else:
+            # Sinon, on crée un tour 'user' par défaut (rare)
+            turns.append(Turn(idx=next_idx, role="user", text=line))
+            next_idx += 1
+
+    if not turns:
+        logger.warning("parse_turns_from_clean_text: aucune ligne reconnue.")
+    else:
+        logger.info("parse_turns_from_clean_text: %d tours (idx %s..%s)", len(turns), turns[0].idx, turns[-1].idx)
+    return turns
 
 
-def split_gpt_conversation(content: str) -> list[tuple[str, str]]:
+@dataclass
+class Turn:
+    idx: int
+    role: str
+    text: str
+
+
+def parse_turns(cleaned: str) -> list[Turn]:
+    turns: list[Turn] = []
+    for line in cleaned.splitlines():
+        m = TURN_RE.match(line.strip())
+        if m:
+            turns.append(Turn(idx=int(m.group("idx")), role=m.group("role"), text=m.group("text")))
+    return turns
+
+
+def pair_chunks(
+    turns: list[Turn],
+    target_chars: int = 1200,
+    hard_cap: int = 1600,
+    min_chars: int = 500,
+    overlap_chars: int = 180,
+) -> list[str]:
     """
-    Découpe une conversation GPT en sections basées sur les titres de niveau '# '.
-
-    Retourne [(title, body), ...].
+    Regroupe (user + assistant) en chunks conversationnels avec découpe propre et overlap.
     """
-    # Répartition par titres capturés : ["pre", title1, body1, title2, body2, ...]
-    parts = re.split(r"(?m)^# (.+)$", content)
-    results: list[tuple[str, str]] = []
-    for i in range(1, len(parts), 2):
-        title = (parts[i] or "").strip()
-        body = (parts[i + 1] or "").strip()
-        results.append((title, body))
-    return results
+
+    def sentences(txt: str) -> list[str]:
+        lines = [ln for ln in txt.splitlines() if ln.strip()]
+        codeish = sum(1 for ln in lines if any(t in ln for t in (";", "def ", "Traceback", "ERROR", "docker ", "pip ")))
+        if lines and codeish / len(lines) > 0.4:
+            return [txt]
+        parts = re.split(r"(?<=[\.\!\?])\s+(?=[A-ZÀ-ÖØ-Þ0-9])", txt.strip())
+        return [p.strip() for p in parts if p.strip()]
+
+    def pack(text: str, room: int) -> list[str]:
+        segs, buf = [], ""
+        for s in sentences(text):
+            if not buf:
+                buf = s
+            elif len(buf) + 1 + len(s) <= room:
+                buf = f"{buf} {s}"
+            else:
+                segs.append(buf)
+                buf = s
+        if buf:
+            segs.append(buf)
+        return segs
+
+    chunks: list[str] = []
+    i = 0
+    tail = ""
+    while i < len(turns):
+        if i + 1 < len(turns) and turns[i].role == "user" and turns[i + 1].role == "assistant":
+            u, a = turns[i], turns[i + 1]
+            i += 2
+            user_hdr, asst_hdr = f"[T{u.idx}][user]: ", f"[T{a.idx}][assistant]: "
+            base_len = len(user_hdr) + len(u.text) + 1 + len(asst_hdr)
+
+            if base_len + len(a.text) <= hard_cap:
+                group = f"{user_hdr}{u.text}\n{asst_hdr}{a.text}"
+                if len(group) < min_chars and i < len(turns):
+                    nxt = turns[i]
+                    nxt_line = f"\n[T{nxt.idx}][{nxt.role}]: {nxt.text}"
+                    if len(group) + len(nxt_line) <= hard_cap:
+                        group += nxt_line
+                        i += 1
+                if tail:
+                    group = tail + group
+                chunks.append(group[:hard_cap])
+                tail = group[-overlap_chars:] if overlap_chars else ""
+                continue
+
+            # découper réponse assistant
+            room = max(min_chars, hard_cap - base_len)
+            for seg in pack(a.text, room):
+                group = f"{user_hdr}{u.text}\n{asst_hdr}{seg}"
+                if tail:
+                    group = tail + group
+                chunks.append(group[:hard_cap])
+                tail = group[-overlap_chars:] if overlap_chars else ""
+        else:
+            t = turns[i]
+            i += 1
+            group = f"[T{t.idx}][{t.role}]: {t.text}"
+            if tail:
+                group = tail + group
+            chunks.append(group[:hard_cap])
+            tail = group[-overlap_chars:] if overlap_chars else ""
+    return chunks
+
+
+def _sentences_safe(text: str) -> list[str]:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    codeish = sum(1 for ln in lines if any(t in ln for t in (";", "def ", "Traceback", "ERROR", "docker ", "pip ")))
+    if lines and codeish / len(lines) > 0.4:
+        return [text]  # code/log: ne pas couper en phrases
+    parts = re.split(r"(?<=[\.\!\?])\s+(?=[A-ZÀ-ÖØ-Þ0-9])", text.strip())
+    return [p.strip() for p in parts if p.strip()]
 
 
 @with_child_logger
-def process_class_gpt(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> None:
+def enforce_embed_budget(
+    chunks: list[str],
+    *,
+    max_chars: int = 1600,  # budget cible par chunk pour l'embedding
+    min_chars: int = 500,
+    overlap_chars: int = 120,  # petit chevauchement
+    logger: LoggerProtocol | None = None,
+) -> list[str]:
     """
-    Pipeline de "reformulation" pour une note GPT :
+    Re-slice les chunks trop longs pour respecter le budget embeddings.
 
-    - nettoyage via process_large_note (entry_type='gpt_reformulation')
-    - extraction de mots-clés (process_and_update_file)
-    - properties YAML + DB (status='archive')
+    - Coupe aux frontières de phrase si possible.
+    - Ajoute un léger overlap pour la continuité.
     """
     logger = ensure_logger(logger, __name__)
-    path = Path(str(filepath)).resolve()
-    logger.info("[INFO] process_class_gpt : %s", path)
+    fixed: list[str] = []
+    tail = ""
 
-    # Reformulation (1 passage suffit)
-    large_or_standard_note(
-        note_id=note_id,
-        filepath=path.as_posix(),
-        prompt_name="gpt_reformulation",
-        model_ollama=MODEL_FR,
-        source="other",
-        logger=logger,
-    )
+    for raw in chunks:
+        if len(raw) <= max_chars:
+            grp = (tail + raw) if (tail and fixed) else raw
+            fixed.append(grp[:max_chars])
+            tail = grp[-overlap_chars:] if overlap_chars else ""
+            continue
 
-    # Mots-clés + update éventuelle
-    # process_and_update_file(path.as_posix())
+        # Repack par phrases dans la partie assistant si possible; sinon sur l'ensemble
+        parts = _sentences_safe(raw)
+        buf = ""
+        for s in parts:
+            cand = f"{buf} {s}".strip() if buf else s
+            if len(cand) <= max_chars:
+                buf = cand
+                continue
+            # flush
+            grp = (tail + buf) if (tail and fixed) else buf
+            fixed.append(grp[:max_chars])
+            tail = grp[-overlap_chars:] if overlap_chars else ""
+            buf = s
+        if buf:
+            grp = (tail + buf) if (tail and fixed) else buf
+            fixed.append(grp[:max_chars])
+            tail = grp[-overlap_chars:] if overlap_chars else ""
 
-    # Finalisation YAML / DB
-    make_properties(path.as_posix(), note_id, status="archive", logger=logger)
+    if logger:
+        logger.info("[EMBED_BUDGET] in=%d, out=%d, max_chars=%d", len(chunks), len(fixed), max_chars)
+    return fixed
+
+
+def write_qr_file(chunks: list[str]) -> str:
+    import tempfile
+
+    text = "\n\n".join(s.strip() for s in chunks)
+    tmp = tempfile.NamedTemporaryFile(prefix="brainops_conv_", suffix=".txt", delete=False)
+    tmp.write(text.encode("utf-8"))
+    tmp.close()
+    return tmp.name
 
 
 @with_child_logger
@@ -192,26 +258,65 @@ def process_class_gpt_test(filepath: str | Path, note_id: int, *, logger: Logger
     for model in models:
         safe_model = re.sub(r'[\/:*?"<>|]', "_", model)
         first_copy = dest_dir / f"{src.stem}_{safe_model}{src.suffix}"
-        second_copy = dest_dir / f"{src.stem}_{safe_model}_suite{src.suffix}"
-
+        # second_copy = dest_dir / f"{src.stem}_{safe_model}_suite{src.suffix}"
+        third_copy = dest_dir / f"{src.stem}_{safe_model}_suite2{src.suffix}"
+        four_copy = dest_dir / f"{src.stem}_{safe_model}_suite3{src.suffix}"
+        five_copy = dest_dir / f"{src.stem}_{safe_model}_suite4{src.suffix}"
         try:
             copied_1 = shutil.copy(src.as_posix(), first_copy.as_posix())
             logger.debug("[DEBUG] Copie 1 : %s", copied_1)
-            large_or_standard_note(
+            # 0) Nettoyage fenêtré (au lieu d'envoyer toute la conv)
+            cleaned_text: str = large_or_standard_note(
                 note_id=note_id,
                 filepath=first_copy.as_posix(),
-                prompt_name="clean_gpt",
-                word_limit=500,
+                prompt_name="test_tags_gpt",
                 model_ollama=model,
-                source="other",
+                source="window_gpt",
+                split_method="split_windows_by_paragraphs",
                 logger=logger,
             )
 
-            copied_2 = shutil.copy(first_copy.as_posix(), second_copy.as_posix())
-            logger.debug("[DEBUG] Copie 2 : %s", copied_2)
+            logger.debug("TEST nb cleaned_text : %s", len(cleaned_text))
+            logger.debug("TEST cleaned_text : %s", cleaned_text[:1300])
+            # 2) str → list[Turn] (parse)
+            turns: list[Turn] = parse_turns_from_clean_text(cleaned_text, logger=logger)
+            logger.debug("turns : %s", turns[:1300])
+            logger.debug("len turns : %s", len(turns))
+            # safe_write(second_copy.as_posix(), content=turns or "", logger=logger)
 
-            final_response = make_embeddings_synthesis(note_id, second_copy.as_posix(), logger=logger)
-            safe_write(second_copy.as_posix(), content=final_response or "", logger=logger)
+            # 3) list[Turn] → list[str] (Q→R)
+            qr_chunks: list[str] = pair_chunks(
+                turns, target_chars=1200, hard_cap=1600, min_chars=500, overlap_chars=180
+            )
+            logger.debug("qr_chunks : %s", qr_chunks[:1300])
+            logger.debug("qr_chunks : %s", len(qr_chunks))
+            safe_write(third_copy.as_posix(), content=qr_chunks or "", logger=logger)
+            # Garde-fou embeddings (si besoin)
+            embed_ready = enforce_embed_budget(
+                qr_chunks, max_chars=1600, min_chars=500, overlap_chars=120, logger=logger
+            )
+            logger.debug("embed_ready : %s", embed_ready[:1300])
+            logger.debug("embed_ready : %s", len(embed_ready))
+            safe_write(four_copy.as_posix(), content=embed_ready or "", logger=logger)
+            # 4) écrire un fichier Q/R (1 paragraphe = 1 chunk)
+            prepared_path = write_qr_file(qr_chunks)  # petite fonction util qui fait "\n\n".join(...)
+            logger.debug("prepared_path : %s", prepared_path[:1300])
+            # 2) Embeddings : conv_chunks → large_or_standard_note(... persist_blocks=True) ou direct vers ton index
+            # copied_2 = shutil.copy(first_copy.as_posix(), second_copy.as_posix())
+            # logger.debug("[DEBUG] Copie 2 : %s", copied_2)
+
+            # 4) Embeddings + persistance DB via TON flow (1 paragraphe = 1 bloc)
+
+            final_response = make_embeddings_synthesis(
+                note_id=note_id,
+                filepath=first_copy.as_posix(),
+                split_method="split_windows_by_paragraphs",
+                mode="gpt",
+                source="gpt",
+                logger=logger,
+            )
+            logger.debug("[DEBUG] final response : %s", final_response)
+            safe_write(five_copy.as_posix(), content=final_response or "", logger=logger)
 
         except Exception as exc:  # pylint: disable=broad-except
             logger.exception("[ERROR] process_class_gpt_test(%s, %s) : %s", src, model, exc)

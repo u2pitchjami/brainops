@@ -86,7 +86,7 @@ def ollama_generate(prompt: str, model_ollama: str, *, logger: LoggerProtocol | 
             stream=True,
             timeout=OLLAMA_TIMEOUT,
         ) as resp:
-            if resp.status_code == 404:
+            if resp.status_code == 404 or None:
                 raise BrainOpsError(
                     "Modèle introuvable sur Ollama (404)", code=ErrCode.OLLAMA, ctx={"status": resp.status_code}
                 )
