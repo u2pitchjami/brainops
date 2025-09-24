@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder
 from brainops.sql.categs.db_categ_utils import remove_unused_category
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -22,6 +23,7 @@ def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = Non
     Requiert idéalement UNIQUE(path).
     """
     logger = ensure_logger(logger, __name__)
+    logger.debug("folder_type:", folder.folder_type, "| value:", folder.folder_type.value)
     conn = get_db_connection(logger=logger)
     try:
         with conn.cursor() as cur:
@@ -111,16 +113,16 @@ def delete_folder_from_db(folder_path: str, logger: LoggerProtocol | None = None
     try:
         conn = None
         path = Path(folder_path)
-        if path.exists():
+        if to_abs(path).exists():
             # 🔒 Vérifie si le dossier contient des fichiers ou sous-dossiers
-            if any(path.iterdir()):
+            if any(to_abs(path).iterdir()):
                 logger.warning(f"[DELETE] Dossier non vide, suppression ignorée : {folder_path}")
                 return False
 
         conn = get_db_connection(logger=logger)
         if not conn:
             return False
-        cursor = conn.cursor()
+        cursor = get_cursor(conn)
 
         # 🔍 Récupérer les IDs de catégorie avant suppression
         result = safe_execute(

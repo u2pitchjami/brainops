@@ -4,14 +4,12 @@ sql/db_temp_blocs.py.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
 @with_child_logger
-def mark_bloc_as_error(filepath: str | Path, block_index: int, logger: LoggerProtocol | None = None) -> None:
+def mark_bloc_as_error(note_id: int, block_index: int, logger: LoggerProtocol | None = None) -> None:
     """
     Marque un bloc comme 'error' en se basant sur (note_path, block_index).
 
@@ -27,11 +25,11 @@ def mark_bloc_as_error(filepath: str | Path, block_index: int, logger: LoggerPro
             """
             UPDATE obsidian_temp_blocks
                SET status = 'error'
-             WHERE note_path = %s
+             WHERE note_id = %s
                AND block_index = %s
                AND status <> 'processed'
             """,
-            (str(filepath), block_index),
+            (note_id, block_index),
         )
         conn.commit()
     except Exception as e:

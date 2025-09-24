@@ -4,15 +4,60 @@ note_writer.py — Fonctions de mise à jour de l'entête YAML des notes Obsidia
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+import os
 from pathlib import Path
 
 import yaml
 
-from brainops.header.header_utils import get_yaml, merge_yaml_header, update_yaml_header
+from brainops.header.header_utils import merge_yaml_header, update_yaml_header
+from brainops.io.paths import to_abs
+from brainops.io.read_note import read_note_content
+from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
 from brainops.models.types import StrOrPath
-from brainops.utils.files import read_note_content, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+
+@with_child_logger
+def safe_write(
+    file_path: StrOrPath,
+    content: str | Iterable[str],
+    *,
+    verify_contains: list[str] | None = None,
+    logger: LoggerProtocol | None = None,
+) -> bool:
+    """
+    Écrit de façon sûre :
+
+    - supporte str ou liste/iterable de str
+    - fsync
+    - vérification optionnelle de champs
+    """
+    logger = ensure_logger(logger, __name__)
+    p = Path(to_abs(file_path))
+    try:
+        with open(p, "w", encoding="utf-8") as f:
+            if isinstance(content, str):
+                f.write(content)
+                logger.debug("[safe_write] write() %d chars → %s", len(content), p)
+            else:
+                lines = list(content)
+                f.writelines(lines)
+                logger.debug("[safe_write] writelines() %d lignes → %s", len(lines), p)
+            f.flush()
+            # fsync pour garantir la persistance disque
+            os.fsync(f.fileno())
+
+        if verify_contains:
+            written = p.read_text(encoding="utf-8")
+            for needle in verify_contains:
+                if needle not in written:
+                    logger.warning("[safe_write] Champ manquant '%s' dans %s", needle, p)
+                    return False
+        return True
+    except Exception as exc:  # pylint: disable=broad-except
+        raise BrainOpsError("write file KO", code=ErrCode.FILEERROR, ctx={"file_path": file_path}) from exc
 
 
 @with_child_logger
@@ -23,7 +68,7 @@ def write_metadata_to_note(
     Remplace complètement l'entête YAML par le contenu de NoteMetadata.
     """
     logger = ensure_logger(logger, __name__)
-    filepath = Path(filepath).expanduser().resolve().as_posix()
+    filepath = Path(filepath).as_posix()
 
     try:
         content = read_note_content(filepath, logger=logger)
@@ -81,6 +126,8 @@ def update_yaml_field(filepath: StrOrPath, key: str, value: str, *, logger: Logg
     Met à jour un champ unique dans l'entête YAML (écrase sa valeur).
     """
     logger = ensure_logger(logger, __name__)
+    from brainops.header.header_utils import get_yaml
+
     try:
         content = read_note_content(filepath, logger=logger)
         if not content:

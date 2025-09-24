@@ -17,7 +17,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def make_embeddings_synthesis(
     note_id: int,
-    filepath: str,
+    content: str,
     *,
     source: str = "normal",
     mode: str = "ajust",
@@ -31,16 +31,15 @@ def make_embeddings_synthesis(
     logger = ensure_logger(logger, __name__)
     try:
         logger.debug(
-            "[DEBUG] make_embeddings_synthesis id: %s file:%s source:%s mode:%s split_method:%s",
+            "[DEBUG] make_embeddings_synthesis id: %s source:%s mode:%s split_method:%s",
             note_id,
-            filepath,
             source,
             mode,
             split_method,
         )
         # 1) création des embeddings + stockage des blocs (process_large_note côté projet)
         _ = large_or_standard_note(
-            filepath=filepath,
+            content=content,
             source="embeddings",
             process_mode="large_note",
             prompt_name="embeddings",
@@ -55,7 +54,7 @@ def make_embeddings_synthesis(
         )
 
         # 2) top blocs (avec score pour debug)
-        top_blocks = select_top_blocks_by_mode(note_id=note_id, filepath=filepath, mode=mode, logger=logger)
+        top_blocks = select_top_blocks_by_mode(content=content, note_id=note_id, mode=mode, logger=logger)
         logger.debug("[DEBUG] top_blocks: %s", top_blocks)
         # 3) synthèse finale
         if source == "gpt":

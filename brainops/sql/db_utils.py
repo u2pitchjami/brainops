@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Protocol, TypeVar
+from typing import Any, TypeVar
 
+from brainops.models.cursor_protocol import CursorProtocol
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -14,22 +15,22 @@ Row = tuple[Any, ...]  # ou dict[str, Any] si DictCursor
 C = TypeVar("C", bound="CursorProtocol")
 
 
-class CursorProtocol(Protocol):
-    # Attributs DB-API fréquents
-    rowcount: int | None
+# class CursorProtocol(Protocol):
+#     # Attributs DB-API fréquents
+#     rowcount: int | None
 
-    # Exécution
-    def execute(
-        self,
-        operation: str,
-        params: Sequence[Any] | Mapping[str, Any] | None = ...,
-    ) -> None: ...
-    def nextset(self) -> bool | None: ...
+#     # Exécution
+#     def execute(
+#         self,
+#         operation: str,
+#         params: Sequence[Any] | Mapping[str, Any] | None = ...,
+#     ) -> None: ...
+#     def nextset(self) -> bool | None: ...
 
-    # Récupération
-    def fetchone(self) -> Row | None: ...
-    def fetchall(self) -> list[Row]: ...
-    def close(self) -> None: ...
+#     # Récupération
+#     def fetchone(self) -> Row | None: ...
+#     def fetchall(self) -> list[Row]: ...
+#     def close(self) -> None: ...
 
 
 @with_child_logger

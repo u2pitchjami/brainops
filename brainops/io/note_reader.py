@@ -6,11 +6,28 @@ from __future__ import annotations
 
 from typing import Any
 
+import yaml
+
 from brainops.header.extract_yaml_header import extract_yaml_header
-from brainops.header.header_utils import get_yaml
 from brainops.models.metadata import NoteMetadata
-from brainops.models.types import StrOrPath
-from brainops.utils.logger import LoggerProtocol, with_child_logger
+from brainops.models.types import _YAML_FENCE, StrOrPath
+from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+
+@with_child_logger
+def get_yaml(content: str, *, logger: LoggerProtocol | None = None) -> dict[str, Any]:
+    logger = ensure_logger(logger, __name__)
+    try:
+        m = _YAML_FENCE.match(content)
+        if m:
+            loaded = yaml.safe_load(m.group(1)) or {}
+            if isinstance(loaded, dict):
+                return loaded
+            logger.warning("[get_yaml] YAML n'est pas un dict (%s), fallback {}", type(loaded).__name__)
+            return {}
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning(f"[get_yaml] Erreur parsing YAML : {exc}")
+    return {}
 
 
 @with_child_logger

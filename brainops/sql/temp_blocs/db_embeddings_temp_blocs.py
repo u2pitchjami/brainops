@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import json
 
+from pymysql.cursors import DictCursor
+
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -26,7 +28,7 @@ def get_blocks_and_embeddings_by_note(
         logger.error("[DB] Connexion à la base échouée")
         return [], []
 
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(DictCursor)
 
     try:
         cursor.execute(

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -21,7 +21,7 @@ def remove_unused_category(category_id: int, *, logger: LoggerProtocol | None = 
     if not conn:
         return False
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT COUNT(*) FROM obsidian_folders WHERE category_id=%s OR subcategory_id=%s",

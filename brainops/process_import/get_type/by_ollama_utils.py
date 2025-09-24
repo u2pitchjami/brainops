@@ -5,10 +5,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-import json
 from pathlib import Path
 import re
-import shutil
 
 from Levenshtein import ratio
 
@@ -20,24 +18,21 @@ from brainops.process_folders.folders import add_folder
 from brainops.process_import.utils.divers import (
     prompt_name_and_model_selection,
 )
-from brainops.process_import.utils.paths import ensure_folder_exists
 from brainops.sql.categs.db_dictionary_categ import (
     generate_categ_dictionary,
     generate_optional_subcategories,
+    get_categ_id_from_name,
+    get_subcateg_from_categ,
 )
 from brainops.sql.folders.db_folder_utils import (
     get_folder_path_by_id,
 )
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
-    get_folder_id,
 )
-from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.config import (
     MODEL_GET_TYPE,
     SIMILARITY_WARNINGS_LOG,
-    UNCATEGORIZED_JSON,
-    UNCATEGORIZED_PATH,
     Z_STORAGE_PATH,
 )
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -59,15 +54,18 @@ def parse_category_response(llama_proposition: str) -> str:
     )
 
 
-def clean_note_type(parse_category: str) -> str:
+@with_child_logger
+def clean_note_type(parse_category: str, logger: LoggerProtocol | None = None) -> str:
     """
     Nettoyage: guillemets -> off, espaces -> _, interdits -> off, pas de '.' final.
     """
+    logger = ensure_logger(logger, __name__)
     clean_str = parse_category.strip().replace('"', "").replace("'", "")
+    clean_str = clean_str.replace("\n", "")
     clean_str = clean_str.replace(" ", "_")
     clean_str = re.sub(r'[\:*?"<>|]', "", clean_str)
     clean_str = re.sub(r"\.$", "", clean_str)
-    return clean_str
+    return prep_and_similarity_test(clean_str, logger=logger)
 
 
 # ---------- Similarité (inchangé) ---------------------------------------------
@@ -109,6 +107,48 @@ def find_similar_levenshtein(
     return sorted(similar, key=lambda x: x[1], reverse=True)
 
 
+@with_child_logger
+def prep_and_similarity_test(note_type: str, logger: LoggerProtocol | None = None) -> str:
+    logger = ensure_logger(logger, __name__)
+    try:
+        parts = [p.strip() for p in note_type.split("/", 1)]
+        category_name = parts[0]
+        subcategory_name = parts[1] if len(parts) == 2 and parts[1] else "unknow"
+        if not category_name:
+            raise BrainOpsError(
+                "[METADATA] ❌ Impossible de parser la proposition Ollama",
+                code=ErrCode.METADATA,
+                ctx={"fonction": "prep_and_similarity_test", "note_type": note_type},
+            )
+        list_categ = generate_categ_dictionary(for_similar=True, logger=logger)
+        logger.debug(f"list_categ: {list_categ}")
+        real_category_name = check_and_handle_similarity(
+            category_name, existing_names=list_categ, entity_type="category"
+        )
+        logger.debug(f"real_category_name: {real_category_name}")
+        if subcategory_name is not None and real_category_name:
+            cat_id = get_categ_id_from_name(name=real_category_name, logger=logger)
+            logger.debug(f"cat_id: {cat_id}")
+            subcategs = get_subcateg_from_categ(categ_id=cat_id, logger=logger)
+            logger.debug(f"subcategs: {subcategs}")
+            real_subcategory_name = check_and_handle_similarity(
+                subcategory_name, existing_names=subcategs, entity_type="subcategory"
+            )
+            logger.debug(f"real_subcategory_name: {real_subcategory_name}")
+
+        return f"{real_category_name}/{real_subcategory_name}"
+    except Exception as exc:
+        raise BrainOpsError(
+            "[METADATA] ❌ Check similarités categ/subcateg KO",
+            code=ErrCode.METADATA,
+            ctx={
+                "fonction": "_classify_with_llm",
+                "real_category_name": real_category_name,
+                "real_subcategory_name": real_subcategory_name,
+            },
+        ) from exc
+
+
 def check_and_handle_similarity(
     name: str,
     existing_names: list[str],
@@ -148,59 +188,10 @@ def check_and_handle_similarity(
     return name
 
 
-# ---------- Gestion UNCATEGORIZED ---------------------------------------------
-
-
-@with_child_logger
-def handle_uncategorized(
-    note_id: int,
-    filepath: str | Path,
-    note_type: str | None,
-    llama_proposition: str,
-    *,
-    logger: LoggerProtocol | None = None,
-) -> None:
-    """
-    Déplace la note vers UNCATEGORIZED_PATH et journalise pour reprocessing.
-    """
-    logger = ensure_logger(logger, __name__)
-    src = Path(str(filepath)).expanduser().resolve()
-    try:
-        ensure_folder_exists(Path(UNCATEGORIZED_PATH), logger=logger)
-        dest = Path(UNCATEGORIZED_PATH) / src.name
-
-        shutil.move(src.as_posix(), dest.as_posix())
-        logger.warning("[WARNING] 🚨 Note déplacée vers 'uncategorized' : %s", dest.as_posix())
-
-        # MAJ DB avec le vrai folder_id de UNCATEGORIZED_PATH
-        unc_folder_id = get_folder_id(Path(UNCATEGORIZED_PATH).as_posix(), logger=logger)
-        updates = {"folder_id": unc_folder_id, "file_path": dest.as_posix()}
-        update_obsidian_note(note_id, updates, logger=logger)
-
-        # Journal JSON
-        data = {}
-        if Path(UNCATEGORIZED_JSON).exists():
-            with open(UNCATEGORIZED_JSON, encoding="utf-8") as f:
-                data = json.load(f)
-        data[dest.as_posix()] = {
-            "original_type": note_type,
-            "llama_proposition": llama_proposition or "",
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        with open(UNCATEGORIZED_JSON, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-
-    except Exception as exc:
-        raise BrainOpsError(
-            "[METADATA] ❌ déplacement uncategorized KO",
-            code=ErrCode.METADATA,
-            ctx={"fonction": "handle_uncategorized", "note_id": note_id, "llama_proposition": llama_proposition},
-        ) from exc
-
-
 # ---------- Classification & déplacement --------------------------------------
 
 
+@with_child_logger
 def _classify_with_llm(note_id: int, content: str, *, logger: LoggerProtocol | None = None) -> str:
     """
     Construit le prompt et appelle Ollama.
@@ -234,20 +225,17 @@ def _classify_with_llm(note_id: int, content: str, *, logger: LoggerProtocol | N
 
 
 @with_child_logger
-def _resolve_destination(
-    note_type: str, note_id: int, filepath: str, *, logger: LoggerProtocol | None = None
-) -> ClassificationResult:
+def _resolve_destination(note_type: str, note_id: int, *, logger: LoggerProtocol | None = None) -> ClassificationResult:
     """
     À partir du note_type "Cat/Sub", calcule ids + dossier cible.
     """
     logger = ensure_logger(logger, __name__)
     try:
-        cat_id = None
         subcat_id = None
         try:
             parts = [p.strip() for p in note_type.split("/", 1)]
-            category = parts[0]
-            subcategory = parts[1] if len(parts) == 2 and parts[1] else None
+            category_name = parts[0]
+            subcategory_name = parts[1] if len(parts) == 2 and parts[1] else None
         except Exception as exc:  # pylint: disable=broad-except
             raise BrainOpsError(
                 "[METADATA] ❌ Impossible de parser la proposition Ollama",
@@ -255,16 +243,22 @@ def _resolve_destination(
                 ctx={"fonction": "_resolve_destination", "note_id": note_id, "note_type": note_type},
             ) from exc
 
-        categ_path = Path(Z_STORAGE_PATH) / category
+        categ_path = Path(Z_STORAGE_PATH) / category_name
+        logger.debug(f"categ_path: {categ_path}")
         cat_folder_id = add_folder(folder_path=categ_path, logger=logger)
-        if subcategory is not None:
-            subcateg_path = Path(Z_STORAGE_PATH) / category / subcategory
+        logger.debug(f"cat_folder_id: {cat_folder_id}")
+        if subcategory_name is not None:
+            subcateg_path = Path(Z_STORAGE_PATH) / category_name / subcategory_name
+            logger.debug(f"subcateg_path: {subcateg_path}")
             sub_folder_id = add_folder(folder_path=subcateg_path, logger=logger)
+            logger.debug(f"sub_folder_id: {sub_folder_id}")
             def_path = get_folder_path_by_id(sub_folder_id, logger=logger)
-            cat_id, subcat_id, _, _ = get_category_context_from_folder(def_path, logger=logger)
+            logger.debug(f"def_path: {def_path}")
+            classification = get_category_context_from_folder(def_path, logger=logger)
+            logger.debug(f"classification: {classification}")
         else:
             def_path = get_folder_path_by_id(cat_folder_id, logger=logger)
-            cat_id, _, _, _ = get_category_context_from_folder(def_path, logger=logger)
+            classification = get_category_context_from_folder(def_path, logger=logger)
 
     except Exception as exc:
         raise BrainOpsError(
@@ -273,9 +267,10 @@ def _resolve_destination(
             ctx={"fonction": "_resolve_destination", "note_id": note_id, "note_type": note_type},
         ) from exc
     return ClassificationResult(
-        note_type=note_type,
-        category_id=cat_id,
-        subcategory_id=subcat_id,
+        category_name=classification.category_name or category_name,
+        category_id=classification.category_id,
+        subcategory_name=classification.subcategory_name or subcategory_name,
+        subcategory_id=classification.subcategory_id or subcat_id,
         folder_id=sub_folder_id or cat_folder_id,
         dest_folder=def_path,
         status="archive",

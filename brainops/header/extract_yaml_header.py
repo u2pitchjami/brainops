@@ -4,13 +4,8 @@ header.extract_yaml_header.
 
 from __future__ import annotations
 
-from typing import Any
-
-from brainops.header.header_utils import get_yaml
+from brainops.io.read_note import read_note_content
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.models.metadata import NoteMetadata
-from brainops.models.types import StrOrPath
-from brainops.utils.files import read_note_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -56,46 +51,3 @@ def extract_yaml_header(filepath: str, *, logger: LoggerProtocol | None = None) 
             code=ErrCode.UNEXPECTED,
             ctx={"path": filepath},
         ) from exc
-
-
-@with_child_logger
-def extract_metadata(
-    filepath: StrOrPath, key: str | None = None, *, logger: LoggerProtocol | None = None
-) -> dict[str, Any] | Any:
-    """
-    Extrait et parse l'en-tête YAML du fichier.
-
-    - Si `key` est fournie, retourne uniquement la valeur correspondante.
-    - Sinon, retourne toutes les métadonnées (dict).
-    """
-    logger = ensure_logger(logger, __name__)
-    try:
-        header_lines, _ = extract_yaml_header(str(filepath), logger=logger)
-        yaml_text = "\n".join(header_lines)
-        parsed = get_yaml(yaml_text, logger=logger)
-
-        if key:
-            return parsed.get(key)
-        return parsed
-
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERREUR] extract_metadata: %s", exc)
-        raise BrainOpsError(
-            "extract_metadata",
-            code=ErrCode.METADATA,
-            ctx={"path": filepath},
-        ) from exc
-
-
-@with_child_logger
-def extract_note_metadata(
-    filepath: StrOrPath,
-    *,
-    logger: LoggerProtocol | None = None,
-) -> NoteMetadata:
-    """
-    Extrait les métadonnées YAML sous forme d'objet typé NoteMetadata.
-    """
-    logger = ensure_logger(logger, __name__)
-    meta_dict = extract_metadata(filepath, logger=logger)
-    return NoteMetadata.from_yaml_dict(meta_dict)

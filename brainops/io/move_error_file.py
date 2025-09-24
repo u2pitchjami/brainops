@@ -11,8 +11,9 @@ from pathlib import Path
 import shutil
 from typing import Any
 
+from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.process_import.utils.paths import ensure_folder_exists
+from brainops.process_folders.folders import ensure_folder_exists
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_folder_id,
 )
@@ -24,7 +25,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 
 def _unique_dest(dest: Path) -> Path:
-    if not dest.exists():
+    if not Path(to_abs(str(dest))).exists():
         return dest
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     return dest.with_name(f"{dest.stem}__{ts}{dest.suffix}")
@@ -78,29 +79,29 @@ def handle_errored_file(
         if status == "synthesis":
             if parent_filepath:
                 # Paire présente : on déplace l’archive et on supprime la synthèse
-                src = Path(str(parent_filepath)).expanduser().resolve()
-                path_to_delete = Path(str(filepath)).expanduser().resolve()
+                src = Path(str(parent_filepath))
+                path_to_delete = Path(str(filepath))
                 def_note_id = parent_id  # l’archive devient la note “survivante”
             else:
                 # Synthèse “solo” : on déplace la synthèse elle-même (pas d’autre action)
-                src = Path(str(filepath)).expanduser().resolve()
+                src = Path(str(filepath))
                 path_to_delete = None
                 def_note_id = note_id
         else:
             # status == "archive" (ou autre inattendu : on traite comme archive)
-            src = Path(str(filepath)).expanduser().resolve()
-            path_to_delete = Path(str(parent_filepath)).expanduser().resolve() if parent_filepath else None
+            src = Path(str(filepath))
+            path_to_delete = Path(str(parent_filepath)) if parent_filepath else None
             def_note_id = note_id
 
         src_for_log = src  # pour le except
         dest = _unique_dest(Path(ERRORED_PATH) / src.name)
-        shutil.move(src.as_posix(), dest.as_posix())
+        shutil.move(to_abs(src).as_posix(), to_abs(dest).as_posix())
         logger.warning("[WARNING] 🚨 Note déplacée vers 'error' : %s", dest.as_posix())
 
         # Sécurité : ne tente pas de supprimer le fichier qu’on vient de déplacer
         if path_to_delete and path_to_delete.exists() and path_to_delete != dest:
             try:
-                os.remove(path_to_delete.as_posix())
+                os.remove(Path(to_abs(path_to_delete.as_posix())))
                 logger.info("🗑️ [FILE] Fichier supprimé : %s", path_to_delete)
             except Exception as rm_exc:
                 logger.warning("Suppression échouée (%s): %s", path_to_delete, rm_exc)
@@ -114,11 +115,11 @@ def handle_errored_file(
         # Journal JSON (payload sérialisable)
         payload = _exc_payload(exc) | {"note_id": note_id, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         data = {}
-        if Path(ERRORED_JSON).exists():
-            with open(ERRORED_JSON, encoding="utf-8") as f:
+        if Path(to_abs(ERRORED_JSON)).exists():
+            with open(to_abs(ERRORED_JSON), encoding="utf-8") as f:
                 data = json.load(f)
         data[dest.as_posix()] = payload
-        with open(ERRORED_JSON, "w", encoding="utf-8") as f:
+        with open(to_abs(ERRORED_JSON), "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     except Exception as inner_exc:

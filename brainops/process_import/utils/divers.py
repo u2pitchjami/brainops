@@ -5,61 +5,49 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 from pathlib import Path
 
 from langdetect import detect
 
+from brainops.io.read_note import read_note_content
+from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
 from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_lang
 from brainops.utils.config import MODEL_EN, MODEL_FR
-from brainops.utils.files import count_words, read_note_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_created, sanitize_filename
 
 
+def hash_content(content: str, algo: str = "sha256") -> str:
+    h = hashlib.new(algo)
+    h.update(content.encode("utf-8"))
+    return h.hexdigest()
+
+
 @with_child_logger
-def rename_file(filepath: str | Path, note_id: int, *, logger: LoggerProtocol | None = None) -> Path:
+def rename_file(
+    name: str, note_id: int, suffix: str, *, created: str | None = None, logger: LoggerProtocol | None = None
+) -> str:
     """
     Renomme un fichier en préfixant par la date (créée ou actuelle), en évitant les collisions.
 
     Retourne le nouveau chemin.
     """
     logger = ensure_logger(logger, __name__)
-    file_path = Path(str(filepath)).resolve()
 
-    logger.debug("[DEBUG] rename_file → %s", file_path)
-    if not file_path.exists():
-        msg = f"Le fichier {file_path} n'existe pas."
-        logger.error("[ERROR] %s", msg)
-        raise BrainOpsError("fichier absent KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
+    logger.debug("[DEBUG] rename_file → %s", name)
 
     # Récupère created_at depuis la DB si dispo, sinon now()
-    created_at_raw: str | None = None
-    try:
-        data = get_note_linked_data(note_id, "note", logger=logger)
-        if isinstance(data, dict):
-            created_at_raw = data.get("created_at")  # peut être str, date, datetime
-    except Exception as exc:
-        logger.warning("[WARN] Impossible de lire created_at en DB : %s", exc)
+    created_at_raw: str | None = created
     try:
         created_str = (
             sanitize_created(created_at_raw, logger=logger) if created_at_raw else datetime.now().strftime("%Y-%m-%d")
         )
-        stem_sanitized = sanitize_filename(file_path.stem, logger=logger)
-        new_name = f"{created_str}_{stem_sanitized}{file_path.suffix}"
-        new_path = file_path.with_name(new_name)
+        stem_sanitized = sanitize_filename(name, logger=logger)
+        new_name = f"{created_str}_{stem_sanitized}{suffix}"
 
-        # Résolution des collisions
-        counter = 1
-        while new_path.exists():
-            new_name = f"{created_str}_{stem_sanitized}_{counter}{file_path.suffix}"
-            new_path = file_path.with_name(new_name)
-            counter += 1
-
-        file_path.rename(new_path)
-        logger.info("[INFO] Note renommée : %s → %s", file_path.name, new_path.name)
-        return new_path
+        return new_name
     except Exception as exc:
         raise BrainOpsError("Rennomage fichier KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id}) from exc
 
@@ -77,8 +65,8 @@ def make_relative_link(
     Retourne un Path relatif utilisable dans un lien Obsidian.
     """
     logger = ensure_logger(logger, __name__)
-    orig = Path(str(original_path)).resolve()
-    base = Path(str(filepath)).resolve().parent
+    orig = Path(str(original_path))
+    base = Path(str(filepath)).parent
 
     if base in orig.parents:
         rel = orig.relative_to(base)

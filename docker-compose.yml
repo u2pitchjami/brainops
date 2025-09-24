@@ -1,0 +1,21 @@
+services:
+  brainops:
+
+    image: u2pitchjami/brainops:latest
+    user: 1000:1000
+    working_dir: /app
+    command: ["python","/app/brainops/main.py"]        # ou /app/brainops/main.py si c'est ton entrypoint
+    environment:
+      USE_POLLING: "1"
+      TZ: Europe/Paris
+      PYTHONUNBUFFERED: "1"
+      # 👉 ajoute les répertoires où Python doit chercher les packages
+      PYTHONPATH: "/app:/app"
+      BASE_PATH: /app/notes
+      WATCHDOG_POLL_INTERVAL: "1.0"
+      WATCHDOG_DEBOUNCE_WINDOW: "0.5"
+    volumes:
+      - /home/pipo/data/logs/brainops:/app/logs
+      - /mnt/user/Documents/Brainops/notes:/app/notes
+      - /home/pipo/data/appdata/brainops/env:/app/config
+    restart: unless-stopped

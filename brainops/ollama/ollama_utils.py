@@ -13,9 +13,8 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 @with_child_logger
 def large_or_standard_note(
-    filepath: str,
     note_id: int,
-    content: str | None = None,
+    content: str,
     prompt_key: str | None = None,
     model_ollama: str | None = None,
     word_limit: int = 1000,
@@ -62,7 +61,7 @@ def large_or_standard_note(
             return (
                 process_large_note(
                     note_id=note_id,
-                    filepath=filepath,
+                    content=content,
                     entry_type=prompt_name,
                     word_limit=word_limit,
                     split_method=split_method,
@@ -92,7 +91,6 @@ def large_or_standard_note(
             return (
                 process_standard_note(
                     note_id=note_id,
-                    filepath=filepath,
                     content=content or "",
                     model_ollama=model_ollama,
                     prompt_name=prompt_name,

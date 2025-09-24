@@ -6,22 +6,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from brainops.header.headers import add_metadata_to_yaml
 from brainops.io.note_reader import read_metadata_object
+from brainops.io.note_writer import merge_metadata_in_note
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.process_notes.utils import detect_update_status_by_folder
 from brainops.process_regen.regen_utils import regen_header, regen_synthese_from_archive
-from brainops.sql.categs.db_extract_categ import categ_extract
-from brainops.sql.folders.db_folder_utils import get_path_from_classification
-from brainops.sql.get_linked.db_get_linked_data import get_note_linked_data
-from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_tags
+from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
 from brainops.sql.notes.db_notes_utils import check_synthesis_and_trigger_archive
 from brainops.sql.notes.db_update_notes import (
     update_obsidian_note,
-    update_obsidian_tags,
 )
 from brainops.utils.files import wait_for_file
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
 
 
 @with_child_logger
@@ -49,7 +45,8 @@ def update_note(
         logger.warning("⚠️ Fichier introuvable, skip : %s", dp)
         return
 
-    categ_trigger = False
+    regen_synth_trigger = False
+    regen_header_trigger = False
 
     try:
         # 1) Métadonnées depuis YAML
@@ -57,88 +54,51 @@ def update_note(
         logger.debug(f"meta : {meta}")
         title_yaml = meta.title or dp.stem.replace("_", " ").replace(":", " ")
         status_yaml = meta.status or "draft"
-        tags_yaml = meta.tags or []
         summary_yaml = meta.summary
         source_yaml = meta.source
         author_yaml = meta.author
         project_yaml = meta.project
         created_yaml = meta.created
+        categ_yaml = meta.category
+        subcateg_yaml = meta.subcategory or None
+
+        if status_yaml == "regen":
+            regen_synth_trigger = True
+        elif status_yaml == "regen_hearder":
+            regen_header_trigger = True
 
         # 2) Contexte catégories depuis le chemin
         base_folder = str(dp.parent)
-        (
-            category_name,
-            subcategory_name,
-            category_id_dest,
-            subcategory_id_dest,
-        ) = categ_extract(base_folder, logger=logger)
+        classification = get_category_context_from_folder(base_folder, logger=logger)
+
         logger.debug(
             "[UPDATE_NOTE] path→categ: %s / %s | ids: %s / %s",
-            category_name,
-            subcategory_name,
-            category_id_dest,
-            subcategory_id_dest,
+            classification.category_name,
+            classification.subcategory_name,
+            classification.category_id,
+            classification.subcategory_id,
         )
 
-        # 3) Données actuelles DB
-        data = get_note_linked_data(note_id, "note", logger=logger)
-        if "error" in data:
-            raise BrainOpsError("Update note KO", code=ErrCode.DB, ctx={"data": data})
+        # 4) Valeurs finales (YAML prioritaire si présent)
+        title = sanitize_yaml_title(title_yaml)
+        created = sanitize_created(created_yaml)
+        author = author_yaml
+        source = source_yaml
+        project = project_yaml
+        status_temp = status_yaml
+        summary = summary_yaml
 
-        if isinstance(data, dict):
-            parent_id = data.get("parent_id")
-            folder_id = data.get("folder_id")
-            category_id_db = data.get("category_id") or None
-            subcategory_id_db = data.get("subcategory_id") or None
-            db_title = data.get("title")
-            logger.info("[UPDATE_NOTE] db_title=%s", db_title)
-            if "untitled" or "sans titre" in str(db_title).strip().lower():
-                db_title = Path(dp).stem
-                logger.info("[UPDATE_NOTE 2] db_title=%s", db_title)
+        new_status = classification.status
 
-            # 4) Valeurs finales (YAML prioritaire si présent)
-            title = title_yaml or db_title
-            created = created_yaml or data.get("created_at")  # colonne DB = created_at
-            author = author_yaml or data.get("author")
-            source = source_yaml or data.get("source")
-            project = project_yaml or data.get("project")
-            status_temp = status_yaml or data.get("status")
-            summary = summary_yaml if summary_yaml is not None else data.get("summary")
-
-            new_status = detect_update_status_by_folder(path=str(dp), logger=logger)
-
-            def_status = new_status or status_temp
-
-            # 5) Si categ/subcateg diffèrent → retrouver folder_id cible
-            category_id = category_id_db
-            subcategory_id = subcategory_id_db
-            if (category_id_db != category_id_dest) or (subcategory_id_db != subcategory_id_dest):
-                category_id = category_id_dest
-                subcategory_id = subcategory_id_dest
-                if category_id is not None:
-                    fp = get_path_from_classification(category_id, subcategory_id, logger=logger)
-                    if fp:
-                        folder_id = fp[0]  # (folder_id, path)
-                        logger.debug(
-                            "[UPDATE_NOTE] Nouvelle classification → folder_id=%s (path=%s)",
-                            folder_id,
-                            fp[1],
-                        )
-                        categ_trigger = True
-                    else:
-                        logger.warning(
-                            "[UPDATE_NOTE] Aucune folder pour categ_id=%s / subcat_id=%s",
-                            category_id,
-                            subcategory_id,
-                        )
+        def_status = new_status or status_temp
 
         # 6) Update DB principal
         updates = {
             "file_path": str(dp),
             "title": title,
-            "folder_id": folder_id,
-            "category_id": category_id,
-            "subcategory_id": subcategory_id,
+            "folder_id": classification.folder_id,
+            "category_id": classification.category_id,
+            "subcategory_id": classification.subcategory_id,
             "status": def_status,
             "summary": summary,
             "source": source,
@@ -148,28 +108,32 @@ def update_note(
         }
         update_obsidian_note(note_id, updates, logger=logger)
 
-        # 7) Tags : sync si différents
-        db_tags = get_note_tags(note_id, logger=logger)
-        if tags_yaml != db_tags:
-            update_obsidian_tags(note_id, tags_yaml, logger=logger)
-
-        # 8) Si reclassement, rafraîchir l’entête (cat/subcat/titre/etc.)
-        if categ_trigger:
-            add_metadata_to_yaml(note_id, str(dp), logger=logger)
-
         logger.info("[UPDATE_NOTE] Note mise à jour: %s (id=%s)", dp, note_id)
 
         # 9) Actions selon status
         if def_status == "synthesis":
             logger.debug("[UPDATE_NOTE] Post-action: check_synthesis_and_trigger_archive")
             check_synthesis_and_trigger_archive(note_id, str(dp), logger=logger)
-        elif def_status == "regen":
+        if regen_synth_trigger:
             logger.debug("[UPDATE_NOTE] Post-action: regen_synthese_from_archive")
             regen_synthese_from_archive(note_id, filepath=str(dp))
-        elif def_status == "regen_header":
+        if regen_header_trigger:
             logger.debug("[UPDATE_NOTE] Post-action: regen_header")
-            regen_header(note_id, str(dp), parent_id)
-
+            regen_header(note_id, str(dp))
+        if classification.category_name != categ_yaml or (classification.subcategory_name or "") != (
+            subcateg_yaml or ""
+        ):
+            if classification.subcategory_name is None:
+                updates_head: dict[str, str | int | list[str]] = {
+                    "category": classification.category_name,
+                }
+            else:
+                updates_head = {
+                    "category": classification.category_name,
+                    "subcategory": classification.subcategory_name,
+                }
+            merge = merge_metadata_in_note(filepath=dp, updates=updates_head, logger=logger)
+            logger.debug(f"[UPDATE_NOTE] merge header : {merge}")
         return
 
     except Exception as exc:

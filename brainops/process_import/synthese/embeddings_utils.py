@@ -10,9 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 from sklearn.metrics.pairwise import cosine_similarity
 
-from brainops.io.note_reader import read_note_body
+from brainops.io.utils import count_words
 from brainops.sql.temp_blocs.db_embeddings_temp_blocs import get_blocks_and_embeddings_by_note
-from brainops.utils.files import count_words
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 MODES = {
@@ -24,8 +23,8 @@ MODES = {
 
 
 def select_top_blocks_by_mode(
+    content: str,
     note_id: int,
-    filepath: str,
     mode: str = "standard",
     *,
     logger: LoggerProtocol | None = None,
@@ -39,14 +38,15 @@ def select_top_blocks_by_mode(
     logger.debug("[DEBUG] select_top_blocks_by_mode mode: %s", mode)
 
     if mode == "ajust":
-        content = read_note_body(filepath=filepath, logger=logger)
         nb_words = count_words(content=content, logger=logger)
         if nb_words < 300:
-            assert mode == "quick"
+            mode_def = "quick"
         else:
-            assert mode == "standard"
+            mode_def = "standard"
+    else:
+        mode_def = mode
 
-    cfg = MODES.get(mode, MODES["standard"]).copy()
+    cfg = MODES.get(mode_def, MODES["standard"]).copy()
     logger.debug("[DEBUG] select_top_blocks_by_mode cfg: %s", cfg)
     cfg.update(overrides)  # ex: ratio=0.55 locale
     logger.info("[SELECT] mode=%s cfg=%s", mode, cfg)

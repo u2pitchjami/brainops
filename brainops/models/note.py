@@ -36,7 +36,7 @@ class Note:
     project: str | None = None
 
     created_at: str | None = None
-    modified_at: datetime | None = None
+    modified_at: str | None = None
     updated_at: datetime | None = None  # gérée par DB (timestamp ON UPDATE)
 
     word_count: int = 0
@@ -52,7 +52,7 @@ class Note:
         """
         # Normaliser le chemin en absolu POSIX
         """
-        p = Path(self.file_path).expanduser().resolve()
+        p = Path(self.file_path)
         self.file_path = p.as_posix()
         self.name = p.name
         self.ext = p.suffix.lower().lstrip(".")

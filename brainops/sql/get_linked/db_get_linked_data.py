@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
+from pymysql.cursors import DictCursor
+
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -30,7 +32,7 @@ def get_note_linked_data(
     conn = get_db_connection(logger=logger)
 
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with get_dict_cursor(conn) as cur:
             # Base: la note
             note = safe_execute(
                 cur,
@@ -119,7 +121,7 @@ def get_note_linked_data(
 @with_child_logger
 def get_folder_linked_data(
     folder_path: str,
-    what: Literal["folder", "category", "subcategory", "parent"],
+    what: Literal["folder", "folder_id", "category", "subcategory", "parent"],
     *,
     logger: LoggerProtocol | None = None,
 ) -> dict[str, Any]:
@@ -132,7 +134,7 @@ def get_folder_linked_data(
         conn = get_db_connection(logger=logger)
 
         # ✅ buffered=True évite "Unread result found"
-        cursor = conn.cursor(dictionary=True, buffered=True)
+        cursor = conn.cursor(DictCursor)
 
         cursor.execute(
             "SELECT * FROM obsidian_folders WHERE path = %s LIMIT 1",
@@ -142,7 +144,7 @@ def get_folder_linked_data(
         if not folder:
             raise BrainOpsError("Récup Folder KO", code=ErrCode.DB, ctx={"path": folder_path})
 
-        folder_dict = cast(dict[str, Any], folder)
+        folder_dict: dict[str, Any] = folder
         if what == "folder":
             return folder_dict
 

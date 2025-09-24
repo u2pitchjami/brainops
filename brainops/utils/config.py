@@ -5,13 +5,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Final
 
 from dotenv import load_dotenv
 
-# Chargement du .env à la racine du projet
-ENV_PATH: Final[Path] = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=True)
+# Chargement du .env
+load_dotenv("/app/config/.env")
 
 
 class ConfigError(Exception):
@@ -81,9 +79,11 @@ def get_path_required(key: str) -> str:
 
     Lève ConfigError si absent ou inexistant.
     """
+    from brainops.io.paths import to_abs
+
     value = get_required(key).strip()
-    abs_path = str(Path(value).expanduser().resolve())
-    if not Path(abs_path).exists():
+    abs_path = str(value)
+    if not Path(to_abs(abs_path)).exists():
         raise ConfigError(f"[CONFIG ERROR] {key} pointe vers un chemin inexistant: {abs_path}")
     return abs_path
 
@@ -95,7 +95,7 @@ LOG_FILE_PATH: str = get_str("LOG_FILE_PATH", "/logs")
 LOG_ROTATION_DAYS: int = get_int("LOG_ROTATION_DAYS", 30)
 
 # PATHS
-BASE_PATH: str = get_path_required("BASE_PATH")
+BASE_PATH: str = get_required("BASE_PATH")
 Z_STORAGE_PATH: str = get_path_required("Z_STORAGE_PATH")
 SAV_PATH: str = get_path_required("SAV_PATH")
 GPT_IMPORT_DIR: str = get_path_required("GPT_IMPORT_DIR")
@@ -109,7 +109,6 @@ DUPLICATES_PATH: str = get_path_required("DUPLICATES_PATH")
 IMPORTS_PATH: str = get_path_required("IMPORTS_PATH")
 GPT_TEST: str = get_path_required("GPT_TEST")
 IMPORTS_TEST: str = get_path_required("IMPORTS_TEST")
-BASE_SCRIPT: str = get_path_required("BASE_SCRIPT")
 ERRORED_PATH: str = get_path_required("ERRORED_PATH")
 ERRORED_JSON: str = get_str("ERRORED_JSON")
 
@@ -128,9 +127,8 @@ MODEL_EMBEDDINGS: str = get_str("MODEL_EMBEDDINGS", "nomic-embed-text:latest")
 MODEL_SUMMARY: str = get_str("MODEL_SUMMARY", "cognitivetech/obook_summary:latest")
 
 # DB
-DB_CONFIG = {
-    "host": get_required("DB_HOST"),
-    "user": get_required("DB_USER"),
-    "password": get_required("DB_PASSWORD"),
-    "database": get_required("DB_NAME"),
-}
+DB_HOST = str(get_required("DB_HOST"))
+DB_PORT = int(get_int("DB_PORT"))
+DB_USER = str(get_required("DB_USER"))
+DB_PASSWORD = str(get_required("DB_PASSWORD"))
+DB_NAME = str(get_required("DB_NAME"))

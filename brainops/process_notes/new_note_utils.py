@@ -5,13 +5,14 @@
 from __future__ import annotations
 
 import codecs
-from datetime import date, datetime
+from datetime import datetime
 import hashlib
 from pathlib import Path
 import re
 import shutil
 from typing import Any
 
+from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.config import DUPLICATES_LOGS, DUPLICATES_PATH
 from brainops.utils.logger import (
@@ -23,21 +24,11 @@ from brainops.utils.logger import (
 
 
 def _normalize_abs_posix(p: str | Path) -> Path:
-    return Path(str(p)).expanduser().resolve()
-
-
-def _safe_stat_times(fp: Path) -> tuple[date | None, datetime | None]:
-    try:
-        st = fp.stat()
-        cdate = datetime.fromtimestamp(st.st_ctime).date()
-        mdt = datetime.fromtimestamp(st.st_mtime)
-        return cdate, mdt
-    except Exception:
-        return None, None
+    return Path(str(p))
 
 
 def _ensure_duplicates_dir() -> None:
-    Path(DUPLICATES_PATH).mkdir(parents=True, exist_ok=True)
+    Path(to_abs(DUPLICATES_PATH)).mkdir(parents=True, exist_ok=True)
     Path(DUPLICATES_LOGS).parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -51,7 +42,7 @@ def _handle_duplicate_note(file_path: Path, match_info: list[dict[str, Any]], *,
     new_path = Path(DUPLICATES_PATH) / file_path.name
 
     try:
-        shutil.move(str(file_path), str(new_path))
+        shutil.move(str(to_abs(file_path)), str(to_abs(new_path)))
         logger.warning("Note déplacée vers 'duplicates' : %s", new_path.as_posix())
 
         with open(DUPLICATES_LOGS, "a", encoding="utf-8") as log_file:
@@ -72,7 +63,7 @@ def compute_wc_and_hash(fp: Path) -> tuple[int, str | None]:
 
     - Pour les autres extensions: word_count=0, hash quand même.
     """
-    is_text = fp.suffix.lower() in {".md", ".txt"}
+    is_text = Path(to_abs(fp)).suffix.lower() in {".md", ".txt"}
     h = hashlib.sha256()
     word_count = 0
 
@@ -81,7 +72,7 @@ def compute_wc_and_hash(fp: Path) -> tuple[int, str | None]:
     tail = ""  # dernier token potentiel coupé entre deux chunks
 
     try:
-        with fp.open("rb") as f:
+        with Path(to_abs(fp)).open("rb") as f:
             while True:
                 chunk = f.read(CHUNK_SIZE)
                 if not chunk:

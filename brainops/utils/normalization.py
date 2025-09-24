@@ -9,6 +9,7 @@ from datetime import date, datetime
 import re
 import unicodedata
 
+from brainops.io.paths import canonical_rel, to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -17,10 +18,9 @@ def normalize_full_path(path: str | bytes) -> str:
     """
     Normalise un chemin (NFC, strip, normalisation OS).
     """
-    import os
 
-    path = unicodedata.normalize("NFC", str(path)).strip()
-    return os.path.normpath(path)
+    path = unicodedata.normalize("NFC", str(to_abs(str(path)))).strip()
+    return canonical_rel(path)
 
 
 @with_child_logger
@@ -40,6 +40,7 @@ def sanitize_created(created: object, *, logger: LoggerProtocol | None = None) -
                 return parsed.strftime("%Y-%m-%d")
             except ValueError:
                 logger.warning("[sanitize_created] format invalide: %s", created)
+                return datetime.now().strftime("%Y-%m-%d")
         return datetime.now().strftime("%Y-%m-%d")
     except Exception as exc:  # pylint: disable=broad-except
         logger.error("[sanitize_created] erreur: %s", exc)

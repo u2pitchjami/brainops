@@ -5,6 +5,9 @@ from pathlib import Path
 import shutil
 from typing import Any
 
+from pymysql.cursors import DictCursor
+
+from brainops.io.paths import to_abs
 from brainops.sql.db_connection import get_db_connection
 from brainops.utils.config import ERRORED_PATH
 from brainops.utils.logger import LoggerProtocol, get_logger
@@ -43,7 +46,7 @@ def _pick_folder(
 def main() -> int:
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with conn.cursor(DictCursor) as cur:
             cur.execute(
                 "SELECT id, file_path, status, category_id, subcategory_id FROM obsidian_notes WHERE file_path LIKE %s",
                 (Path(ERRORED_PATH).as_posix().rstrip("/") + "/%",),
@@ -76,7 +79,7 @@ def main() -> int:
             folder_id, folder_path = target
             dest = Path(folder_path).joinpath(fname)
             dest_parent = dest.parent
-            dest_parent.mkdir(parents=True, exist_ok=True)
+            Path(to_abs(dest_parent)).mkdir(parents=True, exist_ok=True)
 
             src = Path(str(row["file_path"]))
             if not src.exists():
@@ -86,11 +89,11 @@ def main() -> int:
             # éviter l'écrasement
             final = dest
             i = 1
-            while final.exists():
+            while Path(to_abs(final)).exists():
                 final = dest.with_name(f"{dest.stem}__restored{i}{dest.suffix}")
                 i += 1
 
-            shutil.move(src.as_posix(), final.as_posix())
+            shutil.move(Path(to_abs(src)).as_posix(), Path(to_abs(final)).as_posix())
             logger.info("✅ %s -> %s", src, final)
 
             with conn.cursor() as cur:

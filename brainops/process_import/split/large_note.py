@@ -5,10 +5,7 @@ process_import.utils.large_note.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-from brainops.header.join_header_body import apply_to_note_body
-from brainops.io.note_reader import read_note_full
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.ollama.ollama_call import OllamaError, call_ollama_with_retry
 from brainops.ollama.prompts import PROMPTS
@@ -35,7 +32,7 @@ from brainops.utils.normalization import clean_fake_code_blocks
 @with_child_logger
 def process_large_note(
     note_id: int,
-    filepath: str | Path,
+    content: str,
     entry_type: str | None = None,
     word_limit: int = 100,
     split_method: str = "titles_and_words",
@@ -49,7 +46,7 @@ def process_large_note(
     logger: LoggerProtocol | None = None,
 ) -> str:
     logger = ensure_logger(logger, __name__)
-    path = Path(str(filepath)).resolve()
+
     model_ollama = model_name or MODEL_LARGE_NOTE
 
     if not entry_type:
@@ -57,12 +54,6 @@ def process_large_note(
         raise BrainOpsError("large_note KO", code=ErrCode.UNEXPECTED, ctx={"note_id": note_id})
 
     try:
-        # ⚠️ read_note_full → (NoteMetadata, body)
-        _meta, content_str = read_note_full(path.as_posix(), logger=logger)
-        logger.debug("[DEBUG] content_lines extrait : %s", content_str[:300])
-        content = maybe_clean(content_str)
-        logger.debug("[DEBUG] content nettoyé : %s", content[:300])
-
         # --- split
         if split_method == "titles_and_words":
             blocks = split_large_note_by_titles_and_words(content, word_limit=word_limit)
@@ -90,7 +81,6 @@ def process_large_note(
                 try:
                     row = get_existing_bloc(
                         note_id=note_id,
-                        filepath=path.as_posix(),
                         block_index=block_index,
                         prompt=entry_type or "",  # ok si custom_prompts
                         model=model_ollama,
@@ -101,6 +91,7 @@ def process_large_note(
                     )
                     if row:
                         response_pb, status = row
+                        logger.debug("[DEBUG] Bloc row %s", row)
                         if status == "processed" and resume_if_possible:
                             logger.debug("[DEBUG] Bloc %d déjà traité, skip", i)
                             if isinstance(response_pb, list):
@@ -112,7 +103,6 @@ def process_large_note(
                     else:
                         insert_bloc(
                             note_id=note_id,
-                            filepath=Path(path).as_posix(),
                             block_index=block_index,
                             content=block,
                             prompt=entry_type or "",
@@ -141,7 +131,7 @@ def process_large_note(
             except OllamaError:
                 logger.error("[ERROR] Échec du bloc %d, saut…", i + 1)
                 if persist_blocks:
-                    mark_bloc_as_error(path.as_posix(), block_index, logger=logger)
+                    mark_bloc_as_error(note_id, block_index, logger=logger)
                 continue
 
             # Normalisation de la réponse
@@ -173,7 +163,6 @@ def process_large_note(
             if persist_blocks:
                 update_bloc_response(
                     note_id=note_id,
-                    filepath=path.as_posix(),
                     block_index=block_index,
                     response=response or "",
                     source=source,
@@ -191,13 +180,8 @@ def process_large_note(
         logger.debug("Large Note -> block_text : %s", blocks_text[:300])
         final_body_content: str = clean_fake_code_blocks(maybe_clean(blocks_text))
         logger.debug("Large Note -> final_body_content : %s", final_body_content[:300])
-        final_content = apply_to_note_body(
-            filepath=path,
-            transform=final_body_content,  # ← accepte un str si tu as pris ma version "Union[str, Callable]"
-            write_file=write_file,
-            logger=logger,
-        )
-        return final_content
+
+        return final_body_content
     except Exception as exc:
-        logger.exception("[ERREUR] Traitement de %s échoué : %s", path.as_posix(), exc)
-        raise BrainOpsError("large note KO", code=ErrCode.OLLAMA, ctx={"filepath": filepath}) from exc
+        logger.exception("[ERREUR] Traitement de %s échoué : %s", note_id, exc)
+        raise BrainOpsError("large note KO", code=ErrCode.OLLAMA, ctx={"note_id": note_id}) from exc

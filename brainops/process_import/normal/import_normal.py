@@ -7,16 +7,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from brainops.header.headers import make_properties
+from brainops.io.note_reader import read_note_full
+from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.process_import.get_type.by_force import get_type_by_force
+from brainops.models.metadata import NoteMetadata
+from brainops.process_folders.folders import ensure_folder_exists
 from brainops.process_import.get_type.by_ollama import get_type_by_ollama
+from brainops.process_import.join.join_header_body import join_header_body
 from brainops.process_import.synthese.import_synthese import (
     process_import_syntheses,
 )
+from brainops.process_import.utils.archive import build_archive_path, build_synthesis_path
 from brainops.process_import.utils.divers import rename_file
+from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.config import SAV_PATH
-from brainops.utils.files import copy_file_with_date
+from brainops.utils.files import clean_content, copy_file_with_date
 from brainops.utils.logger import get_logger
 
 logger = get_logger("Brainops Imports")
@@ -30,65 +36,101 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
     Retourne le chemin final (str) ou None en cas d’erreur.
     """
 
-    src = Path(str(filepath)).expanduser().resolve()
+    src = Path(filepath)
+    name = src.stem
+    suffix = src.suffix
+    base_folder = src.parent.as_posix()
     logger.info("[INFO] ▶️ LANCEMENT IMPORT : (id=%s) path=%s", note_id, src.as_posix())
     logger.debug("[DEBUG] +++ ▶️ PRE IMPORT NORMAL pour %s", src.as_posix())
 
     try:
+        meta_yaml, body = read_note_full(src, logger=logger)
+        content = clean_content(body)
+        wc = count_words(content)
         if force_categ is False:
             # 1) classification → chemin cible (fonction existante)
-            new_path = get_type_by_ollama(src.as_posix(), note_id, logger=logger)
-            logger.debug("[DEBUG] pre_import_normal fin get_note_type new_path : %s", new_path)
-            if not new_path:
+            classification = get_type_by_ollama(content, note_id, logger=logger)
+            if not classification:
                 logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
+                # handle_uncategorized(note_id, filepath, note_type, llama_proposition, logger=logger)
                 return False
-            # 2) rename/move (idempotent)
-            moved_path = rename_file(new_path, note_id, logger=logger)
-            logger.debug("[DEBUG] pre_import_normal fin rename_file : %s", moved_path)
         else:
-            moved_path = Path(get_type_by_force(src.as_posix(), note_id, logger=logger))
-            if not moved_path:
+            classification = get_category_context_from_folder(base_folder, logger=logger)
+            if not classification:
                 logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
                 return False
-
-        final_path = Path(str(moved_path)).expanduser().resolve().as_posix()
-
-        # 3) mise à jour DB (file_path uniquement ici)
-        updates = {"file_path": final_path}
-        logger.debug("[DEBUG] pre_import_normal MAJ DB : %s", updates)
-        update = update_obsidian_note(note_id, updates, logger=logger)
-        if not update:
-            logger.warning("[WARN] ❌ Echec de l'update pour (id=%s)", note_id)
-            return False
-
+        logger.debug(f"classification : {classification}")
         # Cas particulier : conversation GPT → on s'arrête là
-        base_folder = Path(final_path).parent.as_posix()
         if "gpt_import" in base_folder:
             logger.info("[INFO] Conversation GPT détectée, conservée dans : %s", base_folder)
             logger.debug("[DEBUG] 🏁 FIN IMPORT GPT (id=%s)", note_id)
             return True
 
+        logger.debug("[DEBUG] import_normal : envoi vers make_properties")
+        # 5) Traitement de l'entête
+        meta_final: NoteMetadata = make_properties(
+            content=content,
+            meta_yaml=meta_yaml,
+            classification=classification,
+            note_id=note_id,
+            status="archive",
+            logger=logger,
+        )
+        if not meta_final:
+            logger.error(
+                "[ERREUR] 🚨 Problème lors de la mise à jour des métadonnées pour (id=%s)",
+                note_id,
+            )
+        logger.debug(f"meta_final : {meta_final}")
+        # 2) rename
+        new_name = rename_file(name=name, suffix=suffix, created=meta_final.created, note_id=note_id, logger=logger)
+
+        # 3) build Archive path
+        archive_path = build_archive_path(
+            original_path=classification.dest_folder, original_name=new_name, suffix=suffix
+        )
+        synthesis_path = build_synthesis_path(
+            original_path=classification.dest_folder, original_name=new_name, suffix=suffix
+        )
+
+        # 4) verif presence dossiers
+        ensure_folder_exists(folder_path=archive_path.parent.as_posix(), logger=logger)
+        ensure_folder_exists(folder_path=synthesis_path.parent.as_posix(), logger=logger)
+
+        updates = {
+            "file_path": str(archive_path),
+            "category_id": classification.category_id,
+            "subcategory_id": classification.subcategory_id,
+            "status": "archive",
+            "folder_id": classification.folder_id,
+            "summary": meta_final.summary,
+            "word_count": wc,
+        }
+        update_obsidian_note(note_id, updates)
+
+        archive_def = join_header_body(
+            body=content, meta_yaml=meta_final, filepath=archive_path, write_file=True, logger=logger
+        )
+        if not archive_def:
+            logger.error(
+                "[ERREUR] 🚨 Problème lors de l'enregistrement de l'archive (id=%s)",
+                note_id,
+            )
+            return False
         # 4) Sauvegarde (optionnelle) vers SAV_PATH
         if SAV_PATH:
             try:
-                copy_file_with_date(final_path, SAV_PATH, logger=logger)
+                copy_file_with_date(archive_path, SAV_PATH, logger=logger)
             except Exception as exc:  # pylint: disable=broad-except
                 logger.exception("[ERREUR] Sauvegarde dans SAV_PATH échouée : %s", exc)
         else:
             logger.warning("[WARN] 🚨 SAV_PATH non défini dans utils.config, sauvegarde ignorée.")
 
-        logger.debug("[DEBUG] import_normal : envoi vers make_properties %s", final_path)
-
-        # 5) Traitement de l'entête
-        properties = make_properties(final_path, note_id, status="archive", logger=logger)
-        if not properties:
-            logger.error(
-                "[ERREUR] 🚨 Problème lors de la mise à jour des métadonnées pour (id=%s)",
-                note_id,
-            )
-
         # 5) Génération de la synthèse
-        synthesis = process_import_syntheses(final_path, note_id, logger=logger)
+        synthesis = process_import_syntheses(
+            content, note_id, archive_path, synthesis_path, meta_final, classification, logger=logger
+        )
+
         if not synthesis:
             logger.error(
                 "[ERREUR] 🚨 Problème lors de la génération de la synthèse pour (id=%s)",

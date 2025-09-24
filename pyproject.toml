@@ -50,12 +50,12 @@ ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "garminconnect.*"
+module = "pymysql*"
 ignore_missing_imports = true
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "mysql.*"
+module = "pymysql.*"
 ignore_missing_imports = true
 follow_imports = "skip"
 

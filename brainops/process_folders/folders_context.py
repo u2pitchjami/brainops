@@ -4,22 +4,22 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
 from pathlib import Path
-from typing import Never
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.models.folders import Folder, FolderType
-from brainops.process_import.utils.paths import get_relative_parts, path_is_inside
+from brainops.models.folder_context import FolderContext
+from brainops.models.folders import FolderType
+from brainops.process_folders.detect_folder_type import detect_folder_type
+from brainops.process_import.utils.paths import path_is_inside
 from brainops.sql.categs.db_create_categ import (
     get_or_create_category,
     get_or_create_subcategory,
 )
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
-    get_category_context_from_folder,
     get_folder_id,
 )
-from brainops.utils.config import BASE_PATH, Z_STORAGE_PATH
+from brainops.utils.config import Z_STORAGE_PATH
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -27,82 +27,7 @@ def normalize_folder_path(p: str | Path) -> str:
     """
     Chemin absolu POSIX (stable multi-OS).
     """
-    return Path(str(p)).expanduser().resolve().as_posix()
-
-
-def _detect_folder_type(path: str) -> FolderType:
-    """
-    Détection par règles simples sur le chemin complet (fallback) → Enum.
-    """
-    lower = path.lower()
-    if "/archives" in lower or lower.endswith("/archives"):
-        return FolderType.ARCHIVE
-    if "/notes/z_storage/" in lower:
-        return FolderType.STORAGE
-    if "/notes/personnal/" in lower:
-        return FolderType.PERSONNAL
-    if "/notes/projects/" in lower:
-        return FolderType.PROJECT
-    if "/notes/z_technical/" in lower:
-        return FolderType.TECHNICAL
-    return FolderType.TECHNICAL
-
-
-@dataclass(frozen=True, slots=True)
-class FolderContext:
-    """
-    Contexte DB & logique pour un dossier.
-    """
-
-    # arborescence
-    parent_path: str | None
-    parent_id: int | None
-    # catégories
-    category_id: int | None
-    subcategory_id: int | None
-    category_name: str | None
-    subcategory_name: str | None
-    # type logique
-    folder_type: FolderType
-
-
-@with_child_logger
-def resolve_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -> FolderContext:
-    """
-    Calcule le contexte d'un dossier (parent, catégories, type).
-
-    Réutilisable par update_folder()
-    """
-    logger = ensure_logger(logger, __name__)
-    logger.debug("[DEBUG] resolve_folder_context(%s)", path)
-    p_str = normalize_folder_path(path)
-    logger.debug("[DEBUG] p_str: %s", p_str)
-    # parent
-    p = Path(p_str)
-    parent_path = p.parent.as_posix() if p.parent != p else None
-    logger.debug("[DEBUG] parent_path: %s", parent_path)
-    parent_id = get_folder_id(parent_path, logger=logger) if parent_path else None
-    logger.debug("[DEBUG] parent_id: %s", parent_id)
-
-    # catégories
-    cat_id, subcat_id, cat_name, subcat_name = get_category_context_from_folder(p_str, logger=logger)
-    # type
-    ftype = _detect_folder_type(p_str)
-    logger.debug("[DEBUG] initial folder_type: %s", ftype)
-    if path_is_inside(Z_STORAGE_PATH, p_str):
-        parts: tuple[str, ...] | list[Never] = get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
-        if len(parts) >= 3 and parts[2].lower() == "archives":
-            ftype = FolderType.ARCHIVE
-
-    return FolderContext(
-        parent_path=parent_path,
-        parent_id=parent_id,
-        category_id=cat_id,
-        subcategory_id=subcat_id,
-        category_name=cat_name,
-        subcategory_name=subcat_name,
-        folder_type=ftype,
-    )
+    return Path(str(p)).as_posix()
 
 
 @with_child_logger
@@ -133,24 +58,25 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
         logger.debug("[DEBUG] add_folder_context parent_id (%s)", parent_id)
 
         # type
-        ftype = _detect_folder_type(p_str)
+        ftype = detect_folder_type(p_str)
+        parts = p_str.split(os.sep)
+        logger.debug("[DEBUG] folder context nb parts: %s", len(parts))
         if path_is_inside(Z_STORAGE_PATH, p_str):
-            relative_parts: tuple[str, ...] | list[Never] = (
-                get_relative_parts(p_str, Z_STORAGE_PATH, logger=logger) or []
-            )
-            if len(relative_parts) == 1:
-                category = relative_parts[0]
-            elif len(relative_parts) == 2:
-                category, subcategory = relative_parts
-            elif len(relative_parts) == 3 and relative_parts[2].lower() == "archives":
-                category, subcategory = relative_parts[0], relative_parts[1]
+            if len(parts) == 2:
+                category = parts[1]
+                logger.debug("[DEBUG] part=2 add_folder_context category (%s)", category)
+            elif len(parts) == 3:
+                category, subcategory = parts[1], parts[2]
+                logger.debug("[DEBUG] part=3 add_folder_context category (%s) sub %s", category, subcategory)
+            elif len(parts) == 4 and parts[3].lower() == "archives":
+                category, subcategory = parts[1], parts[2]
+                logger.debug("[DEBUG] part=4 add_folder_context category (%s) sub %s", category, subcategory)
                 ftype = FolderType.ARCHIVE
         else:
-            relative_parts = get_relative_parts(p_str, BASE_PATH, logger=logger) or []
-            if len(relative_parts) == 1:
-                category = relative_parts[0]
-            elif len(relative_parts) >= 2:
-                category, subcategory = relative_parts[0], relative_parts[1]
+            if len(parts) == 1:
+                category = parts[0]
+            elif len(parts) >= 2:
+                category, subcategory = parts[0], parts[1]
 
         if category:
             category_id = get_or_create_category(category, logger=logger)
@@ -174,46 +100,3 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
             code=ErrCode.DB,
             ctx={"path": path},
         ) from exc
-
-
-@with_child_logger
-def build_folder(
-    path: str | Path,
-    *,
-    override_type: FolderType | None = None,
-    logger: LoggerProtocol | None = None,
-) -> Folder:
-    """
-    build_folder _summary_
-
-    _extended_summary_
-
-    Args:
-        path (str | Path): _description_
-        override_type (Optional[FolderType], optional): _description_. Defaults to None.
-
-    Returns:
-        Folder: _description_
-    """
-    logger = ensure_logger(logger, __name__)
-    p = normalize_folder_path(path)
-    name = Path(p).name
-    parent_path = Path(p).parent.as_posix() if Path(p).parent != Path(p) else None
-    parent_id = get_folder_id(parent_path, logger=logger) if parent_path else None
-
-    cat_id, subcat_id, _cat_name, _subcat_name = get_category_context_from_folder(p, logger=logger)
-
-    ftype = override_type or _detect_folder_type(p)
-    if path_is_inside(Z_STORAGE_PATH, p):
-        parts: tuple[str, ...] | list[Never] = get_relative_parts(p, Z_STORAGE_PATH, logger=logger) or []
-        if len(parts) >= 3 and parts[2].lower() == "archives":
-            ftype = FolderType.ARCHIVE
-
-    return Folder(
-        name=name,
-        path=p,
-        folder_type=ftype,  # << Enum garanti
-        parent_id=parent_id,
-        category_id=cat_id,
-        subcategory_id=subcat_id,
-    )

@@ -16,11 +16,22 @@ class FolderType(str, Enum):
     Miroir de l'ENUM MariaDB.
     """
 
-    STORAGE = "storage"
+    STORAGE = "synthesis"
+    SYNTHESIS = "synthesis"
     ARCHIVE = "archive"
     TECHNICAL = "technical"
     PROJECT = "project"
-    PERSONNAL = "personnal"  # orthographe identique au DDL
+    PERSONNAL = "personnal"
+    DUPLICATES = "duplicates"
+    ERROR = "error"
+    DRAFT = "draft"
+    UNCATEGORIZED = "uncategorized"
+    TEMPLATES = "templates"
+    DAILY_NOTES = "daily_notes"
+    GPT = "gpt"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 @dataclass(slots=True, kw_only=True)
@@ -50,7 +61,7 @@ class Folder:
         """
         # Normalise le chemin en absolu POSIX
         """
-        p = Path(self.path).expanduser().resolve()
+        p = Path(self.path)
         self.path = p.as_posix()
         # Si name vide: déduire depuis le path
         if not self.name:
@@ -91,7 +102,7 @@ class Folder:
 
         parent_id/category/subcategory doivent être recalculés par le service.
         """
-        new_p = Path(new_path).expanduser().resolve()
+        new_p = Path(new_path)
         return Folder(
             id=self.id,
             name=new_p.name,

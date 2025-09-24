@@ -9,9 +9,9 @@ import re
 from typing import Any
 
 from brainops.header.header_utils import hash_source
-from brainops.sql.db_connection import get_db_connection
+from brainops.models.metadata import NoteMetadata
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
-from brainops.sql.get_linked.db_get_linked_notes_utils import get_new_note_test_metadata
 from brainops.utils.files import hash_file_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -20,6 +20,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def check_duplicate(
     note_id: int,
     file_path: str,
+    metadata: NoteMetadata,
     threshold: float = 0.9,
     *,
     logger: LoggerProtocol | None = None,
@@ -33,8 +34,7 @@ def check_duplicate(
     """
     logger = ensure_logger(logger, __name__)
     try:
-        title, source, _author, _ = get_new_note_test_metadata(note_id, logger=logger)
-        source_hash = hash_source(source) if source else None
+        source_hash = hash_source(metadata.source) if metadata.source else None
         content_hash = hash_file_content(file_path)
 
         conn = get_db_connection(logger=logger)
@@ -42,9 +42,9 @@ def check_duplicate(
         matches: list[dict[str, Any]] = []
         seen_ids: set[int] = set()
         try:
-            with conn.cursor() as cur:
+            with get_cursor(conn) as cur:
                 # fuzzy titre
-                title_cleaned = clean_title(title or "")
+                title_cleaned = clean_title(metadata.title or "")
                 rows = safe_execute(
                     cur,
                     "SELECT id, title FROM obsidian_notes WHERE status=%s",

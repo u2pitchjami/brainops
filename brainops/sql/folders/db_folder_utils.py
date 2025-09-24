@@ -4,12 +4,26 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-
+from brainops.io.paths import exists
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
+
+
+@with_child_logger
+def exist_vault_db(folderpath: str, logger: LoggerProtocol | None = None) -> bool:
+    """
+    exist_vault_db _summary_
+    """
+    logger = ensure_logger(logger, __name__)
+    db = is_folder_exist(folderpath=folderpath, logger=logger)
+    if not db:
+        return False
+    vault = exists(folderpath)
+    if not vault:
+        return False
+    return True
 
 
 @with_child_logger
@@ -30,7 +44,7 @@ def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bo
     logger.debug("[is_folder_exist] entrée is_folder_exist %s", folderpath)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT id FROM obsidian_folders WHERE path=%s",
@@ -48,181 +62,14 @@ def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bo
 
 
 @with_child_logger
-def is_folder_included(
-    path: str,
-    include_types: Iterable[str] | None = None,
-    exclude_types: Iterable[str] | None = None,
-    *,
-    logger: LoggerProtocol | None = None,
-) -> bool:
-    """
-    Vérifie si un dossier (par son `path`) doit être inclus selon des listes d'inclusions/exclusions basées sur
-    `folder_type`.
-
-    Args:
-        path: Chemin complet (absolu POSIX) du dossier.
-        include_types: Types explicitement autorisés (si fourni).
-        exclude_types: Types explicitement exclus (si fourni).
-        logger: Logger injecté (decorator).
-
-    Returns:
-        True si inclus, False sinon.
-    """
-    logger = ensure_logger(logger, __name__)
-    conn = get_db_connection(logger=logger)
-    if not conn:
-        return False
-
-    try:
-        with conn.cursor() as cur:
-            row = safe_execute(
-                cur,
-                "SELECT folder_type FROM obsidian_folders WHERE path=%s",
-                (path,),
-                logger=logger,
-            ).fetchone()
-        if not row:
-            logger.debug("[FILTER] Dossier introuvable en base: %s", path)
-            return False
-
-        folder_type: str = str(row[0])
-        excl = set(exclude_types or ())
-        incl = set(include_types or ())
-
-        if excl and folder_type in excl:
-            logger.debug("[FILTER] Exclu: %s (type=%s)", path, folder_type)
-            return False
-        if incl and folder_type not in incl:
-            logger.debug("[FILTER] Non inclus: %s (type=%s)", path, folder_type)
-            return False
-
-        logger.debug("[FILTER] Inclus: %s (type=%s)", path, folder_type)
-        return True
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[FILTER] is_folder_included(%s) erreur: %s", path, exc)
-        return False
-    finally:
-        conn.close()
-
-
-@with_child_logger
-def get_path_from_classification(
-    category_id: int,
-    subcategory_id: int | None = None,
-    *,
-    logger: LoggerProtocol | None = None,
-) -> tuple[int, str]:
-    """
-    Récupère (folder_id, path) à partir d'une classification (catégorie / sous-catégorie). Priorité à la sous-catégorie
-    si fournie.
-
-    Returns:
-        (id, path) si trouvé, sinon None.
-    """
-    logger = ensure_logger(logger, __name__)
-    conn = get_db_connection(logger=logger)
-    try:
-        with conn.cursor() as cur:
-            # Priorité à (cat, subcat)
-            if subcategory_id is not None:
-                row = safe_execute(
-                    cur,
-                    """
-                    SELECT id, path
-                      FROM obsidian_folders
-                     WHERE category_id=%s AND subcategory_id=%s
-                     LIMIT 1
-                    """,
-                    (category_id, subcategory_id),
-                    logger=logger,
-                ).fetchone()
-                if row:
-                    return int(row[0]), str(row[1])
-
-            # Sinon catégorie seule (sans sous-catégorie)
-            row = safe_execute(
-                cur,
-                """
-                SELECT id, path
-                  FROM obsidian_folders
-                 WHERE category_id=%s AND subcategory_id IS NULL
-                 LIMIT 1
-                """,
-                (category_id,),
-                logger=logger,
-            ).fetchone()
-            if row:
-                return int(row[0]), str(row[1])
-
-        raise BrainOpsError("get_path KO", code=ErrCode.DB, ctx={"category_id": "category_id"})
-    except Exception as exc:
-        raise BrainOpsError("get_path KO", code=ErrCode.DB, ctx={"category_id": "category_id"}) from exc
-    finally:
-        conn.close()
-
-
-@with_child_logger
-def get_folder_type_by_path(path: str, *, logger: LoggerProtocol | None = None) -> str | None:
-    """
-    Retourne le `folder_type` pour un chemin donné, ou None si introuvable.
-    """
-    logger = ensure_logger(logger, __name__)
-    conn = get_db_connection(logger=logger)
-    if not conn:
-        return None
-
-    try:
-        with conn.cursor() as cur:
-            row = safe_execute(
-                cur,
-                "SELECT folder_type FROM obsidian_folders WHERE path=%s",
-                (path,),
-                logger=logger,
-            ).fetchone()
-        return str(row[0]) if row else None
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[DB] get_folder_type_by_path(%s) erreur: %s", path, exc)
-        return None
-    finally:
-        conn.close()
-
-
-@with_child_logger
-def get_folder_type_by_id(folder_id: int, *, logger: LoggerProtocol | None = None) -> str | None:
-    """
-    Retourne le `folder_type` pour un identifiant de dossier, ou None si introuvable.
-    """
-    logger = ensure_logger(logger, __name__)
-    conn = get_db_connection(logger=logger)
-    if not conn:
-        return None
-
-    try:
-        with conn.cursor() as cur:
-            row = safe_execute(
-                cur,
-                "SELECT folder_type FROM obsidian_folders WHERE id=%s",
-                (folder_id,),
-                logger=logger,
-            ).fetchone()
-        return str(row[0]) if row else None
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[DB] get_folder_type_by_id(%s) erreur: %s", folder_id, exc)
-        return None
-    finally:
-        conn.close()
-
-
-@with_child_logger
 def get_folder_path_by_id(folder_id: int, *, logger: LoggerProtocol | None = None) -> str:
     """
     Retourne le `path` pour un identifiant de dossier, ou None si introuvable.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
-
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT path FROM obsidian_folders WHERE id=%s",
@@ -233,7 +80,7 @@ def get_folder_path_by_id(folder_id: int, *, logger: LoggerProtocol | None = Non
             return str(row[0])
         raise BrainOpsError(f"Aucun Path pour le folder id {folder_id}", code=ErrCode.DB, ctx={"folder_id": folder_id})
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[DB] get_folder_type_by_id(%s) erreur: %s", folder_id, exc)
+        logger.exception("[DB] get_folder_type_by_path(%s) erreur: %s", folder_id, exc)
         raise BrainOpsError(
             f"Aucun Path pour le folder id {folder_id}", code=ErrCode.DB, ctx={"folder_id": folder_id}
         ) from exc

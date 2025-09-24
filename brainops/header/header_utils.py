@@ -12,7 +12,6 @@ from typing import Any
 import yaml
 
 from brainops.models.types import _YAML_FENCE
-from brainops.utils.files import read_note_content, safe_write
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -116,43 +115,6 @@ def patch_yaml_line(
         yaml_text,
         flags=re.MULTILINE,
     )
-
-
-@with_child_logger
-def clean_yaml_spacing_in_file(file_path: str, *, logger: LoggerProtocol | None = None) -> bool:
-    """
-    Nettoie: s’assure d’une seule ligne vide après l’entête YAML, puis le corps.
-    """
-    logger = ensure_logger(logger, __name__)
-    try:
-        content = read_note_content(file_path, logger=logger)
-        if not content:
-            return False
-        lines = content.splitlines()
-        inside = False
-        yaml_end_idx: int | None = None
-
-        for i, line in enumerate(lines):
-            if line.strip() == "---":
-                if not inside:
-                    inside = True
-                else:
-                    yaml_end_idx = i
-                    break
-
-        if yaml_end_idx is None:
-            return False  # pas d’entête
-
-        body_start = yaml_end_idx + 1
-        while body_start < len(lines) and lines[body_start].strip() == "":
-            body_start += 1
-
-        new_lines = [*lines[: yaml_end_idx + 1], "", *lines[body_start:]]
-        new_content = "\n".join(new_lines).strip() + "\n"
-        return safe_write(file_path, new_content, logger=logger)
-    except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[ERREUR] clean_yaml_spacing_in_file: %s", exc)
-        return False
 
 
 def hash_source(source: str) -> str:

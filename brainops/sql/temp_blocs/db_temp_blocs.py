@@ -4,9 +4,7 @@ sql/db_temp_blocs.py.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from mysql.connector.errors import IntegrityError
+import pymysql
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.sql.db_connection import get_db_connection
@@ -16,7 +14,6 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 @with_child_logger
 def get_existing_bloc(
     note_id: int,
-    filepath: str | Path,
     block_index: int,
     prompt: str,
     model: str,
@@ -37,8 +34,7 @@ def get_existing_bloc(
             """
             SELECT response, status
             FROM obsidian_temp_blocks
-            WHERE note_id = %s
-              AND note_path = %s
+            WHERE note_id = %s              
               AND block_index = %s
               AND prompt = %s
               AND model_ollama = %s
@@ -49,7 +45,6 @@ def get_existing_bloc(
             """,
             (
                 note_id,
-                str(filepath),
                 block_index,
                 prompt,
                 model,
@@ -71,7 +66,6 @@ def get_existing_bloc(
 @with_child_logger
 def insert_bloc(
     note_id: int,
-    filepath: str | Path,
     block_index: int,
     content: str,
     prompt: str,
@@ -92,14 +86,13 @@ def insert_bloc(
         cursor.execute(
             """
             INSERT INTO obsidian_temp_blocks (
-                note_id, note_path, block_index, content,
+                note_id, block_index, content,
                 prompt, model_ollama, split_method, word_limit, source, status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'waiting')
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'waiting')
             """,
             (
                 note_id,
-                str(filepath),
                 block_index,
                 content,
                 prompt,
@@ -110,8 +103,8 @@ def insert_bloc(
             ),
         )
         conn.commit()
-    except IntegrityError:
-        logger.warning("[SKIP] Bloc déjà existant : index=%s path=%s", block_index, filepath)
+    except pymysql.MySQLError:
+        logger.warning("[SKIP] Bloc déjà existant : index=%s id=%s", block_index, note_id)
     except Exception as exc:
         logger.error("[ERROR] insert_bloc: %s", exc)
         conn.rollback()
@@ -124,7 +117,6 @@ def insert_bloc(
 @with_child_logger
 def update_bloc_response(
     note_id: int,
-    filepath: str | Path,
     block_index: int,
     response: str,
     source: str,
@@ -148,11 +140,10 @@ def update_bloc_response(
                SET response = %s,
                    status   = %s
              WHERE note_id    = %s
-               AND note_path  = %s
                AND source     = %s
                AND block_index = %s
             """,
-            (response.strip(), status, note_id, str(filepath), source, block_index),
+            (response.strip(), status, note_id, source, block_index),
         )
         conn.commit()
     except Exception as exc:

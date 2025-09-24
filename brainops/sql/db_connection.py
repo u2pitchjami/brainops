@@ -1,28 +1,67 @@
-"""
 # sql/db_connection.py
-"""
 
 from __future__ import annotations
 
-from mysql.connector import MySQLConnection, connect
-from mysql.connector.errors import Error as MySQLError
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import cast
 
+import pymysql
+from pymysql.connections import Connection
+from pymysql.cursors import DictCursor
+
+from brainops.models.cursor_protocol import CursorProtocol
+from brainops.models.db_config import DB_CONFIG
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.utils.config import DB_CONFIG
-from brainops.utils.logger import LoggerProtocol, ensure_logger
+from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
+def get_dict_cursor(conn: Connection) -> CursorProtocol:
+    return cast(CursorProtocol, conn.cursor(DictCursor))
+
+
+def get_cursor(conn: Connection) -> CursorProtocol:
+    return cast(CursorProtocol, conn.cursor())
+
+
+@with_child_logger
 def get_db_connection(
     logger: LoggerProtocol | None = None,
-) -> MySQLConnection:
+) -> Connection:
     """
     Ouvre une connexion MySQL à partir de la config centralisée (.env chargée par utils.config).
-
-    Retourne None si la connexion échoue.
     """
     logger = ensure_logger(logger, __name__)
     try:
-        conn = connect(**DB_CONFIG)
-    except MySQLError as exc:
+        conn = pymysql.connect(**DB_CONFIG)
+    except pymysql.MySQLError as exc:
         raise BrainOpsError("Erreur de connection DB", code=ErrCode.DB, ctx={"db": "db"}) from exc
     return conn
+
+
+@contextmanager
+@with_child_logger
+def db_conn(*, autocommit: bool = False, logger: LoggerProtocol | None = None) -> Iterator[Connection]:
+    """
+    Ouvre une connexion, gère commit/rollback/close en 1 seul endroit.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    conn.autocommit(autocommit)  # ✅ méthode et non attribut
+    try:
+        yield conn
+        if not autocommit:
+            conn.commit()
+    except Exception:  # pylint: disable=broad-except
+        if not autocommit:
+            try:
+                conn.rollback()
+            except Exception:  # pylint: disable=broad-except
+                logger.warning("Rollback failed", exc_info=True)
+        raise
+    finally:
+        try:
+            conn.close()
+        except pymysql.err.Error as exc:
+            if "Already closed" not in str(exc):
+                logger.warning("Close failed: %s", exc)

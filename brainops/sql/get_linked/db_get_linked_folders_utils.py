@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+from brainops.models.classification import ClassificationResult
 from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.process_folders.detect_folder_type import detect_folder_type
 from brainops.sql.folders.db_folder_utils import is_folder_exist
 from brainops.sql.get_linked.db_get_linked_data import get_folder_linked_data
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -61,19 +63,22 @@ def get_folder_id(folder_path: str, *, logger: LoggerProtocol | None = None) -> 
 
 
 @with_child_logger
-def get_category_context_from_folder(
-    folder_path: str, *, logger: LoggerProtocol | None = None
-) -> tuple[int | None, int | None, str, str]:
+def get_category_context_from_folder(folder_path: str, *, logger: LoggerProtocol | None = None) -> ClassificationResult:
     """
     Retourne (category_id, subcategory_id, category_name, subcategory_name) pour un chemin de dossier.
     """
     logger = ensure_logger(logger, __name__)
     logger.debug("[DEBUG] get_category_context_from_folder(%s)", folder_path)
     try:
+        folder = get_folder_linked_data(folder_path, "folder", logger=logger)
+        logger.debug(f"folder: {folder}")
         category = get_folder_linked_data(folder_path, "category", logger=logger)
+        logger.debug(f"category: {category}")
         subcategory = get_folder_linked_data(folder_path, "subcategory", logger=logger)
+        logger.debug(f"subcategory: {subcategory}")
+        folder_id = int(folder["id"]) if isinstance(folder, dict) and "id" in folder else None
 
-        category_id = int(category["id"]) if isinstance(category, dict) and "id" in category else None
+        category_id = int(category["id"])
         category_name = str(category["name"]) if isinstance(category, dict) and "name" in category else ""
 
         subcategory_id = int(subcategory["id"]) if isinstance(subcategory, dict) and "id" in subcategory else None
@@ -87,7 +92,18 @@ def get_category_context_from_folder(
             subcategory_id,
             subcategory_name,
         )
-        return category_id, subcategory_id, category_name, subcategory_name
+        new_status = detect_folder_type(path=folder_path)
+        if folder_id is None:
+            raise BrainOpsError("FolderID manquant", code=ErrCode.DB, ctx={"folder": folder_path})
+        return ClassificationResult(
+            category_name=category_name,
+            category_id=category_id,
+            subcategory_name=subcategory_name,
+            subcategory_id=subcategory_id,
+            folder_id=folder_id,
+            dest_folder=folder_path,
+            status=new_status,
+        )
     except Exception as exc:  # pylint: disable=broad-except
         raise BrainOpsError(
             "Récup categ context KO",

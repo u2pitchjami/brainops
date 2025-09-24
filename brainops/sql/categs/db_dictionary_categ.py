@@ -4,8 +4,11 @@
 
 from __future__ import annotations
 
+from pymysql.cursors import DictCursor
+
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_cursor, get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -17,7 +20,7 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor(dictionary=True) as cur:
+        with conn.cursor(DictCursor) as cur:
             cur.execute(
                 """
                 SELECT c1.name AS category_name, c2.name AS subcategory_name
@@ -46,22 +49,77 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
 
 
 @with_child_logger
-def generate_categ_dictionary(*, logger: LoggerProtocol | None = None) -> str:
+def generate_categ_dictionary(*, for_similar: bool = False, logger: LoggerProtocol | None = None) -> list[str]:
     """
     Génère la liste des catégories racines avec descriptions.
     """
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor(dictionary=True) as cur:
+        lines = []
+        with conn.cursor(DictCursor) as cur:
             cur.execute("SELECT name, description FROM obsidian_categories WHERE parent_id IS NULL")
             categories = cur.fetchall()
+            logger.debug(f"categories: {categories}")
         if not categories:
             raise BrainOpsError("KO récup optionnal subcateg", code=ErrCode.DB, ctx={"results": "categorie"})
-        lines = ["Categ Dictionary:"]
+        if not for_similar:
+            lines = ["Categ Dictionary:"]
+            for cat in categories:
+                expl = cat["description"] or "No description available."
+                lines.append(f'- "{cat["name"]}": {expl}')
+            return lines
         for cat in categories:
-            expl = cat["description"] or "No description available."
-            lines.append(f'- "{cat["name"]}": {expl}')
-        return "\n".join(lines)
+            lines.append(f'"{cat["name"]}"')
+        return lines
+    finally:
+        conn.close()
+
+
+@with_child_logger
+def get_categ_id_from_name(name: str, logger: LoggerProtocol | None = None) -> int:
+    """
+    Génère la liste des catégories racines avec descriptions.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    try:
+        with get_cursor(conn) as cur:
+            row = safe_execute(
+                cur,
+                "SELECT id FROM obsidian_categories WHERE parent_id IS NULL AND name = %s LIMIT 1",
+                (name,),
+                logger=logger,
+            ).fetchone()
+            if row is not None:
+                return int(row[0])
+
+            raise BrainOpsError(f"Aucun ID pour la catégorie {name}", code=ErrCode.DB, ctx={"name": name})
+    finally:
+        conn.close()
+
+
+@with_child_logger
+def get_subcateg_from_categ(categ_id: int, logger: LoggerProtocol | None = None) -> list[str]:
+    """
+    Génère la liste des subcatégories racines avec descriptions.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    try:
+        lines = []
+        with get_dict_cursor(conn) as cur:
+            rows = safe_execute(
+                cur,
+                "SELECT name FROM obsidian_categories WHERE parent_id = %s",
+                (categ_id,),
+                logger=logger,
+            ).fetchall()
+
+        if not rows:
+            raise BrainOpsError("KO récup optionnal subcateg", code=ErrCode.DB, ctx={"results": "categorie"})
+        for cat in rows:
+            lines.append(f"{cat}")
+        return lines
     finally:
         conn.close()

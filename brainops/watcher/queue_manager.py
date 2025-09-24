@@ -13,7 +13,6 @@ from brainops.models.exceptions import BrainOpsError
 from brainops.process_folders.process_folder_event import process_folder_event
 from brainops.process_notes.new_note import new_note
 from brainops.process_notes.process_single_note import process_single_note
-from brainops.process_notes.update_note import update_note
 from brainops.sql.notes.db_delete_note import delete_note_by_path
 from brainops.sql.notes.db_notes_utils import file_path_exists_in_db
 from brainops.utils.files import wait_for_file
@@ -112,17 +111,12 @@ def process_queue() -> None:
 
                 # created / modified / moved
                 if action in ("created", "modified"):
-                    processed = process_single_note(file_path, note_id, logger=logger)
-                    if not processed:
-                        logger.warning("[IMPORT] Echec de l'import : (id=%s)", note_id)
-                        update_note(note_id, file_path, logger=logger)
+                    process_single_note(file_path, note_id, logger=logger)
                     continue
 
                 if action == "moved":
                     logger.debug("[BUSY] Déplacement fichier : %s -> %s", src_path, file_path)
-                    processed = process_single_note(file_path, note_id, src_path=src_path, logger=logger)
-                    if not processed:
-                        update_note(note_id, file_path, src_path)
+                    process_single_note(file_path, note_id, src_path=src_path, logger=logger)
                     continue
 
             # Dossiers: déléguer au gestionnaire de dossiers

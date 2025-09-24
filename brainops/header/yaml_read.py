@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from brainops.header.header_utils import merge_yaml_header
 from brainops.io.note_reader import read_metadata_field
-from brainops.io.note_writer import update_yaml_field
+from brainops.io.note_writer import safe_write, update_yaml_field
+from brainops.io.read_note import read_note_content
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.types import StrOrPath
-from brainops.utils.files import hash_file_content, read_note_content, safe_write
+from brainops.utils.files import hash_file_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_yaml_title
 

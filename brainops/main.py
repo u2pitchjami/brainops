@@ -23,9 +23,7 @@ def main() -> None:
         start_watcher(logger=logger)
     except ConfigError as exc:
         # ton décorateur/infra loguera correctement ici
-        if logger is not None:
-            logger.error("Erreur de configuration: %s", exc)
-        # à toi de décider: raise, ou exit(1) au script d'entrée
+        logger.error("Erreur de configuration: %s", exc)
 
 
 if __name__ == "__main__":

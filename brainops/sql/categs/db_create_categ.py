@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -27,7 +27,7 @@ def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT id FROM obsidian_categories WHERE name=%s AND parent_id IS NULL",
@@ -44,7 +44,11 @@ def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -
                 logger=logger,
             )
             conn.commit()
-            return int(cur.lastrowid)
+            if cur.lastrowid is None:
+                raise BrainOpsError("lastrowid est None", code=ErrCode.DB)
+
+            last_id = int(cur.lastrowid)
+            return last_id
     except Exception as exc:
         raise BrainOpsError("KO récup ou création catg", code=ErrCode.DB, ctx={"name": name}) from exc
     finally:
@@ -69,7 +73,7 @@ def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtoc
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT id FROM obsidian_categories WHERE name=%s AND parent_id=%s",
@@ -77,6 +81,7 @@ def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtoc
                 logger=logger,
             ).fetchone()
             if row:
+                logger.debug(f"row[0]: {row[0]}")
                 return int(row[0])
 
             safe_execute(
@@ -86,7 +91,12 @@ def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtoc
                 logger=logger,
             )
             conn.commit()
-            return int(cur.lastrowid)
+            logger.debug(f"cur.lastrowid: {cur.lastrowid}")
+            if cur.lastrowid is None:
+                raise BrainOpsError("lastrowid est None", code=ErrCode.DB)
+
+            last_id = int(cur.lastrowid)
+            return last_id
     except Exception as exc:
         raise BrainOpsError("KO récup ou création subcatg", code=ErrCode.DB, ctx={"name": name}) from exc
     finally:

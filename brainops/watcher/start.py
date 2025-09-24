@@ -11,9 +11,14 @@ import threading
 import time
 
 from watchdog.events import FileMovedEvent, FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver
 
+from brainops.io.paths import to_rel
 from brainops.models.event import EventType
+from brainops.services.archives_check import check_archives_syntheses_from_hash_source
+from brainops.services.category_coherence_check import check_file_path_category_coherence
+from brainops.services.reconcile_service import reconcile
 from brainops.utils.config import (
     BASE_PATH,
     WATCHDOG_DEBOUNCE_WINDOW,
@@ -70,8 +75,14 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
         WATCHDOG_POLL_INTERVAL,
         BASE_PATH,
     )
+    if os.environ.get("USE_POLLING", "0") == "1":
+        print("🔁 [Watcher] Polling forcé via USE_POLLING=1")
+        observer = PollingObserver(timeout=WATCHDOG_POLL_INTERVAL)
+    else:
+        # Cas normal (ex: dev local)
+        print("👀 [Watcher] Observer natif activé")
+        observer = Observer()
 
-    observer = PollingObserver(timeout=WATCHDOG_POLL_INTERVAL)
     handler = NoteHandler(logger=logger, debounce_window=WATCHDOG_DEBOUNCE_WINDOW)
     observer.schedule(handler, BASE_PATH, recursive=True)
     observer.start()
@@ -83,7 +94,7 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
         while True:
             time.sleep(0.5)
             now = time.monotonic()
-            if now - last_maintenance >= 3600:
+            if now - last_maintenance >= 60:  # toutes les heures3600
                 logger.info("🪵 Etat Horaire")
                 log_event_queue()
                 locks = LOCK_MGR.get_all_locks()
@@ -94,6 +105,10 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
                 logger.info("🧹 Purge des locks expirés (timeout=7200s)")
                 LOCK_MGR.purge_expired(timeout=7200)
                 last_maintenance = now
+                reconcile(scope="all", apply=False)
+                check_archives_syntheses_from_hash_source(auto_fix=False, logger=logger)
+                check_file_path_category_coherence(auto_fix=False, sample_size=1, logger=logger)
+
     except KeyboardInterrupt:
         logger.info("Arrêt demandé (CTRL+C).")
     finally:
@@ -171,10 +186,11 @@ class NoteHandler(FileSystemEventHandler):
             return
         etype: EventType = "directory" if event.is_directory else "file"
         path = normalize_full_path(self._to_str(event.src_path))
-        if self._should_emit(path, "created", etype):
+        path_rel = to_rel(path)
+        if self._should_emit(path_rel, "created", etype):
             if self._logger is not None:
-                self._logger.info("[CREATION] %s → %s", etype.upper(), path)
-            enqueue_event({"type": etype, "action": "created", "path": path})
+                self._logger.info("[CREATION] %s → %s", etype.upper(), path_rel)
+            enqueue_event({"type": etype, "action": "created", "path": path_rel})
 
     def on_deleted(self, event: FileSystemEvent) -> None:
         """
@@ -184,10 +200,11 @@ class NoteHandler(FileSystemEventHandler):
             return
         etype: EventType = "directory" if event.is_directory else "file"
         path = normalize_full_path(self._to_str(event.src_path))
-        if self._should_emit(path, "deleted", etype):
+        path_rel = to_rel(path)
+        if self._should_emit(path_rel, "deleted", etype):
             if self._logger is not None:
-                self._logger.info("[SUPPRESSION] %s → %s", etype.upper(), path)
-            enqueue_event({"type": etype, "action": "deleted", "path": path})
+                self._logger.info("[SUPPRESSION] %s → %s", etype.upper(), path_rel)
+            enqueue_event({"type": etype, "action": "deleted", "path": path_rel})
 
     def on_modified(self, event: FileSystemEvent) -> None:
         """
@@ -197,10 +214,11 @@ class NoteHandler(FileSystemEventHandler):
             return
         etype: EventType = "file"
         path = normalize_full_path(self._to_str(event.src_path))
-        if self._should_emit(path, "modified", etype):
+        path_rel = to_rel(path)
+        if self._should_emit(path_rel, "modified", etype):
             if self._logger is not None:
-                self._logger.info("[MODIFICATION] FILE → %s", path)
-            enqueue_event({"type": "file", "action": "modified", "path": path})
+                self._logger.info("[MODIFICATION] FILE → %s", path_rel)
+            enqueue_event({"type": "file", "action": "modified", "path": path_rel})
 
     def on_moved(self, event: FileMovedEvent) -> None:
         """
@@ -211,7 +229,9 @@ class NoteHandler(FileSystemEventHandler):
         etype: EventType = "directory" if event.is_directory else "file"
         src = normalize_full_path(self._to_str(event.src_path))
         dst = normalize_full_path(self._to_str(event.dest_path))
-        if self._should_emit(dst, "moved", etype):
+        src_rel = to_rel(src)
+        dst_rel = to_rel(dst)
+        if self._should_emit(dst_rel, "moved", etype):
             if self._logger is not None:
-                self._logger.info("[DEPLACEMENT] %s → %s -> %s", etype.upper(), src, dst)
-            enqueue_event({"type": etype, "action": "moved", "src_path": src, "path": dst})
+                self._logger.info("[DEPLACEMENT] %s → %s -> %s", etype.upper(), src_rel, dst_rel)
+            enqueue_event({"type": etype, "action": "moved", "src_path": src_rel, "path": dst_rel})

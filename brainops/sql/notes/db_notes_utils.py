@@ -8,10 +8,11 @@ import os
 from pathlib import Path
 import shutil
 
+from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.models.note import Note
-from brainops.process_import.utils.paths import ensure_folder_exists
-from brainops.sql.db_connection import get_db_connection
+from brainops.process_folders.folders import ensure_folder_exists
+from brainops.process_regen.regen_utils import regen_header
+from brainops.sql.db_connection import get_cursor, get_db_connection
 from brainops.sql.db_utils import safe_execute
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -27,15 +28,11 @@ def check_synthesis_and_trigger_archive(
     - porte le bon nom,
     - a son YAML synchronisé.
     """
-    from brainops.header.headers import (
-        add_metadata_to_yaml,  # import local pour éviter cycles
-    )
-
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
 
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             row = safe_execute(
                 cur,
                 "SELECT file_path FROM obsidian_notes WHERE id=%s",
@@ -63,10 +60,10 @@ def check_synthesis_and_trigger_archive(
 
                 new_archive_path = archive_folder / f"{synthesis_name} (archive).md"
                 if current_archive_path != new_archive_path:
-                    if new_archive_path.exists():
+                    if Path(to_abs(new_archive_path)).exists():
                         logger.warning("[SYNC] Fichier existe déjà: %s", new_archive_path)
                     else:
-                        shutil.move(str(current_archive_path), str(new_archive_path))
+                        shutil.move(str(to_abs(current_archive_path)), str(to_abs(new_archive_path)))
                         safe_execute(
                             cur,
                             "UPDATE obsidian_notes SET file_path=%s WHERE id=%s",
@@ -74,14 +71,7 @@ def check_synthesis_and_trigger_archive(
                             logger=logger,
                         )
                         conn.commit()
-
-                add_metadata_to_yaml(
-                    note_id=archive_id,
-                    filepath=new_archive_path,
-                    status="archive",
-                    synthesis_id=note_id,
-                    logger=logger,
-                )
+                regen_header(archive_id, str(new_archive_path))
             else:
                 logger.warning("[SYNC] Aucune archive liée à la synthesis %s", note_id)
     except Exception as exc:
@@ -105,7 +95,7 @@ def file_path_exists_in_db(
     if not conn:
         return None
     try:
-        with conn.cursor() as cur:
+        with get_cursor(conn) as cur:
             for path in [p for p in (src_path, file_path) if p]:
                 row = safe_execute(
                     cur,
@@ -118,39 +108,3 @@ def file_path_exists_in_db(
         return None
     finally:
         conn.close()
-
-
-@with_child_logger
-def get_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None) -> Note:
-    """
-    Récupère une note par `file_path` (unique).
-
-    Retourne None si introuvable.
-    """
-    logger = ensure_logger(logger, __name__)
-    conn = get_db_connection(logger=logger)
-
-    try:
-        with conn.cursor(dictionary=True) as cur:
-            row = safe_execute(
-                cur,
-                """
-                SELECT id, parent_id, title, file_path, folder_id, category_id, subcategory_id,
-                       status, summary, source, author, project,
-                       created_at, modified_at, updated_at,
-                       word_count, content_hash, source_hash, lang
-                  FROM obsidian_notes
-                 WHERE file_path=%s
-                 LIMIT 1
-                """,
-                (file_path,),
-                logger=logger,
-            ).fetchone()
-
-            if not row:
-                raise BrainOpsError(
-                    "check_synthesis_and_trigger KO", code=ErrCode.UNEXPECTED, ctx={"file_path": file_path}
-                )
-    finally:
-        conn.close()
-    return Note.from_row(row)
