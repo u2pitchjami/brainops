@@ -8,13 +8,18 @@ from pathlib import Path
 
 from brainops.io.note_reader import read_metadata_object
 from brainops.io.note_writer import merge_metadata_in_note
+from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.process_import.utils.paths import path_is_inside
+from brainops.process_notes.utils import check_if_tags
 from brainops.process_regen.regen_utils import regen_header, regen_synthese_from_archive
 from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
+from brainops.sql.get_linked.db_get_linked_notes_utils import get_note_wc
 from brainops.sql.notes.db_notes_utils import check_synthesis_and_trigger_archive
 from brainops.sql.notes.db_update_notes import (
     update_obsidian_note,
 )
+from brainops.utils.config import Z_STORAGE_PATH
 from brainops.utils.files import wait_for_file
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
@@ -47,6 +52,7 @@ def update_note(
 
     regen_synth_trigger = False
     regen_header_trigger = False
+    regen_tags_trigger = False
 
     try:
         # 1) Métadonnées depuis YAML
@@ -89,8 +95,12 @@ def update_note(
         summary = summary_yaml
 
         new_status = classification.status
-
         def_status = new_status or status_temp
+
+        actual_db_wc = get_note_wc(note_id, logger=logger) or 0
+        wc = count_words(content=None, filepath=dp, logger=logger)
+        if wc != actual_db_wc:
+            regen_tags_trigger = True
 
         # 6) Update DB principal
         updates = {
@@ -105,6 +115,7 @@ def update_note(
             "author": author,
             "project": project,
             "created_at": created,
+            "word_count": wc,
         }
         update_obsidian_note(note_id, updates, logger=logger)
 
@@ -120,20 +131,35 @@ def update_note(
         if regen_header_trigger:
             logger.debug("[UPDATE_NOTE] Post-action: regen_header")
             regen_header(note_id, str(dp))
-        if classification.category_name != categ_yaml or (classification.subcategory_name or "") != (
-            subcateg_yaml or ""
-        ):
-            if classification.subcategory_name is None:
-                updates_head: dict[str, str | int | list[str]] = {
-                    "category": classification.category_name,
-                }
-            else:
-                updates_head = {
-                    "category": classification.category_name,
-                    "subcategory": classification.subcategory_name,
-                }
-            merge = merge_metadata_in_note(filepath=dp, updates=updates_head, logger=logger)
-            logger.debug(f"[UPDATE_NOTE] merge header : {merge}")
+
+        if regen_tags_trigger:
+            logger.debug("[UPDATE_NOTE] Post-action: regen_tags (via check_if_tags)")
+            check_tags = check_if_tags(
+                filepath=dp.as_posix(),
+                note_id=note_id,
+                wc=wc,
+                status=def_status,
+                classification=classification,
+                logger=logger,
+            )
+            if check_tags:
+                logger.info("[UPDATE_NOTE] Tags ajoutés automatiquement")
+
+        if path_is_inside(Z_STORAGE_PATH, dp):
+            if classification.category_name != categ_yaml or (classification.subcategory_name or "") != (
+                subcateg_yaml or ""
+            ):
+                if classification.subcategory_name is None:
+                    updates_head: dict[str, str | int | list[str]] = {
+                        "category": classification.category_name,
+                    }
+                else:
+                    updates_head = {
+                        "category": classification.category_name,
+                        "subcategory": classification.subcategory_name,
+                    }
+                merge = merge_metadata_in_note(filepath=dp, updates=updates_head, logger=logger)
+                logger.debug(f"[UPDATE_NOTE] merge header : {merge}")
         return
 
     except Exception as exc:

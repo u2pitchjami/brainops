@@ -10,7 +10,7 @@ import logging.handlers
 import os
 from typing import Any, ParamSpec, Protocol, TypeVar, cast
 
-from brainops.utils.config import LOG_FILE_PATH, LOG_ROTATION_DAYS
+from brainops.utils.config import LOG_FILE_PATH, LOG_LEVEL, LOG_ROTATION_DAYS
 from brainops.utils.log_rotation import rotate_logs
 
 
@@ -214,12 +214,16 @@ def get_logger(script_name: str) -> LoggerProtocol:
         rotate_logs(LOG_FILE_PATH, LOG_ROTATION_DAYS, logf=script_log_file)
     except Exception as exc:
         base_fallback = logging.getLogger(script_name)
-        base_fallback.setLevel(logging.DEBUG)
+        log_level_str = LOG_LEVEL.upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
+        base_fallback.setLevel(log_level)
         _ensure_handlers(base_fallback, global_log_file, script_log_file)
         BrainopsLogger(base_fallback).warning(f"Rotation des logs échouée: {exc}")
 
     base = logging.getLogger(script_name)
-    base.setLevel(logging.DEBUG)
+    log_level_str = LOG_LEVEL.upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
+    base.setLevel(log_level)
     _ensure_handlers(base, global_log_file, script_log_file)
     return BrainopsLogger(base)  # ← classe concrète, pas le Protocol
 

@@ -5,8 +5,8 @@
 from __future__ import annotations
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_cursor, get_db_connection
-from brainops.sql.db_utils import safe_execute
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -27,17 +27,19 @@ def get_or_create_category(name: str, *, logger: LoggerProtocol | None = None) -
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with get_cursor(conn) as cur:
-            row = safe_execute(
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
                 cur,
                 "SELECT id FROM obsidian_categories WHERE name=%s AND parent_id IS NULL",
                 (name,),
                 logger=logger,
             ).fetchone()
+            logger.debug(f"Type de row = {type(row)} / contenu = {row}")
+            logger.debug(f"row: {row}")
             if row:
-                return int(row[0])
+                return int(row["id"])
 
-            safe_execute(
+            safe_execute_dict(
                 cur,
                 "INSERT INTO obsidian_categories (name, description, prompt_name) VALUES (%s, %s, %s)",
                 (name, f"Note about {name}", "divers"),
@@ -73,18 +75,18 @@ def get_or_create_subcategory(name: str, parent_id: int, *, logger: LoggerProtoc
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with get_cursor(conn) as cur:
-            row = safe_execute(
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
                 cur,
                 "SELECT id FROM obsidian_categories WHERE name=%s AND parent_id=%s",
                 (name, parent_id),
                 logger=logger,
             ).fetchone()
             if row:
-                logger.debug(f"row[0]: {row[0]}")
-                return int(row[0])
+                logger.debug(f"row['id']: {row['id']}")
+                return int(row["id"])
 
-            safe_execute(
+            safe_execute_dict(
                 cur,
                 "INSERT INTO obsidian_categories (name, parent_id, description, prompt_name) VALUES (%s, %s, %s, %s)",
                 (name, parent_id, f"Note about {name}", "divers"),

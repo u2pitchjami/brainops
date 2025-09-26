@@ -107,7 +107,6 @@ def process_single_note(
                 logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
                 handle_errored_file(note_id, filepath, exc, logger=logger)
                 return
-            logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return
 
         # 2) Destination dans IMPORTS : import normal + synthèse
@@ -124,7 +123,6 @@ def process_single_note(
                 logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
                 handle_errored_file(note_id, filepath, exc, logger=logger)
                 return
-            logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
             return
 
         else:
@@ -173,7 +171,6 @@ def process_single_note(
             logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
             handle_errored_file(note_id, filepath, exc, logger=logger)
             return
-        logger.info("[IMPORT] ✅ (id=%s) : Import Réussi", note_id)
         return
 
     # B) Note déjà dans le stockage : vérifier si on doit régénérer (header/synthèse)

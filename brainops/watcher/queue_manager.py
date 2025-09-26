@@ -8,6 +8,7 @@ from __future__ import annotations
 from queue import Queue
 
 from brainops.header.yaml_read import test_title
+from brainops.io.paths import exists
 from brainops.models.event import DirEvent, Event
 from brainops.models.exceptions import BrainOpsError
 from brainops.process_folders.process_folder_event import process_folder_event
@@ -85,6 +86,8 @@ def process_queue() -> None:
 
                 # Assure un note_id si absent
                 if note_id is None:
+                    if not exists(file_path):
+                        continue
                     note_id = file_path_exists_in_db(file_path, src_path, logger=logger)
                     if not note_id:
                         try:

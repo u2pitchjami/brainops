@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.note import Note
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -19,8 +20,9 @@ def upsert_note_from_model(note: Note, *, logger: LoggerProtocol | None = None) 
     conn = get_db_connection(logger=logger)
 
     try:
-        with conn.cursor() as cur:
-            cur.execute(
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(
+                cur,
                 """
                 INSERT INTO obsidian_notes
                   (parent_id, title, file_path, folder_id,
@@ -53,11 +55,11 @@ def upsert_note_from_model(note: Note, *, logger: LoggerProtocol | None = None) 
                 """,
                 note.to_upsert_params(),
             )
-            cur.execute("SELECT LAST_INSERT_ID()")
+            safe_execute_dict(cur, "SELECT LAST_INSERT_ID() AS id")
             rid = cur.fetchone()
             conn.commit()
-            if rid and rid[0]:
-                nid = int(rid[0])
+            if rid and rid["id"]:
+                nid = int(rid["id"])
                 logger.debug("[NOTES] upsert %s -> id=%s", note.file_path, nid)
             else:
                 raise BrainOpsError("Upsert Note KO", code=ErrCode.DB, ctx={"note": note})

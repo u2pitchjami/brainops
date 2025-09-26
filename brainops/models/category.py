@@ -13,7 +13,7 @@ class Category:
     Miroir de la table obsidian_categories.
     """
 
-    id: int | None = None
+    id: int
     name: str
     description: str | None = None
     prompt_name: str | None = None

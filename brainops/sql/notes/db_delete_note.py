@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from pymysql.cursors import DictCursor
-
 from brainops.io.paths import to_abs, to_rel
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import db_conn
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -18,18 +17,19 @@ def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None)
     `file_path` peut être relatif vault (recommandé) ou un absolu sous BASE_PATH (/notes/...).
     """
     logger = ensure_logger(logger, __name__)
-    file_rel = to_rel(file_path)  # canonise dès l’entrée
+    file_rel = file_path  # canonise dès l’entrée
 
+    logger.debug("🗑️ Suppression note: %s", file_rel)
     try:
-        with db_conn(logger=logger) as conn:  # autocommit=False → commit à la sortie si OK
-            # 1) Charger la note
-            with conn.cursor(DictCursor) as cur:
-                cur.execute(
-                    "SELECT id, parent_id, status FROM obsidian_notes WHERE file_path = %s",
-                    (file_rel,),
-                )
-                row = cur.fetchone()
-
+        conn = get_db_connection(logger=logger)
+        with get_dict_cursor(conn) as cur:  # autocommit=False → commit à la sortie si OK
+            safe_execute_dict(
+                cur,
+                "SELECT id, parent_id, status FROM obsidian_notes WHERE file_path = %s",
+                (file_rel,),
+            )
+            row = cur.fetchone()
+            logger.debug("🔍 Note row: %s", row)
             if not row:
                 logger.warning("⚠️ Aucune note trouvée pour %s, suppression annulée", file_rel)
                 return False
@@ -41,21 +41,22 @@ def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None)
             logger.debug("🔍 Note %s (status=%s), parent=%s", note_id, status, parent_id)
 
             # 2) Supprimer les temp_blocks liés à la note
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM obsidian_temp_blocks WHERE note_id = %s", (note_id,))
+            safe_execute_dict(cur, "DELETE FROM obsidian_temp_blocks WHERE note_id = %s", (note_id,))
             logger.info("🧹 Blocks supprimés pour note %s", note_id)
 
             # 3) Supprimer les tags de la note
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
+            safe_execute_dict(cur, "DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
             logger.info("🏷️ Tags supprimés pour note %s", note_id)
 
             # 4) Cas status
             if status == "synthesis" and parent_id:
                 # 4a) Récupérer le chemin de l’archive liée
-                with conn.cursor(DictCursor) as cur:
-                    cur.execute("SELECT file_path FROM obsidian_notes WHERE id = %s", (parent_id,))
-                    prow = cur.fetchone()
+                safe_execute_dict(
+                    cur,
+                    "SELECT file_path FROM obsidian_notes WHERE id = %s",
+                    (parent_id,),
+                )
+                prow = cur.fetchone()
 
                 if prow and prow.get("file_path"):
                     parent_file_rel: str = to_rel(prow["file_path"])
@@ -72,24 +73,20 @@ def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None)
                         )
 
                 # 4b) Supprimer l’archive + ses tags
-                with conn.cursor() as cur:
-                    cur.execute("DELETE FROM obsidian_notes WHERE id = %s", (parent_id,))
-                with conn.cursor() as cur:
-                    cur.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (parent_id,))
+                safe_execute_dict(cur, "DELETE FROM obsidian_notes WHERE id = %s", (parent_id,))
+                safe_execute_dict(cur, "DELETE FROM obsidian_tags WHERE note_id = %s", (parent_id,))
                 logger.info("🧹 Archive %s et ses tags supprimés", parent_id)
 
             elif status == "archive" and parent_id:
                 # Dissocier la synthesis
-                with conn.cursor() as cur:
-                    cur.execute("UPDATE obsidian_notes SET parent_id = NULL WHERE id = %s", (parent_id,))
+                safe_execute_dict(cur, "UPDATE obsidian_notes SET parent_id = NULL WHERE id = %s", (parent_id,))
                 logger.info("🔄 Synthesis %s dissociée de son archive", parent_id)
 
             # 5) Supprimer la note elle-même
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM obsidian_notes WHERE id = %s", (note_id,))
-                rc: int = cur.rowcount or 0
+            safe_execute_dict(cur, "DELETE FROM obsidian_notes WHERE id = %s", (note_id,))
+            rc: int = cur.rowcount or 0
+            conn.commit()
 
-            # Commit implicite à la sortie de db_conn()
             logger.info("🗑️ Note %s supprimée (rowcount=%s)", note_id, rc)
             return rc > 0
 
@@ -99,3 +96,6 @@ def delete_note_by_path(file_path: str, *, logger: LoggerProtocol | None = None)
     except Exception as exc:  # pylint: disable=broad-except
         # db_conn fera rollback si nécessaire; on enrobe en erreur métier
         raise BrainOpsError("Suppression note KO", code=ErrCode.DB, ctx={"file_path": file_rel}) from exc
+    finally:
+        if conn:
+            conn.close()

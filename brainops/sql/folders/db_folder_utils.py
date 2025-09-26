@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from brainops.io.paths import exists
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_cursor, get_db_connection
-from brainops.sql.db_utils import safe_execute
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -44,8 +44,8 @@ def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bo
     logger.debug("[is_folder_exist] entrée is_folder_exist %s", folderpath)
     conn = get_db_connection(logger=logger)
     try:
-        with get_cursor(conn) as cur:
-            row = safe_execute(
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
                 cur,
                 "SELECT id FROM obsidian_folders WHERE path=%s",
                 (folderpath,),
@@ -69,15 +69,15 @@ def get_folder_path_by_id(folder_id: int, *, logger: LoggerProtocol | None = Non
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
     try:
-        with get_cursor(conn) as cur:
-            row = safe_execute(
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
                 cur,
                 "SELECT path FROM obsidian_folders WHERE id=%s",
                 (folder_id,),
                 logger=logger,
             ).fetchone()
         if row is not None:
-            return str(row[0])
+            return str(row["path"])
         raise BrainOpsError(f"Aucun Path pour le folder id {folder_id}", code=ErrCode.DB, ctx={"folder_id": folder_id})
     except Exception as exc:  # pylint: disable=broad-except
         logger.exception("[DB] get_folder_type_by_path(%s) erreur: %s", folder_id, exc)

@@ -4,11 +4,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from pymysql.cursors import DictCursor
-
 from brainops.io.note_writer import merge_metadata_in_note
 from brainops.models.reconcile import Anomaly, NoteRow, Severity
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
@@ -17,8 +16,9 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def get_all_notes_for_category_check(limit: int = 10) -> list[NoteRow]:
     conn = get_db_connection()
     try:
-        with conn.cursor(DictCursor) as cursor:
-            cursor.execute(
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(
+                cur,
                 """
                 SELECT id, file_path, folder_id, category_id, subcategory_id, status
                 FROM obsidian_notes
@@ -26,7 +26,7 @@ def get_all_notes_for_category_check(limit: int = 10) -> list[NoteRow]:
                 """,
                 (limit,),
             )
-            notes = cast(list[NoteRow], list(cursor.fetchall()))
+            notes = cast(list[NoteRow], list(cur.fetchall()))
             return notes
     finally:
         conn.close()

@@ -34,12 +34,12 @@ def process_standard_note(
 
     Retourne la réponse brute (texte) si write_file=False, sinon None.
     """
-    log = ensure_logger(logger, __name__)
+    logger = ensure_logger(logger, __name__)
 
     # 2) Prompt
     prompt_tpl = PROMPTS.get(prompt_name)
     if not prompt_tpl:
-        log.error("Prompt '%s' introuvable dans PROMPTS.", prompt_name)
+        logger.error("Prompt '%s' introuvable dans PROMPTS.", prompt_name)
         raise BrainOpsError("Prompt introuvable", code=ErrCode.OLLAMA, ctx={"note_id": note_id})
     prompt = prompt_tpl.format(content=content)
 
@@ -56,10 +56,10 @@ def process_standard_note(
         split_method=split_method,
         word_limit=word_limit,
         source=source,
-        logger=log,
+        logger=logger,
     )
     if existing and existing[1] == "processed" and resume_if_possible:
-        log.info("[SKIP] Note déjà traitée : %s", note_id)
+        logger.info("[SKIP] Note déjà traitée : %s", note_id)
         return existing[0].strip()
 
     # 4) Insert + appel LLM
@@ -72,10 +72,10 @@ def process_standard_note(
         split_method=split_method,
         word_limit=word_limit,
         source=source,
-        logger=log,
+        logger=logger,
     )
 
-    response = call_ollama_with_retry(prompt, model_ollama, logger=log) or ""
+    response = call_ollama_with_retry(prompt, model_ollama, logger=logger) or ""
     response_clean = clean_fake_code_blocks(maybe_clean(response)).strip()
 
     update_bloc_response(
@@ -84,7 +84,7 @@ def process_standard_note(
         response=response_clean,
         source=source,
         status="processed",
-        logger=log,
+        logger=logger,
     )
 
     # 6) Retour "brut" compatible

@@ -115,11 +115,11 @@ def handle_errored_file(
         # Journal JSON (payload sérialisable)
         payload = _exc_payload(exc) | {"note_id": note_id, "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         data = {}
-        if Path(to_abs(ERRORED_JSON)).exists():
-            with open(to_abs(ERRORED_JSON), encoding="utf-8") as f:
+        if Path(ERRORED_JSON).exists():
+            with open(ERRORED_JSON, encoding="utf-8") as f:
                 data = json.load(f)
         data[dest.as_posix()] = payload
-        with open(to_abs(ERRORED_JSON), "w", encoding="utf-8") as f:
+        with open(ERRORED_JSON, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     except Exception as inner_exc:

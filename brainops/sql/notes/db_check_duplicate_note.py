@@ -10,8 +10,8 @@ from typing import Any
 
 from brainops.header.header_utils import hash_source
 from brainops.models.metadata import NoteMetadata
-from brainops.sql.db_connection import get_cursor, get_db_connection
-from brainops.sql.db_utils import safe_execute
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.files import hash_file_content
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -42,10 +42,10 @@ def check_duplicate(
         matches: list[dict[str, Any]] = []
         seen_ids: set[int] = set()
         try:
-            with get_cursor(conn) as cur:
+            with get_dict_cursor(conn) as cur:
                 # fuzzy titre
                 title_cleaned = clean_title(metadata.title or "")
-                rows = safe_execute(
+                rows = safe_execute_dict(
                     cur,
                     "SELECT id, title FROM obsidian_notes WHERE status=%s",
                     ("archive",),
@@ -66,40 +66,40 @@ def check_duplicate(
 
                 # source_hash exact
                 if source_hash:
-                    for row in safe_execute(
+                    for row in safe_execute_dict(
                         cur,
                         "SELECT id, title FROM obsidian_notes WHERE status=%s AND source_hash=%s",
                         ("archive", source_hash),
                         logger=logger,
                     ).fetchall():
-                        if int(row[0]) not in seen_ids:
+                        if int(row["id"]) not in seen_ids:
                             matches.append(
                                 {
-                                    "id": int(row[0]),
-                                    "title": row[1],
+                                    "id": int(row["id"]),
+                                    "title": row["title"],
                                     "similarity": 1.0,
                                     "match_type": "source_hash",
                                 }
                             )
-                            seen_ids.add(int(row[0]))
+                            seen_ids.add(int(row["id"]))
 
                 # content_hash exact
-                for row in safe_execute(
+                for row in safe_execute_dict(
                     cur,
                     "SELECT id, title FROM obsidian_notes WHERE status=%s AND content_hash=%s",
                     ("archive", content_hash),
                     logger=logger,
                 ).fetchall():
-                    if int(row[0]) not in seen_ids:
+                    if int(row["id"]) not in seen_ids:
                         matches.append(
                             {
-                                "id": int(row[0]),
-                                "title": row[1],
+                                "id": int(row["id"]),
+                                "title": row["title"],
                                 "similarity": 1.0,
                                 "match_type": "content_hash",
                             }
                         )
-                        seen_ids.add(int(row[0]))
+                        seen_ids.add(int(row["id"]))
         finally:
             conn.close()
 

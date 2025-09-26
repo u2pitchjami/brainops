@@ -75,8 +75,10 @@ def add_folder_context(path: str | Path, logger: LoggerProtocol | None = None) -
         else:
             if len(parts) == 1:
                 category = parts[0]
+                logger.debug("[DEBUG] part=1 add_folder_context category (%s)", category)
             elif len(parts) >= 2:
                 category, subcategory = parts[0], parts[1]
+                logger.debug("[DEBUG] part=2 add_folder_context category (%s) sub %s", category, subcategory)
 
         if category:
             category_id = get_or_create_category(category, logger=logger)

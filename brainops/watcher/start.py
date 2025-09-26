@@ -86,7 +86,8 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
     handler = NoteHandler(logger=logger, debounce_window=WATCHDOG_DEBOUNCE_WINDOW)
     observer.schedule(handler, BASE_PATH, recursive=True)
     observer.start()
-
+    reconcile(scope="all", apply=True, logger=logger)
+    check_archives_syntheses_from_hash_source(auto_fix=True, logger=logger)
     worker = _start_queue_thread()
 
     last_maintenance = time.monotonic()
@@ -94,7 +95,7 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
         while True:
             time.sleep(0.5)
             now = time.monotonic()
-            if now - last_maintenance >= 60:  # toutes les heures3600
+            if now - last_maintenance >= 3600:  # toutes les heures
                 logger.info("🪵 Etat Horaire")
                 log_event_queue()
                 locks = LOCK_MGR.get_all_locks()
@@ -105,9 +106,9 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
                 logger.info("🧹 Purge des locks expirés (timeout=7200s)")
                 LOCK_MGR.purge_expired(timeout=7200)
                 last_maintenance = now
-                reconcile(scope="all", apply=False)
-                check_archives_syntheses_from_hash_source(auto_fix=False, logger=logger)
-                check_file_path_category_coherence(auto_fix=False, sample_size=1, logger=logger)
+                reconcile(scope="all", apply=True, logger=logger)
+                check_archives_syntheses_from_hash_source(auto_fix=True, logger=logger)
+                check_file_path_category_coherence(auto_fix=True, sample_size=10, logger=logger)
 
     except KeyboardInterrupt:
         logger.info("Arrêt demandé (CTRL+C).")

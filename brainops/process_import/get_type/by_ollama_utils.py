@@ -71,11 +71,13 @@ def clean_note_type(parse_category: str, logger: LoggerProtocol | None = None) -
 # ---------- Similarité (inchangé) ---------------------------------------------
 
 
+@with_child_logger
 def find_similar_levenshtein(
     name: str,
     existing_names: list[str],
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
+    logger: LoggerProtocol | None = None,
 ) -> list[tuple[str, float]]:
     """
     find_similar_levenshtein _summary_
@@ -91,11 +93,15 @@ def find_similar_levenshtein(
     Returns:
         _type_: _description_
     """
+    logger = ensure_logger(logger, __name__)
+    logger.debug(
+        f"[DEBUG] find_similar_levenshtein: name={name}, existing_names={existing_names}, entity_type={entity_type}"
+    )
     similar: list[tuple[str, float]] = []
     try:
         for existing in existing_names:
             similarity = ratio(name, existing)
-            # logger.debug(...) → logger injecté + décorateur dans les call sites
+            logger.debug(f"[DEBUG] Similarity test '{name}' vs '{existing}' = {similarity:.2f}")
             if similarity >= threshold_low:
                 similar.append((existing, similarity))
     except Exception as exc:
@@ -112,8 +118,8 @@ def prep_and_similarity_test(note_type: str, logger: LoggerProtocol | None = Non
     logger = ensure_logger(logger, __name__)
     try:
         parts = [p.strip() for p in note_type.split("/", 1)]
-        category_name = parts[0]
-        subcategory_name = parts[1] if len(parts) == 2 and parts[1] else "unknow"
+        category_name = parts[0].lower()
+        subcategory_name = parts[1].lower() if len(parts) == 2 and parts[1] else "unknow"
         if not category_name:
             raise BrainOpsError(
                 "[METADATA] ❌ Impossible de parser la proposition Ollama",
@@ -129,14 +135,27 @@ def prep_and_similarity_test(note_type: str, logger: LoggerProtocol | None = Non
         if subcategory_name is not None and real_category_name:
             cat_id = get_categ_id_from_name(name=real_category_name, logger=logger)
             logger.debug(f"cat_id: {cat_id}")
-            subcategs = get_subcateg_from_categ(categ_id=cat_id, logger=logger)
-            logger.debug(f"subcategs: {subcategs}")
-            real_subcategory_name = check_and_handle_similarity(
-                subcategory_name, existing_names=subcategs, entity_type="subcategory"
-            )
-            logger.debug(f"real_subcategory_name: {real_subcategory_name}")
-
-        return f"{real_category_name}/{real_subcategory_name}"
+            if cat_id is None:
+                real_subcategory_name = subcategory_name
+            else:
+                subcategs = get_subcateg_from_categ(categ_id=cat_id, logger=logger)
+                if subcategs:
+                    logger.debug(f"subcategs: {subcategs}")
+                    check_subcategory_name = check_and_handle_similarity(
+                        subcategory_name, existing_names=subcategs, entity_type="subcategory"
+                    )
+                else:
+                    check_subcategory_name = subcategory_name
+                logger.debug(f"check_subcategory_name: {check_subcategory_name}")
+                if check_subcategory_name:
+                    real_subcategory_name = check_subcategory_name
+            if real_subcategory_name:
+                return f"{real_category_name}/{real_subcategory_name}"
+        raise BrainOpsError(
+            "[METADATA] ❌ Recherche Categ/Sub KO",
+            code=ErrCode.METADATA,
+            ctx={"step": "prep_and_similarity_test", "note_type": note_type},
+        )
     except Exception as exc:
         raise BrainOpsError(
             "[METADATA] ❌ Check similarités categ/subcateg KO",
@@ -149,11 +168,13 @@ def prep_and_similarity_test(note_type: str, logger: LoggerProtocol | None = Non
         ) from exc
 
 
+@with_child_logger
 def check_and_handle_similarity(
     name: str,
     existing_names: list[str],
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
+    logger: LoggerProtocol | None = None,
 ) -> str | None:
     """
     check_and_handle_similarity _summary_
@@ -169,14 +190,21 @@ def check_and_handle_similarity(
     Returns:
         Optional[str]: _description_
     """
+    logger = ensure_logger(logger, __name__)
+    logger.debug(
+        f"[DEBUG] check_and_handle_similarity: name={name}, existing_names={existing_names}, entity_type={entity_type}"
+    )
     threshold_high = 0.9
-    similar = find_similar_levenshtein(name, existing_names, threshold_low, entity_type)
+    similar = find_similar_levenshtein(name, existing_names, threshold_low, entity_type, logger=logger)
+    logger.debug(f"[DEBUG] similar found: {similar}")
     if similar:
         closest, score = similar[0]
         if score >= threshold_high:
+            logger.info(f"[INFO] {entity_type} '{name}' similaire à '{closest}' (score: {score:.2f}), on remplace.")
             # Fusion auto
             return closest
         if threshold_low <= score < threshold_high:
+            logger.warning(f"[WARNING] {entity_type} '{name}' proche de '{closest}' (score: {score:.2f}), à vérifier.")
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             log_message = (
                 f"[{current_time}] Doute sur {entity_type}: '{name}' proche de '{closest}' (score: {score:.2f})\n"
@@ -234,8 +262,8 @@ def _resolve_destination(note_type: str, note_id: int, *, logger: LoggerProtocol
         subcat_id = None
         try:
             parts = [p.strip() for p in note_type.split("/", 1)]
-            category_name = parts[0]
-            subcategory_name = parts[1] if len(parts) == 2 and parts[1] else None
+            category_name = parts[0].capitalize()
+            subcategory_name = parts[1].capitalize() if len(parts) == 2 and parts[1] else None
         except Exception as exc:  # pylint: disable=broad-except
             raise BrainOpsError(
                 "[METADATA] ❌ Impossible de parser la proposition Ollama",

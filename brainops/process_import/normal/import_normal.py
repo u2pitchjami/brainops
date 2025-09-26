@@ -11,6 +11,7 @@ from brainops.io.note_reader import read_note_full
 from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
+from brainops.ollama.check_ollama import check_ollama_health
 from brainops.process_folders.folders import ensure_folder_exists
 from brainops.process_import.get_type.by_ollama import get_type_by_ollama
 from brainops.process_import.join.join_header_body import join_header_body
@@ -20,7 +21,7 @@ from brainops.process_import.synthese.import_synthese import (
 from brainops.process_import.utils.archive import build_archive_path, build_synthesis_path
 from brainops.process_import.utils.divers import rename_file
 from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
-from brainops.sql.notes.db_update_notes import update_obsidian_note
+from brainops.sql.notes.db_update_notes import update_obsidian_note, update_obsidian_tags
 from brainops.utils.config import SAV_PATH
 from brainops.utils.files import clean_content, copy_file_with_date
 from brainops.utils.logger import get_logger
@@ -44,6 +45,11 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
     logger.debug("[DEBUG] +++ ▶️ PRE IMPORT NORMAL pour %s", src.as_posix())
 
     try:
+        logger.info("[INFO] Vérification de l'état d'Ollama...")
+        check = check_ollama_health(logger=logger)
+        if not check:
+            logger.error("[ERREUR] 🚨 Ollama ne répond pas, import annulé pour (id=%s)", note_id)
+            return False
         meta_yaml, body = read_note_full(src, logger=logger)
         content = clean_content(body)
         wc = count_words(content)
@@ -107,6 +113,7 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
             "word_count": wc,
         }
         update_obsidian_note(note_id, updates)
+        update_obsidian_tags(note_id, tags=meta_final.tags, logger=logger)
 
         archive_def = join_header_body(
             body=content, meta_yaml=meta_final, filepath=archive_path, write_file=True, logger=logger

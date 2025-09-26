@@ -69,6 +69,8 @@ def get_category_context_from_folder(folder_path: str, *, logger: LoggerProtocol
     """
     logger = ensure_logger(logger, __name__)
     logger.debug("[DEBUG] get_category_context_from_folder(%s)", folder_path)
+    if folder_path == "":
+        folder_path = "."
     try:
         folder = get_folder_linked_data(folder_path, "folder", logger=logger)
         logger.debug(f"folder: {folder}")

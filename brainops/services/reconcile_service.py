@@ -3,29 +3,31 @@
 from collections.abc import Iterable
 import os
 from pathlib import Path
-from typing import Any, cast
-
-from pymysql.cursors import DictCursor
+from typing import cast
 
 from brainops.io.paths import to_abs, to_rel
 from brainops.models.config import get_check_config
 from brainops.models.reconcile import ApplyStats, CheckConfig, DiffSets, FolderRow
 from brainops.process_folders.folders import add_folder
 from brainops.process_notes.new_note import new_note
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.sql.folders.db_folders import delete_folder_from_db
 from brainops.sql.notes.db_delete_note import delete_note_by_path
-from brainops.utils.logger import LoggerProtocol, get_logger
-
-logger: LoggerProtocol = get_logger("coherence_reconcile")
+from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
-def _iter_physical_dirs(base: Path) -> Iterable[Path]:
+@with_child_logger
+def _iter_physical_dirs(base: Path, logger: LoggerProtocol | None = None) -> Iterable[Path]:
+    logger = ensure_logger(logger, __name__)
     root = Path(to_abs(base))
+    logger.debug("Scanning physical dirs under: %s", root)
     for dirpath, _, _ in os.walk(root):
         current_dir = Path(dirpath)
+        # logger.debug("Found directory: %s", current_dir)
         try:
-            if current_dir.is_dir() and not _is_hidden_path(current_dir):
+            if current_dir.is_dir() and not _is_hidden_path(current_dir) and current_dir != root:
+                # logger.debug("Yielding directory: %s", Path(to_rel(current_dir)))
                 yield Path(to_rel(current_dir))
         except Exception:  # pylint: disable=broad-except
             continue
@@ -45,36 +47,45 @@ def _is_hidden_path(p: Path) -> bool:
     return any(part.startswith(".") for part in Path(to_abs(p)).parts)
 
 
-def collect_diffs(cfg: CheckConfig) -> DiffSets:
+@with_child_logger
+def collect_diffs(cfg: CheckConfig, logger: LoggerProtocol | None = None) -> DiffSets:
+    logger = ensure_logger(logger, __name__)
     logger.info("=== COLLECTE DES ÉCARTS ===")
     errors_rows: list[tuple[str, str]] = []
 
     conn = get_db_connection(logger=logger)
     try:
         # --- Folders
-        with conn.cursor(DictCursor) as cursor:
-            cursor.execute("SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
-            db_folders = cast(list[FolderRow], list(cursor.fetchall()))
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(cur, "SELECT id, path, folder_type, category_id, subcategory_id FROM obsidian_folders")
+            db_folders = cast(list[FolderRow], list(cur.fetchall()))
 
-        BASE = Path(cfg.base_path)
-        physical_dirs: set[Path] = set(_iter_physical_dirs(cfg.base_path))
-        physical_dirs.add(BASE)
+        Path(cfg.base_path)
+        physical_dirs: set[Path] = set(_iter_physical_dirs(cfg.base_path, logger=logger))
+        # physical_dirs.add(BASE)
         db_folder_paths = {Path(row["path"]) for row in db_folders}
 
         folders_missing_in_db = sorted(str(p) for p in (physical_dirs - db_folder_paths))
         folders_ghost_in_db = sorted(str(p) for p in (db_folder_paths - physical_dirs))
+        if "." in folders_ghost_in_db:
+            folders_ghost_in_db.remove(".")
+        logger.debug("folders_ghost_in_db: %s", folders_ghost_in_db)
 
         for p in folders_missing_in_db:
+            if p == "." or p == "./" or p == "" or p == "/" or p == "\\" or p == "/app" or p == "/app/notes":
+                continue
             logger.info("📁 + Dossier à ajouter (DB) : %s", p)
             errors_rows.append(("folder_missing_in_db", p))
         for p in folders_ghost_in_db:
+            if p == "." or p == "./" or p == "" or p == "/" or p == "\\" or p == "/app" or p == "/app/notes":
+                continue
             logger.info("📁 - Dossier à supprimer (DB) : %s", p)
             errors_rows.append(("folder_ghost_in_db", p))
 
         # --- Notes
-        with conn.cursor(DictCursor) as cursor:
-            cursor.execute("SELECT id, file_path FROM obsidian_notes")
-            notes_rows = cast(list[dict[str, Any]], cursor.fetchall() or [])
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(cur, "SELECT id, file_path FROM obsidian_notes")
+            notes_rows = cur.fetchall() or []
 
         notes_missing_file: list[str] = []
         for note in notes_rows:
@@ -82,8 +93,8 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
             try:
                 fpath_res = to_abs(fpath)
                 if not Path(to_abs(fpath_res)).is_file():
-                    notes_missing_file.append(str(fpath_res))
-                    errors_rows.append(("note_missing_file", str(fpath_res)))
+                    notes_missing_file.append(str(fpath))
+                    errors_rows.append(("note_missing_file", str(fpath)))
                     logger.info("📝 - Note fantôme en DB (fichier absent) : %s", fpath_res)
             except Exception:  # pylint: disable=broad-except  # pragma: no cover
                 notes_missing_file.append(str(fpath))
@@ -114,7 +125,9 @@ def collect_diffs(cfg: CheckConfig) -> DiffSets:
             logger.warning("DB connection close failed", exc_info=True)
 
 
-def apply_diffs(diffs: DiffSets, cfg: CheckConfig) -> ApplyStats:
+@with_child_logger
+def apply_diffs(diffs: DiffSets, cfg: CheckConfig, logger: LoggerProtocol | None = None) -> ApplyStats:
+    logger = ensure_logger(logger, __name__)
     stats = ApplyStats()
 
     # --- FOLDERS À AJOUTER ---
@@ -168,13 +181,15 @@ def apply_diffs(diffs: DiffSets, cfg: CheckConfig) -> ApplyStats:
     return stats
 
 
-def reconcile(scope: str = "all", apply: bool = False) -> None:
+@with_child_logger
+def reconcile(scope: str = "all", apply: bool = False, logger: LoggerProtocol | None = None) -> None:
     """
     Point d'entrée principal.
     """
+    logger = ensure_logger(logger, __name__)
     cfg = get_check_config(scope)
     logger.debug("Reconcile config: %s", cfg)
-    diffs = collect_diffs(cfg)
+    diffs = collect_diffs(cfg, logger=logger)
     logger.debug("Diffs collected: %s", diffs)
     if apply:
-        apply_diffs(diffs, cfg)
+        apply_diffs(diffs, cfg, logger=logger)

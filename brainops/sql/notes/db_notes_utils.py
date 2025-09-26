@@ -12,8 +12,8 @@ from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.process_folders.folders import ensure_folder_exists
 from brainops.process_regen.regen_utils import regen_header
-from brainops.sql.db_connection import get_cursor, get_db_connection
-from brainops.sql.db_utils import safe_execute
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -32,8 +32,8 @@ def check_synthesis_and_trigger_archive(
     conn = get_db_connection(logger=logger)
 
     try:
-        with get_cursor(conn) as cur:
-            row = safe_execute(
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
                 cur,
                 "SELECT file_path FROM obsidian_notes WHERE id=%s",
                 (note_id,),
@@ -41,11 +41,11 @@ def check_synthesis_and_trigger_archive(
             ).fetchone()
             if not row:
                 raise BrainOpsError("KO Note absente de la db", code=ErrCode.DB, ctx={"note_id": note_id})
-            synthesis_path = Path(str(row[0]))
+            synthesis_path = Path(str(row["file_path"]))
             synthesis_name = synthesis_path.stem
 
             # Archive actuelle (si existe)
-            row = safe_execute(
+            row = safe_execute_dict(
                 cur,
                 "SELECT id, file_path FROM obsidian_notes WHERE parent_id=%s AND status='archive'",
                 (note_id,),
@@ -53,7 +53,7 @@ def check_synthesis_and_trigger_archive(
             ).fetchone()
 
             if row:
-                archive_id, current_archive_path = int(row[0]), Path(str(row[1]))
+                archive_id, current_archive_path = int(row["id"]), Path(str(row["file_path"]))
                 synth_folder = Path(os.path.dirname(str(dest_path)))
                 archive_folder = synth_folder / "Archives"
                 ensure_folder_exists(archive_folder, logger=logger)
@@ -64,7 +64,7 @@ def check_synthesis_and_trigger_archive(
                         logger.warning("[SYNC] Fichier existe déjà: %s", new_archive_path)
                     else:
                         shutil.move(str(to_abs(current_archive_path)), str(to_abs(new_archive_path)))
-                        safe_execute(
+                        safe_execute_dict(
                             cur,
                             "UPDATE obsidian_notes SET file_path=%s WHERE id=%s",
                             (new_archive_path.as_posix(), archive_id),
@@ -95,16 +95,16 @@ def file_path_exists_in_db(
     if not conn:
         return None
     try:
-        with get_cursor(conn) as cur:
+        with get_dict_cursor(conn) as cur:
             for path in [p for p in (src_path, file_path) if p]:
-                row = safe_execute(
+                row = safe_execute_dict(
                     cur,
                     "SELECT id FROM obsidian_notes WHERE file_path=%s LIMIT 1",
                     (path,),
                     logger=logger,
                 ).fetchone()
                 if row:
-                    return int(row[0])
+                    return int(row["id"])
         return None
     finally:
         conn.close()

@@ -7,7 +7,8 @@ from __future__ import annotations
 from typing import Any
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 # Colonnes autorisées à la mise à jour
@@ -73,7 +74,7 @@ def update_obsidian_note(
                 f"UPDATE obsidian_notes SET {set_clause} WHERE id = %s",
                 values,
             )
-        conn.commit()
+            conn.commit()
     except Exception as exc:
         raise BrainOpsError("update note DB KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
     finally:
@@ -97,28 +98,26 @@ def update_obsidian_tags(note_id: int, tags: list[str], logger: LoggerProtocol |
     logger = ensure_logger(logger, __name__)
     # Ouvre la connexion à la base de données
     conn = get_db_connection(logger=logger)
+    with get_dict_cursor(conn) as cur:
+        try:
+            # Supprimer les anciens tags associés à cette note
+            safe_execute_dict(cur, "DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
 
-    # Crée un curseur pour exécuter la requête SQL
-    cursor = conn.cursor()
+            # Ajouter les nouveaux tags
+            for tag in tags:
+                safe_execute_dict(
+                    cur,
+                    "INSERT INTO obsidian_tags (note_id, tag) VALUES (%s, %s)",
+                    (note_id, tag),
+                )
 
-    try:
-        # Supprimer les anciens tags associés à cette note
-        cursor.execute("DELETE FROM obsidian_tags WHERE note_id = %s", (note_id,))
+            # Commit les changements
+            conn.commit()
+            logger.info("[TAGS] Tags mis à jour pour la note %d.", note_id)
 
-        # Ajouter les nouveaux tags
-        for tag in tags:
-            cursor.execute(
-                "INSERT INTO obsidian_tags (note_id, tag) VALUES (%s, %s)",
-                (note_id, tag),
-            )
-
-        # Commit les changements
-        conn.commit()
-        logger.info("[TAGS] Tags mis à jour pour la note %d.", note_id)
-
-    except Exception as exc:
-        raise BrainOpsError("update tags DB KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
-    finally:
-        # Fermer le curseur et la connexion
-        cursor.close()
-        conn.close()
+        except Exception as exc:
+            raise BrainOpsError("update tags DB KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
+        finally:
+            # Fermer le curseur et la connexion
+            cur.close()
+            conn.close()

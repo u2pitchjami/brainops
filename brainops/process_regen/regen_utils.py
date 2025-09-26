@@ -11,6 +11,7 @@ from brainops.io.note_reader import read_note_full
 from brainops.models.classification import ClassificationResult
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
+from brainops.ollama.check_ollama import check_ollama_health
 from brainops.process_import.synthese.add_or_update import update_synthesis
 from brainops.process_import.synthese.import_synthese import process_import_syntheses
 from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
@@ -33,6 +34,12 @@ def regen_synthese_from_archive(note_id: int, filepath: str | Path | None = None
         path = Path(str(filepath)) if filepath else Path(get_file_path(note_id) or "")
         if not path or not path.as_posix():
             raise BrainOpsError("filepath KO", code=ErrCode.FILEERROR, ctx={"note_id": note_id})
+
+        logger.info("[INFO] Vérification de l'état d'Ollama...")
+        check = check_ollama_health(logger=logger)
+        if not check:
+            logger.error("[ERREUR] 🚨 Ollama ne répond pas, import annulé pour (id=%s)", note_id)
+            return False
 
         logger.info("[REGEN] Synthèse → note_id=%s | path=%s", note_id, path.as_posix())
         # Purge de tous les blocs liés à ce chemin (embeddings, prompts, etc.)
@@ -72,6 +79,12 @@ def regen_header(note_id: int, filepath: str | Path) -> bool:
     """
     try:
         path = Path(str(filepath))
+
+        logger.info("[INFO] Vérification de l'état d'Ollama...")
+        check = check_ollama_health(logger=logger)
+        if not check:
+            logger.error("[ERREUR] 🚨 Ollama ne répond pas, import annulé pour (id=%s)", note_id)
+            return False
 
         # recup datas
         recup_id, recup_path, meta_yaml, content, classification = recup_note_data(note_id, recup_parent=False)

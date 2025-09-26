@@ -20,6 +20,7 @@ from brainops.process_notes.new_note_utils import (
     _normalize_abs_posix,
     compute_wc_and_hash,
 )
+from brainops.process_notes.utils import check_if_tags
 from brainops.process_regen.regen_utils import regen_header
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
@@ -27,7 +28,7 @@ from brainops.sql.get_linked.db_get_linked_folders_utils import (
 from brainops.sql.notes.db_check_duplicate_note import check_duplicate
 from brainops.sql.notes.db_update_notes import update_obsidian_note
 from brainops.sql.notes.db_upsert_note import upsert_note_from_model
-from brainops.utils.config import IMPORTS_PATH
+from brainops.utils.config import IMPORTS_PATH, Z_STORAGE_PATH
 from brainops.utils.logger import (
     LoggerProtocol,
     ensure_logger,
@@ -70,7 +71,8 @@ def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int
         try:
             lang = lang_detect(fp.as_posix(), logger=logger)
             if lang:
-                lang = lang[:3].lower()
+                lang = lang[:2].lower()
+                logger.debug(f"[NEW_NOTE] lang_detect: {lang}")
         except Exception:
             lang = None
 
@@ -93,15 +95,16 @@ def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int
             word_count=wc,
             content_hash=chash,
             source_hash=source_hash,
-            lang=None,
+            lang=lang,
         )
 
         # ---- upsert en DB -----------------------------------------------------
         note_id: int = upsert_note_from_model(note, logger=logger)
         logger.debug(f"[NEW_NOTE] note_id : {note_id}")
-        if title != title_sani or created_sani != created:
-            updates_head: dict[str, str | int | list[str]] = {"created": created_sani, "title": title_sani}
-            merge_metadata_in_note(filepath=file_path, updates=updates_head, logger=logger)
+        if path_is_inside(Z_STORAGE_PATH, file_path):
+            if title != title_sani or created_sani != created:
+                updates_head: dict[str, str | int | list[str]] = {"created": created_sani, "title": title_sani}
+                merge_metadata_in_note(filepath=file_path, updates=updates_head, logger=logger)
 
         # ---- détection doublons pour les imports ------------------------------
         if path_is_inside(IMPORTS_PATH, base_folder.as_posix()):
@@ -126,6 +129,16 @@ def new_note(file_path: str | Path, logger: LoggerProtocol | None = None) -> int
                 logger.warning("[NOTES] 🚨 Echec Ajout métadonnées YAML (Archives)")
             logger.info("[NOTES] Ajout métadonnées YAML (Archives)")
 
+        check_tags = check_if_tags(
+            filepath=fp.as_posix(),
+            note_id=note_id,
+            wc=wc,
+            status=classification.status,
+            classification=classification,
+            logger=logger,
+        )
+        if check_tags:
+            logger.info("[NOTES] Tags ajoutés automatiquement")
     except BrainOpsError as exc:
         exc.with_context({"step": "new_note", "note_id": note_id})
         raise

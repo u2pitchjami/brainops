@@ -95,3 +95,24 @@ def get_note_status(note_id: int, *, logger: LoggerProtocol | None = None) -> st
     if not isinstance(note, dict):
         raise BrainOpsError("Aucune données récup", code=ErrCode.DB, ctx={"note_id": note_id})
     return str(note["status"])
+
+
+@with_child_logger
+def get_note_wc(note_id: int, *, logger: LoggerProtocol | None = None) -> int:
+    """
+    get_note_wc _summary_
+
+    _extended_summary_
+
+    Args:
+        note_id (int): _description_
+        logger (LoggerProtocol | None, optional): _description_. Defaults to None.
+
+    Returns:
+        Optional[str]: _description_
+    """
+    logger = ensure_logger(logger, __name__)
+    note = get_note_linked_data(note_id, "note", logger=logger)
+    if not isinstance(note, dict):
+        raise BrainOpsError("Aucune données récup", code=ErrCode.DB, ctx={"note_id": note_id})
+    return int(note["word_count"])

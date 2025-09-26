@@ -10,8 +10,8 @@ from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.folders import Folder
 from brainops.sql.categs.db_categ_utils import remove_unused_category
-from brainops.sql.db_connection import get_cursor, get_db_connection
-from brainops.sql.db_utils import safe_execute
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -26,8 +26,9 @@ def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = Non
     logger.debug("folder_type:", folder.folder_type, "| value:", folder.folder_type.value)
     conn = get_db_connection(logger=logger)
     try:
-        with conn.cursor() as cur:
-            cur.execute(
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(
+                cur,
                 """
                 INSERT INTO obsidian_folders
                   (name, path, folder_type, parent_id, category_id, subcategory_id)
@@ -42,11 +43,11 @@ def add_folder_from_model(folder: Folder, *, logger: LoggerProtocol | None = Non
                 """,
                 folder.to_upsert_params(),
             )
-            cur.execute("SELECT LAST_INSERT_ID()")
+            safe_execute_dict(cur, "SELECT LAST_INSERT_ID() AS id")
             row = cur.fetchone()
             conn.commit()
-            if row and row[0]:
-                fid = int(row[0])
+            if row and row["id"]:
+                fid = int(row["id"])
             else:
                 raise BrainOpsError(
                     "KO création folder",
@@ -75,8 +76,9 @@ def update_folder_from_model(folder_id: int, new_folder: Folder, *, logger: Logg
     if not conn:
         return
     try:
-        with conn.cursor() as cur:
-            cur.execute(
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(
+                cur,
                 """
                 UPDATE obsidian_folders
                    SET path=%s,
@@ -122,10 +124,10 @@ def delete_folder_from_db(folder_path: str, logger: LoggerProtocol | None = None
         conn = get_db_connection(logger=logger)
         if not conn:
             return False
-        cursor = get_cursor(conn)
+        cursor = get_dict_cursor(conn)
 
         # 🔍 Récupérer les IDs de catégorie avant suppression
-        result = safe_execute(
+        result = safe_execute_dict(
             cursor,
             "SELECT category_id, subcategory_id FROM obsidian_folders WHERE path = %s",
             (folder_path,),
@@ -135,14 +137,17 @@ def delete_folder_from_db(folder_path: str, logger: LoggerProtocol | None = None
         if not result:
             logger.warning(f"[DELETE] Aucun dossier trouvé en base : {folder_path}")
             return False
+        logger.debug(f"[DELETE] Dossier trouvé en base : {folder_path} | {result}")
+        logger.debug(f"[DELETE] Dossier trouvé en base : {type(folder_path)} | {type(result)}")
 
-        category_id, subcategory_id = result
+        category_id = result["category_id"]
+        subcategory_id = result["subcategory_id"]
         logger.debug(
             f"[DELETE] Suppression dossier : {folder_path} | categ_id={category_id}, subcateg_id={subcategory_id}"
         )
 
         # 🧹 Supprimer le dossier de la base
-        safe_execute(
+        safe_execute_dict(
             cursor,
             "DELETE FROM obsidian_folders WHERE path = %s",
             (folder_path,),

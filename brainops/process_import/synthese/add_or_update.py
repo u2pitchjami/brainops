@@ -15,7 +15,7 @@ from brainops.models.classification import ClassificationResult
 from brainops.models.metadata import NoteMetadata
 from brainops.models.note import Note
 from brainops.process_import.utils.divers import hash_content
-from brainops.sql.notes.db_update_notes import update_obsidian_note
+from brainops.sql.notes.db_update_notes import update_obsidian_note, update_obsidian_tags
 from brainops.sql.notes.db_upsert_note import upsert_note_from_model
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 from brainops.utils.normalization import sanitize_created, sanitize_yaml_title
@@ -68,6 +68,7 @@ def update_synthesis(
             "word_count": wc,
         }
         update = update_obsidian_note(note_id, updates, logger=logger)
+        update_obsidian_tags(note_id, tags=meta_synth_final.tags, logger=logger)
         if not update:
             logger.error(
                 "[ERREUR] 🚨 Problème lors de l'insertion en db de la synthèse (%s)",
@@ -141,7 +142,7 @@ def new_synthesis(
                 str(synthesis_path),
             )
             return False
-
+        update_obsidian_tags(note_id, tags=meta_synth_final.tags, logger=logger)
         updates = {"parent_id": note_id}
         update_obsidian_note(synth_note_id, updates)
         updates = {"parent_id": synth_note_id}

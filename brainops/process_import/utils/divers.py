@@ -89,6 +89,7 @@ def lang_detect(file_path: str | Path, *, logger: LoggerProtocol | None = None) 
 
     try:
         lang = detect(content)
+        logger.debug("[DEBUG] lang_detect: %s (words=%s)", lang, nb_words)
         return "fr" if lang == "fr" else lang
     except Exception as exc:  # pylint: disable=broad-except
         logger.debug("[DEBUG] lang_detect exception: %s", exc)

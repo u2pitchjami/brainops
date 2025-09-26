@@ -10,18 +10,18 @@ import pymysql
 from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
-from brainops.models.cursor_protocol import CursorProtocol
+from brainops.models.cursor_protocol import DictCursorProtocol, TupleCursorProtocol
 from brainops.models.db_config import DB_CONFIG
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
-def get_dict_cursor(conn: Connection) -> CursorProtocol:
-    return cast(CursorProtocol, conn.cursor(DictCursor))
+def get_dict_cursor(conn: Connection) -> DictCursorProtocol:
+    return cast(DictCursorProtocol, conn.cursor(DictCursor))
 
 
-def get_cursor(conn: Connection) -> CursorProtocol:
-    return cast(CursorProtocol, conn.cursor())
+def get_tuple_cursor(conn: Connection) -> TupleCursorProtocol:
+    return cast(TupleCursorProtocol, conn.cursor())
 
 
 @with_child_logger

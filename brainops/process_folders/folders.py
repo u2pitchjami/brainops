@@ -63,6 +63,9 @@ def add_folder(
     logger = ensure_logger(logger, __name__)
     logger.debug("add_folder called folder_path %s", folder_path)
     try:
+        # if str(folder_path).startswith(BASE_PATH):
+        #     logger.debug(f"[DEBUG] Dossier racine non autorisé : {folder_path}")
+        #     raise BrainOpsError("dossier racine non autorisé", code=ErrCode.UNEXPECTED, ctx={"folder": folder_path})
         p_str = normalize_folder_path(folder_path)
         logger.debug(f"Normalized path: {p_str}")
 
@@ -84,7 +87,7 @@ def add_folder(
             category_id=ctx.category_id,
             subcategory_id=ctx.subcategory_id,
         )
-
+        logger.debug(f"[DEBUG] new_folder : {new_folder}")
         folder_id = add_folder_from_model(new_folder, logger=logger)
         logger.debug(f"folder_id : {folder_id}")
         ensure_folder_exists(folder_path=p_str, logger=logger)

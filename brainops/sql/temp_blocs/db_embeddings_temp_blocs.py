@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import json
 
-from pymysql.cursors import DictCursor
-
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -28,27 +27,27 @@ def get_blocks_and_embeddings_by_note(
         logger.error("[DB] Connexion à la base échouée")
         return [], []
 
-    cursor = conn.cursor(DictCursor)
-
-    try:
-        cursor.execute(
-            """
-            SELECT block_index, content, response
-              FROM obsidian_temp_blocks
-             WHERE note_id = %s
-               AND source = 'embeddings'
-               AND status = 'processed'
-             ORDER BY block_index
-            """,
-            (note_id,),
-        )
-        rows = cursor.fetchall()
-    except Exception as e:
-        logger.error("[DB] Erreur requête temp_blocks: %s", e)
-        return [], []
-    finally:
-        cursor.close()
-        conn.close()
+    with get_dict_cursor(conn) as cur:
+        try:
+            safe_execute_dict(
+                cur,
+                """
+                SELECT block_index, content, response
+                FROM obsidian_temp_blocks
+                WHERE note_id = %s
+                AND source = 'embeddings'
+                AND status = 'processed'
+                ORDER BY block_index
+                """,
+                (note_id,),
+            )
+            rows = cur.fetchall()
+        except Exception as e:
+            logger.error("[DB] Erreur requête temp_blocks: %s", e)
+            return [], []
+        finally:
+            cur.close()
+            conn.close()
 
     blocks: list[str] = []
     embeddings: list[list[float]] = []

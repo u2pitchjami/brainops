@@ -23,6 +23,14 @@ class FolderRow(TypedDict):
     subcategory_id: int | None
 
 
+class CategoryRow(TypedDict):
+    id: int
+    name: str
+    description: str | None
+    prompt_name: str | None
+    parent_id: int | None
+
+
 class NoteRow(TypedDict):
     id: int
     parent_id: int | None
@@ -31,6 +39,7 @@ class NoteRow(TypedDict):
     subcategory_id: int | None
     status: str
     folder_id: int
+    source_hash: str | None
 
 
 @dataclass

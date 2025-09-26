@@ -2,10 +2,9 @@
 
 from typing import cast
 
-from pymysql.cursors import DictCursor
-
 from brainops.models.reconcile import Anomaly, NoteRow, Severity
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 
 
 def detect_archives_syntheses_incoherences() -> list[Anomaly]:
@@ -13,9 +12,9 @@ def detect_archives_syntheses_incoherences() -> list[Anomaly]:
 
     conn = get_db_connection()
     try:
-        with conn.cursor(DictCursor) as cursor:
-            cursor.execute("SELECT id, parent_id, file_path, status FROM obsidian_notes")
-            notes = cast(list[NoteRow], list(cursor.fetchall()))
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(cur, "SELECT id, parent_id, file_path, status FROM obsidian_notes")
+            notes = cast(list[NoteRow], list(cur.fetchall()))
 
         # Index notes par ID
         notes_by_id = {n["id"]: n for n in notes}

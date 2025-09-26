@@ -5,7 +5,8 @@ sql/db_temp_blocs.py.
 from __future__ import annotations
 
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
@@ -25,39 +26,41 @@ def delete_blocs_by_path_and_source(
     logger = ensure_logger(logger, __name__)
     conn = get_db_connection(logger=logger)
 
-    cursor = conn.cursor()
+    with get_dict_cursor(conn) as cur:
+        try:
+            if source == "all":
+                safe_execute_dict(
+                    cur,
+                    "DELETE FROM obsidian_temp_blocks WHERE note_id = %s",
+                    (note_id,),
+                )
+            elif "*" in source:
+                like_pattern = source.replace("*", "%")
+                safe_execute_dict(
+                    cur,
+                    """
+                    DELETE FROM obsidian_temp_blocks
+                    WHERE note_id = %s
+                    AND source LIKE %s
+                    """,
+                    (note_id, like_pattern),
+                )
+            else:
+                safe_execute_dict(
+                    cur,
+                    """
+                    DELETE FROM obsidian_temp_blocks
+                    WHERE note_id = %s
+                    AND source = %s
+                    """,
+                    (note_id, source),
+                )
 
-    try:
-        if source == "all":
-            cursor.execute(
-                "DELETE FROM obsidian_temp_blocks WHERE note_id = %s",
-                (note_id,),
-            )
-        elif "*" in source:
-            like_pattern = source.replace("*", "%")
-            cursor.execute(
-                """
-                DELETE FROM obsidian_temp_blocks
-                 WHERE note_id = %s
-                   AND source LIKE %s
-                """,
-                (note_id, like_pattern),
-            )
-        else:
-            cursor.execute(
-                """
-                DELETE FROM obsidian_temp_blocks
-                 WHERE note_id = %s
-                   AND source = %s
-                """,
-                (note_id, source),
-            )
-
-        conn.commit()
-        logger.info("[DELETE] Blocs supprimés pour %s (source=%s)", note_id, source)
-    except Exception as exc:
-        conn.rollback()
-        raise BrainOpsError("Delete temp_block KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
-    finally:
-        cursor.close()
-        conn.close()
+            conn.commit()
+            logger.info("[DELETE] Blocs supprimés pour %s (source=%s)", note_id, source)
+        except Exception as exc:
+            conn.rollback()
+            raise BrainOpsError("Delete temp_block KO", code=ErrCode.DB, ctx={"note_id": note_id}) from exc
+        finally:
+            cur.close()
+            conn.close()

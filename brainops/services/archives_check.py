@@ -4,11 +4,11 @@ from collections import defaultdict
 from typing import cast
 
 from pymysql.connections import Connection
-from pymysql.cursors import DictCursor
 
 from brainops.io.move_error_file import handle_errored_file
 from brainops.models.reconcile import Anomaly, FixStats, NoteRow, Severity
-from brainops.sql.db_connection import get_db_connection
+from brainops.sql.db_connection import get_db_connection, get_dict_cursor
+from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.config import Z_STORAGE_PATH
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -24,20 +24,23 @@ def check_archives_syntheses_from_hash_source(
     logger = ensure_logger(logger, __name__)
     logger.debug("🔍 Vérification des paires archive/synthèse via hash_source dans %s", z_storage_folder)
     try:
-        with conn.cursor(DictCursor) as cursor:
-            cursor.execute(
+        with get_dict_cursor(conn) as cur:
+            safe_execute_dict(
+                cur,
                 "SELECT id, file_path, parent_id, status, category_id, subcategory_id, source_hash "
                 "FROM obsidian_notes "
                 "WHERE LOWER(file_path) LIKE %s",
                 (f"%{z_storage_folder}/%",),
             )
-            notes = cast(list[NoteRow], list(cursor.fetchall()))
+            notes = cast(list[NoteRow], list(cur.fetchall()))
 
-            logger.debug("  → %d notes trouvées dans %s", len(notes), z_storage_folder)
+            logger.debug("  → %d notes trouvées dans %s", len(notes), notes)
 
         notes_by_hash: dict[str, list[NoteRow]] = defaultdict(list)
         for note in notes:
-            h = note.get("hash_source")
+            logger.debug("  • Analyse de la note %s (status=%s)", note["file_path"], note["status"])
+            h = note["source_hash"]
+            logger.debug("    • hash_source: %s", h)
             if h:
                 h_str = str(h)
                 notes_by_hash[h_str].append(note)
@@ -112,15 +115,16 @@ def check_archives_syntheses_from_hash_source(
 
 
 def _fix_parent_links(conn: Connection, synth_id: int, arch_id: int) -> None:
-    with conn.cursor() as cur:
-        cur.execute("UPDATE obsidian_notes SET parent_id = %s WHERE id = %s", (arch_id, synth_id))
-        cur.execute("UPDATE obsidian_notes SET parent_id = %s WHERE id = %s", (synth_id, arch_id))
+    with get_dict_cursor(conn) as cur:
+        safe_execute_dict(cur, "UPDATE obsidian_notes SET parent_id = %s WHERE id = %s", (arch_id, synth_id))
+        safe_execute_dict(cur, "UPDATE obsidian_notes SET parent_id = %s WHERE id = %s", (synth_id, arch_id))
     conn.commit()
 
 
 def _fix_categories(conn: Connection, note_id: int, category_id: int, subcategory_id: int | None) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
+    with get_dict_cursor(conn) as cur:
+        safe_execute_dict(
+            cur,
             "UPDATE obsidian_notes SET category_id = %s, subcategory_id = %s WHERE id = %s",
             (category_id, subcategory_id, note_id),
         )

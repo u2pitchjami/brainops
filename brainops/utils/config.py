@@ -93,6 +93,7 @@ def get_path_required(key: str) -> str:
 # LOGS
 LOG_FILE_PATH: str = get_str("LOG_FILE_PATH", "/logs")
 LOG_ROTATION_DAYS: int = get_int("LOG_ROTATION_DAYS", 30)
+LOG_LEVEL: str = get_str("LOG_LEVEL", "INFO").upper()
 
 # PATHS
 BASE_PATH: str = get_required("BASE_PATH")
