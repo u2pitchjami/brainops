@@ -26,9 +26,7 @@ def hash_content(content: str, algo: str = "sha256") -> str:
 
 
 @with_child_logger
-def rename_file(
-    name: str, note_id: int, suffix: str, *, created: str | None = None, logger: LoggerProtocol | None = None
-) -> str:
+def rename_file(name: str, note_id: int, *, created: str | None = None, logger: LoggerProtocol | None = None) -> str:
     """
     Renomme un fichier en préfixant par la date (créée ou actuelle), en évitant les collisions.
 
@@ -45,7 +43,7 @@ def rename_file(
             sanitize_created(created_at_raw, logger=logger) if created_at_raw else datetime.now().strftime("%Y-%m-%d")
         )
         stem_sanitized = sanitize_filename(name, logger=logger)
-        new_name = f"{created_str}_{stem_sanitized}{suffix}"
+        new_name = f"{created_str} {stem_sanitized}"
 
         return new_name
     except Exception as exc:

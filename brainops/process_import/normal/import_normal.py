@@ -8,6 +8,7 @@ from pathlib import Path
 
 from brainops.header.headers import make_properties
 from brainops.io.note_reader import read_note_full
+from brainops.io.paths import exists, remove_file
 from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
@@ -49,7 +50,11 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
         check = check_ollama_health(logger=logger)
         if not check:
             logger.error("[ERREUR] 🚨 Ollama ne répond pas, import annulé pour (id=%s)", note_id)
-            return False
+            raise BrainOpsError(
+                "[IMPORT] ❌ Check Ollama KO",
+                code=ErrCode.OLLAMA,
+                ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+            )
         meta_yaml, body = read_note_full(src, logger=logger)
         content = clean_content(body)
         wc = count_words(content)
@@ -58,13 +63,20 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
             classification = get_type_by_ollama(content, note_id, logger=logger)
             if not classification:
                 logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
-                # handle_uncategorized(note_id, filepath, note_type, llama_proposition, logger=logger)
-                return False
+                raise BrainOpsError(
+                    "[IMPORT] ❌ Definition du type par Ollama KO",
+                    code=ErrCode.METADATA,
+                    ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+                )
         else:
             classification = get_category_context_from_folder(base_folder, logger=logger)
             if not classification:
                 logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
-                return False
+                raise BrainOpsError(
+                    "[IMPORT] ❌ Echec de la classification forcée",
+                    code=ErrCode.METADATA,
+                    ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+                )
         logger.debug(f"classification : {classification}")
         # Cas particulier : conversation GPT → on s'arrête là
         if "gpt_import" in base_folder:
@@ -89,7 +101,7 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
             )
         logger.debug(f"meta_final : {meta_final}")
         # 2) rename
-        new_name = rename_file(name=name, suffix=suffix, created=meta_final.created, note_id=note_id, logger=logger)
+        new_name = rename_file(name=name, created=meta_final.created, note_id=note_id, logger=logger)
 
         # 3) build Archive path
         archive_path = build_archive_path(
@@ -123,7 +135,11 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
                 "[ERREUR] 🚨 Problème lors de l'enregistrement de l'archive (id=%s)",
                 note_id,
             )
-            return False
+            raise BrainOpsError(
+                "[IMPORT] ❌ Echec enregistrement de l'archive",
+                code=ErrCode.FILEERROR,
+                ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+            )
         # 4) Sauvegarde (optionnelle) vers SAV_PATH
         if SAV_PATH:
             try:
@@ -143,7 +159,24 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
                 "[ERREUR] 🚨 Problème lors de la génération de la synthèse pour (id=%s)",
                 note_id,
             )
-            return False
+            raise BrainOpsError(
+                "[IMPORT] ❌ Echec de la génération de la synthèse",
+                code=ErrCode.UNEXPECTED,
+                ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+            )
+
+        if exists(synthesis_path) and exists(archive_path):
+            logger.info("[INFO] Fichiers Synthèse et Archives OK")
+            if exists(src.as_posix()):
+                remove_file(src.as_posix())
+                logger.info("[INFO] Suppression note originale confirmée : %s", src.as_posix())
+        else:
+            logger.error("[ERREUR] 🚨 Fichiers Synthèse ou Archives manquants pour (id=%s)", note_id)
+            raise BrainOpsError(
+                "[IMPORT] ❌ Fichiers Synthèse ou Archives manquants",
+                code=ErrCode.NOFILE,
+                ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+            )
 
         logger.info("[INFO] 🏁 IMPORT terminé pour (id=%s)", note_id)
         return True
@@ -154,10 +187,10 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
         raise
     except Exception as exc:
         raise BrainOpsError(
-            "[METADATA] ❌ Definition du type par Ollama KO",
+            "[IMPORT] ❌ Import normal KO",
             code=ErrCode.UNEXPECTED,
             ctx={
-                "step": "get_type_by_ollama",
+                "step": "import_normal",
                 "note_id": note_id,
                 "filepath": filepath,
                 "root_exc": type(exc).__name__,
