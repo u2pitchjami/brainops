@@ -10,16 +10,71 @@ import shutil
 
 from brainops.io.paths import to_abs
 from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.models.note import Note
+from brainops.models.note_context import NoteContext
 from brainops.process_folders.folders import ensure_folder_exists
-from brainops.process_regen.regen_utils import regen_header
 from brainops.sql.db_connection import get_db_connection, get_dict_cursor
 from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
 
 @with_child_logger
+def get_note_by_id(
+    note_id: int,
+    *,
+    logger: LoggerProtocol | None = None,
+) -> Note | None:
+    """
+    Récupère une Note complète depuis la base par file_path (ou src_path).
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    try:
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
+                cur,
+                "SELECT * FROM obsidian_notes WHERE id=%s LIMIT 1",
+                (note_id,),
+                logger=logger,
+            ).fetchone()
+            if row:
+                return Note.from_row(row)
+        return None
+    finally:
+        conn.close()
+
+
+@with_child_logger
+def get_note_by_path(
+    file_path: str,
+    src_path: str | None = None,
+    *,
+    logger: LoggerProtocol | None = None,
+) -> Note | None:
+    """
+    Récupère une Note complète depuis la base par file_path (ou src_path).
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    try:
+        with get_dict_cursor(conn) as cur:
+            for path in [p for p in (src_path, file_path) if p]:
+                row = safe_execute_dict(
+                    cur,
+                    "SELECT * FROM obsidian_notes WHERE file_path=%s LIMIT 1",
+                    (path,),
+                    logger=logger,
+                ).fetchone()
+                if row:
+                    return Note.from_row(row)
+        return None
+    finally:
+        conn.close()
+
+
+@with_child_logger
 def check_synthesis_and_trigger_archive(
-    note_id: int, dest_path: str | Path, *, logger: LoggerProtocol | None = None
+    note_id: int, dest_path: str | Path, ctx: NoteContext, *, logger: LoggerProtocol | None = None
 ) -> None:
     """
     Si une synthesis est modifiée, s'assurer que l'archive liée:
@@ -33,16 +88,7 @@ def check_synthesis_and_trigger_archive(
 
     try:
         with get_dict_cursor(conn) as cur:
-            row = safe_execute_dict(
-                cur,
-                "SELECT file_path FROM obsidian_notes WHERE id=%s",
-                (note_id,),
-                logger=logger,
-            ).fetchone()
-            if not row:
-                raise BrainOpsError("KO Note absente de la db", code=ErrCode.DB, ctx={"note_id": note_id})
-            synthesis_path = Path(str(row["file_path"]))
-            synthesis_name = synthesis_path.stem
+            synthesis_name = Path(dest_path).stem
 
             # Archive actuelle (si existe)
             row = safe_execute_dict(
@@ -71,7 +117,6 @@ def check_synthesis_and_trigger_archive(
                             logger=logger,
                         )
                         conn.commit()
-                regen_header(archive_id, str(new_archive_path))
             else:
                 logger.warning("[SYNC] Aucune archive liée à la synthesis %s", note_id)
     except Exception as exc:

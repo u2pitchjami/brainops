@@ -262,8 +262,8 @@ def _resolve_destination(note_type: str, note_id: int, *, logger: LoggerProtocol
         subcat_id = None
         try:
             parts = [p.strip() for p in note_type.split("/", 1)]
-            category_name = parts[0].capitalize()
-            subcategory_name = parts[1].capitalize() if len(parts) == 2 and parts[1] else None
+            category_name = parts[0].lower().capitalize()
+            subcategory_name = parts[1].lower().capitalize() if len(parts) == 2 and parts[1] else None
         except Exception as exc:  # pylint: disable=broad-except
             raise BrainOpsError(
                 "[METADATA] ❌ Impossible de parser la proposition Ollama",
@@ -301,5 +301,5 @@ def _resolve_destination(note_type: str, note_id: int, *, logger: LoggerProtocol
         subcategory_id=classification.subcategory_id or subcat_id,
         folder_id=sub_folder_id or cat_folder_id,
         dest_folder=def_path,
-        status="archive",
+        status=classification.status,
     )

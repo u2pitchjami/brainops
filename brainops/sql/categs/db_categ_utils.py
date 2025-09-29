@@ -65,3 +65,28 @@ def recup_all_categ_dictionary(logger: LoggerProtocol | None = None) -> None:
 
     finally:
         conn.close()
+
+
+@with_child_logger
+def get_categ_name(categ_id: int, logger: LoggerProtocol | None = None) -> str:
+    """
+    Génère la liste id catégories.
+    """
+    logger = ensure_logger(logger, __name__)
+    conn = get_db_connection(logger=logger)
+    try:
+        with get_dict_cursor(conn) as cur:
+            row = safe_execute_dict(
+                cur,
+                "SELECT name FROM obsidian_categories WHERE id = %s",
+                (categ_id,),
+                logger=logger,
+            ).fetchone()
+        if not row:
+            return ""
+
+        logger.debug(f"categories: {row}")
+        return str(row["name"])
+
+    finally:
+        conn.close()

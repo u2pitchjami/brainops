@@ -9,7 +9,7 @@ import re
 from typing import Any
 
 from brainops.header.header_utils import hash_source
-from brainops.models.metadata import NoteMetadata
+from brainops.models.note_context import NoteContext
 from brainops.sql.db_connection import get_db_connection, get_dict_cursor
 from brainops.sql.db_utils import safe_execute_dict
 from brainops.utils.files import hash_file_content
@@ -18,9 +18,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 
 @with_child_logger
 def check_duplicate(
-    note_id: int,
-    file_path: str,
-    metadata: NoteMetadata,
+    ctx: NoteContext,
     threshold: float = 0.9,
     *,
     logger: LoggerProtocol | None = None,
@@ -33,9 +31,11 @@ def check_duplicate(
     - content_hash.
     """
     logger = ensure_logger(logger, __name__)
+    source_hash = None
     try:
-        source_hash = hash_source(metadata.source) if metadata.source else None
-        content_hash = hash_file_content(file_path)
+        if ctx.note_metadata:
+            source_hash = hash_source(ctx.note_metadata.source)
+        content_hash = hash_file_content(ctx.file_path)
 
         conn = get_db_connection(logger=logger)
 
@@ -44,7 +44,7 @@ def check_duplicate(
         try:
             with get_dict_cursor(conn) as cur:
                 # fuzzy titre
-                title_cleaned = clean_title(metadata.title or "")
+                title_cleaned = clean_title(ctx.note_db.title or "")
                 rows = safe_execute_dict(
                     cur,
                     "SELECT id, title FROM obsidian_notes WHERE status=%s",
@@ -104,12 +104,12 @@ def check_duplicate(
             conn.close()
 
         if matches:
-            logger.info("[DUP] %s doublon(s) détecté(s) pour note_id=%s", len(matches), note_id)
+            logger.info("[DUP] %s doublon(s) détecté(s) pour note_id=%s", len(matches), ctx.note_db.id)
             logger.debug("[DUP] matches =%s", matches)
             return True, matches
         return False, []
     except Exception as exc:  # pylint: disable=broad-except
-        logger.exception("[DUP] check_duplicate(%s) : %s", note_id, exc)
+        logger.exception("[DUP] check_duplicate(%s) : %s", ctx.note_db.id, exc)
         return False, []
 
 

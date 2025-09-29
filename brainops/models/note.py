@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from brainops.sql.categs.db_categ_utils import get_categ_name
+
 
 @dataclass(slots=True, kw_only=True)
 class Note:
@@ -24,7 +26,7 @@ class Note:
 
     title: str
     file_path: str
-    folder_id: int
+    folder_id: int | None = None
 
     category_id: int | None = None
     subcategory_id: int | None = None
@@ -47,6 +49,8 @@ class Note:
     # ---- transients (non stockés) ---------------------------------------------
     name: str = field(init=False, repr=False)  # basename dérivé de file_path
     ext: str = field(init=False, repr=False)  # extension dérivée
+    cat_name: str | None = field(init=False, default=None, repr=False)  # catégorie dérivée
+    sub_cat_name: str | None = field(init=False, default=None, repr=False)  # sous-catégorie dérivée
 
     def __post_init__(self) -> None:
         """
@@ -64,6 +68,11 @@ class Note:
         # Sécurité: word_count >= 0
         if self.word_count is None or self.word_count < 0:
             self.word_count = 0
+
+        if self.cat_name is None and self.category_id is not None:
+            self.cat_name = get_categ_name(self.category_id)
+        if self.sub_cat_name is None and self.subcategory_id is not None:
+            self.sub_cat_name = get_categ_name(self.subcategory_id)
 
     # ------------------- Mapping DB --------------------------------------------
 

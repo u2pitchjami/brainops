@@ -44,8 +44,11 @@ def read_metadata(filepath: StrOrPath, *, logger: LoggerProtocol | None = None) 
     """
     Retourne les métadonnées de l'entête YAML (dict brut).
     """
+    logger = ensure_logger(logger, __name__)
     header_lines, _ = extract_yaml_header(str(filepath), logger=logger)
+    logger.debug(f"read_metadata header_lines: {header_lines}")
     meta = get_yaml("\n".join(header_lines), logger=logger)
+    logger.debug(f"read_metadata metadata: {meta}")
     return meta
 
 
@@ -62,7 +65,9 @@ def read_metadata_object(filepath: StrOrPath, *, logger: LoggerProtocol | None =
     """
     Retourne un objet NoteMetadata typé à partir de l'entête YAML.
     """
+    logger = ensure_logger(logger, __name__)
     meta_dict = read_metadata(filepath, logger=logger)
+    logger.debug(f"read_metadata_object metadata: {meta_dict}")
     return NoteMetadata.from_yaml_dict(meta_dict)
 
 
@@ -73,6 +78,10 @@ def read_note_full(filepath: StrOrPath, *, logger: LoggerProtocol | None = None)
 
     Utile pour traitements IA, enrichissements, etc.
     """
+    logger = ensure_logger(logger, __name__)
     header_lines, body = extract_yaml_header(str(filepath), logger=logger)
+    logger.debug(f"read_note_full header_lines: {header_lines}")
+    logger.debug(f"read_note_full body: {body}")
     meta = NoteMetadata.from_yaml_dict(get_yaml("\n".join(header_lines)))
+    logger.debug(f"read_note_full meta: {meta}")
     return meta, body

@@ -5,12 +5,8 @@
 from __future__ import annotations
 
 from brainops.header.get_tags_and_summary import get_tags_from_ollama
-from brainops.io.note_reader import read_note_body
-from brainops.models.classification import ClassificationResult
 from brainops.models.exceptions import BrainOpsError, ErrCode
-from brainops.sql.get_linked.db_get_linked_notes_utils import (
-    get_data_for_should_trigger,
-)
+from brainops.models.note_context import NoteContext
 from brainops.sql.notes.db_update_notes import update_obsidian_tags
 from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
@@ -19,9 +15,7 @@ from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logg
 def check_if_tags(
     filepath: str,
     note_id: int,
-    wc: int,
-    status: str,
-    classification: ClassificationResult,
+    ctx: NoteContext,
     logger: LoggerProtocol | None = None,
 ) -> bool:
     """
@@ -31,11 +25,21 @@ def check_if_tags(
     """
     logger = ensure_logger(logger, __name__)
     logger.debug(
-        "[TAGS] Vérification des tags pour note_id=%s, filepath=%s, wc=%s, status=%s", note_id, filepath, wc, status
+        "[TAGS] Vérification des tags pour note_id=%s, filepath=%s, wc=%s, status=%s",
+        note_id,
+        filepath,
+        ctx.note_wc,
+        ctx.note_db.status,
     )
     tags = []
     try:
-        if classification.status in (
+        if not ctx or not ctx.note_classification or not ctx.note_content:
+            raise BrainOpsError(
+                "[REGEN] ❌ Données context KO Regen annulé",
+                code=ErrCode.CONTEXT,
+                ctx={"step": "go_header", "note_id": note_id},
+            )
+        if ctx.note_classification.status in (
             "synthesis",
             "archive",
             "duplicate",
@@ -47,13 +51,12 @@ def check_if_tags(
         ):
             return False
 
-        if wc > 100:
-            content = read_note_body(filepath=filepath, logger=logger)
-            tags = get_tags_from_ollama(content=content, note_id=note_id, logger=logger)
-        if classification.category_name not in tags:
-            tags.append(classification.category_name)
-        if classification.subcategory_name and classification.subcategory_name not in tags:
-            tags.append(classification.subcategory_name)
+        if ctx.note_wc > 100:
+            tags = get_tags_from_ollama(content=ctx.note_content, note_id=note_id, logger=logger)
+        if ctx.note_classification.category_name not in tags:
+            tags.append(ctx.note_classification.category_name)
+        if ctx.note_classification.subcategory_name and ctx.note_classification.subcategory_name not in tags:
+            tags.append(ctx.note_classification.subcategory_name)
 
         if tags:
             logger.debug("[DEBUG] Tags à ajouter : %s", tags)
@@ -65,32 +68,11 @@ def check_if_tags(
         raise BrainOpsError(
             "[TAGS] ❌ Erreur dans la recherche de tags",
             code=ErrCode.METADATA,
-            ctx={"step": "check_if_tags", "file": filepath, "note_id": note_id, "status": status, "word_count": wc},
+            ctx={
+                "step": "check_if_tags",
+                "file": filepath,
+                "note_id": note_id,
+                "status": ctx.note_db.status,
+                "word_count": ctx.note_wc,
+            },
         ) from exc
-
-
-@with_child_logger
-def should_trigger_process(
-    note_id: int,
-    new_word_count: int,
-    threshold: int = 100,
-    logger: LoggerProtocol | None = None,
-) -> tuple[bool, str | None, int | None]:
-    """
-    Détermine si une note doit être retraitée en fonction de l'écart de word_count.
-
-    Retourne (trigger, status, parent_id).
-    """
-    logger = ensure_logger(logger, __name__)
-    status, parent_id, old_word_count = get_data_for_should_trigger(note_id, logger=logger)
-    word_diff = abs((old_word_count or 0) - new_word_count)
-    trigger = word_diff > threshold
-
-    if not trigger:
-        return False, None, None
-
-    if status == "archive":
-        return True, "archive", parent_id
-    if status == "synthesis":
-        return True, "synthesis", parent_id
-    return True, None, parent_id

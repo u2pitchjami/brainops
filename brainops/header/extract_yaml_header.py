@@ -20,6 +20,7 @@ def extract_yaml_header(filepath: str, *, logger: LoggerProtocol | None = None) 
     logger.debug("[DEBUG] entrée extract_yaml_header: %s", filepath)
     try:
         content = read_note_content(filepath, logger=logger)
+        logger.debug("[DEBUG] extract_yaml_header: content=%r", content[:300])
         lines = content.strip().splitlines()
         header_lines: list[str] = []
         content_lines: list[str] = []

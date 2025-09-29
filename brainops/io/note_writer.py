@@ -62,7 +62,7 @@ def safe_write(
 
 @with_child_logger
 def write_metadata_to_note(
-    filepath: StrOrPath, metadata: NoteMetadata, *, logger: LoggerProtocol | None = None
+    filepath: StrOrPath, content: str, metadata: NoteMetadata, *, logger: LoggerProtocol | None = None
 ) -> bool:
     """
     Remplace complètement l'entête YAML par le contenu de NoteMetadata.
@@ -71,7 +71,6 @@ def write_metadata_to_note(
     filepath = Path(filepath).as_posix()
 
     try:
-        content = read_note_content(filepath, logger=logger)
         if not content:
             logger.warning("[WARN] Fichier vide ou non trouvé : %s", filepath)
             return False

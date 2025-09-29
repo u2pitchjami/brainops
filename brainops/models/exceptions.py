@@ -8,6 +8,7 @@ from typing import Any
 
 class ErrCode(StrEnum):
     METADATA = "METADATA"
+    CONTEXT = "CONTEXT"
     OLLAMA = "OLLAMA"
     DB = "DB"
     UNEXPECTED = "UNEXPECTED"

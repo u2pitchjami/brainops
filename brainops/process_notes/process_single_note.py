@@ -8,248 +8,229 @@ import os
 
 from brainops.io.move_error_file import handle_errored_file
 from brainops.io.paths import to_abs
-from brainops.io.utils import count_words
-from brainops.models.exceptions import BrainOpsError
-
-# from brainops.process_import.gpt.gpt_imports import (
-#     process_class_gpt_test,
-# )
-from brainops.process_import.normal.import_normal import (
-    import_normal,
-)
+from brainops.models.exceptions import BrainOpsError, ErrCode
+from brainops.models.note_context import NoteContext
+from brainops.process_import.normal.import_normal import import_normal
 from brainops.process_import.utils.paths import path_is_inside
-from brainops.process_notes.update_note import update_note
-from brainops.process_notes.utils import should_trigger_process
-from brainops.process_regen.regen_utils import (
-    regen_header,
-    regen_synthese_from_archive,
+from brainops.process_notes.update_note import (
+    sync_classification_to_metadata,
+    update_note_context,
 )
-from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
-from brainops.utils.config import (
-    IMPORTS_PATH,
-    UNCATEGORIZED_PATH,
-    Z_STORAGE_PATH,
-)
-from brainops.utils.logger import (
-    LoggerProtocol,
-    ensure_logger,
-    with_child_logger,
-)
+from brainops.process_notes.utils import check_if_tags
+from brainops.process_regen.regen_hub import regen_hub
+from brainops.sql.notes.db_notes_utils import check_synthesis_and_trigger_archive
+from brainops.utils.config import IMPORTS_PATH, UNCATEGORIZED_PATH, Z_STORAGE_PATH
+from brainops.utils.logger import LoggerProtocol, ensure_logger, with_child_logger
 
-# from brainops.watcher.queue_manager import log_event_queue
+# ========================================================
+# HUB PRINCIPAL
+# ========================================================
 
 
 @with_child_logger
-def process_single_note(
-    filepath: str,
-    note_id: int,
-    src_path: str | None = None,
-    logger: LoggerProtocol | None = None,
-) -> None:
+def process_single_note(ctx: NoteContext, logger: LoggerProtocol | None = None) -> None:
     """
     Traite une note selon son emplacement et l'événement détecté.
-
-    - Création/modification : import normal + synthèse si dans IMPORTS_PATH,
-      sinon logique de régénération si dans Z_STORAGE_PATH, etc.
-    - Déplacement : cas spécial depuis UNCATEGORIZED_PATH vers Z_STORAGE_PATH
-      (force la catégorisation), ou import normal si destination dans IMPORTS_PATH.
-
-    Args:
-        filepath: Chemin absolu du fichier cible (.md attendu).
-        note_id: ID de la note (en base).
-        src_path: Chemin source en cas de déplacement (None sinon).
-
-    Returns:
-        True si un traitement a été déclenché, False sinon.
     """
     logger = ensure_logger(logger, __name__)
+
+    if not ctx.note_db.id or not ctx.note_db.status:
+        return
+    if not ctx.file_path.endswith(".md"):
+        logger.debug("Ignoré (extension non .md) : %s", ctx.file_path)
+        return
+
     logger.debug(
-        "=== process_single_note start | filepath=%s | note_id=%s | src=%s",
-        filepath,
-        note_id,
-        src_path,
+        "=== process_single_note start | filepath=%s | id=%s | src=%s",
+        ctx.file_path,
+        ctx.note_db.id,
+        ctx.src_path,
     )
 
-    if not filepath.endswith(".md"):
-        logger.debug("Ignoré (extension non .md) : %s", filepath)
+    # --- Déplacement ---
+    if ctx.src_path is not None:
+        return handle_move(ctx, logger=logger)
+
+    # --- Création / Modification ---
+    return handle_create_or_modify(ctx, logger=logger)
+
+
+# ========================================================
+# HANDLERS DEPLACEMENT
+# ========================================================
+
+
+def handle_move(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    filepath, src_path = ctx.file_path, ctx.src_path
+    base_folder, src_folder = os.path.dirname(filepath), os.path.dirname(str(src_path))
+    if not ctx.note_db.id:
+        logger.warning("[WARN] 🚨 (fp=%s) : Note ID absent", filepath)
         return
 
-    # Log état de la file d'événements (diagnostic)
-    # log_event_queue()
-
-    base_folder = os.path.dirname(filepath)
-
-    # ------------------------
-    # CAS DÉPLACEMENT (moved)
-    # ------------------------
-    if src_path is not None:
-        logger.debug("Événement=move | src=%s -> dest=%s", src_path, filepath)
-        if not os.path.exists(to_abs(filepath)):
-            logger.warning(" 🚨 Fichier destination inexistant (race condition ?) : %s", to_abs(filepath))
-            return
-
-        src_folder = os.path.dirname(src_path)
-
-        # 1) UNCATEGORIZED → Z_STORAGE : forcer la catégorisation à partir du chemin
-        if path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(UNCATEGORIZED_PATH, src_folder):
-            logger.info(
-                "[MOVED] ✈️ (id=%s) : uncategorized → storage : Lancement Import",
-                note_id,
-            )
-            try:
-                importok = import_normal(filepath, note_id, force_categ=True)
-                if not importok:
-                    logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
-            except BrainOpsError as exc:
-                exc.with_context(
-                    {"step": "process_single_note", "filepath": filepath, "src_path": src_path, "note_id": note_id}
-                )
-                logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
-                handle_errored_file(note_id, filepath, exc, logger=logger)
-                return
-            return
-
-        # 2) Destination dans IMPORTS : import normal + synthèse
-        elif path_is_inside(IMPORTS_PATH, base_folder):
-            logger.info("[MOVED] ✈️ (id=%s) : → imports : Lancement Import", note_id)
-            try:
-                importok = import_normal(filepath, note_id, force_categ=False)
-                if not importok:
-                    logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
-            except BrainOpsError as exc:
-                exc.with_context(
-                    {"step": "process_single_note", "filepath": filepath, "src_path": src_path, "note_id": note_id}
-                )
-                logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
-                handle_errored_file(note_id, filepath, exc, logger=logger)
-                return
-            return
-
-        else:
-            logger.info("[MOVED] ✈️ (id=%s) : %s → %s : Lancement Import", note_id, src_folder, base_folder)
-            src_classif = get_category_context_from_folder(src_folder, logger=logger)
-            base_folder_classif = get_category_context_from_folder(base_folder, logger=logger)
-            if not base_folder_classif.category_name or not base_folder_classif.subcategory_name:
-                logger.warning(
-                    "[WARN] ✈️ (id=%s) : Catégories non détectées",
-                    note_id,
-                )
-                return
-            logger.info(
-                "[MOVED] ✈️ (id=%s) : %s / %s → %s / %s",
-                note_id,
-                src_classif.category_name,
-                src_classif.subcategory_name,
-                base_folder_classif.category_name,
-                base_folder_classif.subcategory_name,
-            )
-
-            update_note(note_id, filepath, src_path)
-            return
-
-        # 3) Autres déplacements ignorés
-        logger.info("[MOVED] 🚨 Déplacement inconnu : %s → %s", src_path, filepath)
-        return
-
-    # ---------------------------------
-    # CAS CRÉATION / MODIFICATION (no move)
-    # ---------------------------------
-    logger.debug("Événement=create/modify | path=%s", filepath)
     if not os.path.exists(to_abs(filepath)):
-        logger.warning(" 🚨 Fichier inexistant (race condition ?) : %s", filepath)
+        logger.warning("🚨 Fichier destination inexistant : %s", filepath)
         return
 
-    # A) Note dans IMPORTS : import normal + synthèse
+    if is_move_from_uncategorized_to_storage(base_folder, src_folder):
+        return handle_move_uncategorized_to_storage(ctx, logger)
+
     if path_is_inside(IMPORTS_PATH, base_folder):
-        logger.info("[CREATED] ✨ (id=%s) : Lancement Import", note_id)
-        try:
-            importok = import_normal(filepath, note_id)
-            if not importok:
-                logger.warning("[WARNING] ❌ (id=%s) : Echec Import", note_id)
-        except BrainOpsError as exc:
-            exc.with_context({"step": "process_single_note", "filepath": filepath, "note_id": note_id})
-            logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
-            handle_errored_file(note_id, filepath, exc, logger=logger)
-            return
-        return
+        return handle_move_to_imports(ctx, logger)
 
-    # B) Note déjà dans le stockage : vérifier si on doit régénérer (header/synthèse)
     if path_is_inside(Z_STORAGE_PATH, base_folder):
-        new_word_count: int = count_words(content=None, filepath=filepath, logger=logger)
-        triggered, status, parent_id = should_trigger_process(note_id, new_word_count, logger=logger)
-        logger.debug(
-            "Trigger check | triggered=%s | status=%s | parent_id=%s | wc=%s",
-            triggered,
-            status,
-            parent_id,
-            new_word_count,
-        )
+        return handle_move_within_storage(ctx, logger)
 
-        if not triggered:
-            update_note(note_id, filepath, logger=logger)
-            logger.info("[MODIFIED] ✨ (id=%s) : Aucun retraitement requis", note_id)
-            return
-        logger.info("[MODIFIED] ✨ (id=%s) : Lancement Regen", note_id)
-        if status == "archive":
-            try:
-                # On met à jour l'en-tête de l'archive, puis on relance la synthèse de sa synthèse parente
-                header = regen_header(note_id, filepath)
-                if not header:
-                    logger.warning(
-                        "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de l'en-tête",
-                        note_id,
-                    )
-            except BrainOpsError as exc:
-                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
-                return
-            if parent_id is not None:
-                try:
-                    syntesis = regen_synthese_from_archive(note_id=parent_id)
-                    if not syntesis:
-                        logger.warning(
-                            "[MODIFIED] 🚨 (parent_id=%s) : Échec de la régénération de la synthèse",
-                            parent_id,
-                        )
-                except BrainOpsError as exc:
-                    logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
-                    return
-            logger.info("[REGEN] ✅ (id=%s) : Regen Réussi", note_id)
-            return
-        elif status == "synthesis":
-            try:
-                # On relance la synthèse directement sur ce fichier
-                syntesis = regen_synthese_from_archive(note_id, filepath)
-                if not syntesis:
-                    logger.warning(
-                        "[MODIFIED] 🚨 (id=%s) : Échec de la régénération de la synthèse",
-                        note_id,
-                    )
-            except BrainOpsError as exc:
-                logger.exception("[%s] %s | ctx=%r", exc.code, str(exc), exc.ctx)
-                return
-        logger.info("[REGEN] ✅ (id=%s) : Regen Synthèse Réussi", note_id)
+    logger.info("[MOVED] 🚨 Déplacement inconnu : %s → %s", src_path, filepath)
+    tags = check_if_tags(filepath, ctx.note_db.id, ctx, logger=logger)
+    if tags:
+        logger.info("[METADATA] ✈️ (id=%s) : Tags générés", ctx.note_db.id)
+    update_note_context(ctx)
+    return
+
+
+def handle_move_uncategorized_to_storage(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    """Cas : UNCATEGORIZED → STORAGE"""
+    try:
+        logger.info("[MOVED] ✈️ (id=%s) uncategorized → storage : Import forcé", ctx.note_db.id)
+        if not ctx or not ctx.note_db.id:
+            raise BrainOpsError(
+                "[NOTE] ❌ Données context KO",
+                code=ErrCode.CONTEXT,
+                ctx={"step": "handle_move_uncategorized_to_storage"},
+            )
+        importok = import_normal(ctx.file_path, ctx.note_db.id, ctx=ctx, force_categ=True)
+        if not importok:
+            logger.warning("[WARNING] ❌ (id=%s) : Echec Import", ctx.note_db.id)
+    except BrainOpsError as exc:
+        _handle_exception(ctx, exc, logger)
+
+
+def handle_move_to_imports(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    """Cas : déplacement vers IMPORTS"""
+    try:
+        if not ctx or not ctx.note_db.id:
+            raise BrainOpsError(
+                "[IMPORT] ❌ Données context KO",
+                code=ErrCode.CONTEXT,
+                ctx={"step": "handle_move_to_imports"},
+            )
+        logger.info("[MOVED] ✈️ (id=%s) → imports : Import", ctx.note_db.id)
+        importok = import_normal(ctx.file_path, ctx.note_db.id, ctx=ctx, force_categ=False)
+        if not importok:
+            logger.warning("[WARNING] ❌ (id=%s) : Echec Import", ctx.note_db.id)
+    except BrainOpsError as exc:
+        _handle_exception(ctx, exc, logger)
+
+
+def handle_move_within_storage(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    """Cas : déplacement interne dans STORAGE"""
+    logger.info("[MOVED] ✈️ (id=%s) Déplacement interne storage", ctx.note_db.id)
+
+    if not ctx.note_classification or not ctx.note_db.id:
+        logger.warning("[WARN] ✈️ (id=%s) : Catégories non détectées", ctx.note_db.id)
         return
 
-    # D) Scénarios de test
-    # if path_is_inside(GPT_TEST, base_folder):
-    #     logger.info("GPT TEST : %s", filepath)
-    #     try:
-    #         process_class_gpt_test(filepath, note_id)
-    #         return
-    #     except Exception as exc:
-    #         logger.exception("Erreur GPT TEST : %s", exc)
-    #         return
+    logger.info(
+        "[MOVED] (id=%s) %s/%s → %s/%s",
+        ctx.note_db.id,
+        ctx.note_db.cat_name,
+        ctx.note_db.sub_cat_name,
+        ctx.note_classification.category_name,
+        ctx.note_classification.subcategory_name,
+    )
 
-    # if path_is_inside(IMPORTS_TEST, base_folder):
-    #     logger.info("IMPORTS TEST : %s", filepath)
-    #     try:
-    #         process_class_imports_test(filepath, note_id)
-    #         return True
-    #     except Exception as exc:
-    #         logger.exception("Erreur IMPORTS TEST : %s", exc)
-    #         return False
+    sync_categ = sync_classification_to_metadata(ctx.note_db.id, ctx=ctx, logger=logger)
+    if sync_categ:
+        logger.info("[METADATA] ✈️ (id=%s) : Entête mise à jour", ctx.note_db.id)
 
-    # E) Tous les autres cas : aucun traitement
-    logger.info("🚨 (id=%s) Aucune règle indentifiée", note_id)
-    update_note(note_id=note_id, dest_path=filepath, logger=logger)
-    return
+    update_note_context(ctx)
+    if ctx.note_db.status == "synthesis":
+        check_synthesis_and_trigger_archive(ctx.note_db.id, ctx.file_path, ctx, logger=logger)
+
+
+# ========================================================
+# HANDLERS CREATION / MODIFICATION
+# ========================================================
+
+
+def handle_create_or_modify(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    filepath, base_folder = ctx.file_path, os.path.dirname(ctx.file_path)
+
+    if not os.path.exists(to_abs(filepath)):
+        logger.warning("🚨 Fichier inexistant : %s", filepath)
+        return
+
+    if path_is_inside(IMPORTS_PATH, base_folder):
+        return handle_created_in_imports(ctx, logger)
+
+    if path_is_inside(Z_STORAGE_PATH, base_folder):
+        return handle_updated_in_storage(ctx, logger)
+
+    logger.info("🚨 (id=%s) Aucune règle identifiée", ctx.note_db.id)
+    update_note_context(ctx)
+    if ctx.note_db.status == "synthesis":
+        if not ctx.note_db.id:
+            logger.warning("🚨 (id=%s) Note sans ID", ctx.note_db.id)
+        else:
+            check_synthesis_and_trigger_archive(ctx.note_db.id, filepath, ctx, logger=logger)
+
+
+def handle_created_in_imports(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    """
+    Création dans IMPORTS.
+    """
+    try:
+        if not ctx.note_db.id:
+            raise BrainOpsError(
+                "[NOTE] ❌ Données context KO",
+                code=ErrCode.CONTEXT,
+                ctx={"step": "handle_move_uncategorized_in_imports"},
+            )
+
+        logger.info("[CREATED] ✨ (id=%s) : Import", ctx.note_db.id)
+        importok = import_normal(ctx.file_path, ctx.note_db.id, ctx)
+        if not importok:
+            logger.warning("[WARNING] ❌ (id=%s) : Echec Import", ctx.note_db.id)
+    except BrainOpsError as exc:
+        _handle_exception(ctx, exc, logger)
+
+
+def handle_updated_in_storage(ctx: NoteContext, logger: LoggerProtocol) -> None:
+    """
+    Modification dans STORAGE.
+    """
+    if not ctx.note_db.id:
+        raise BrainOpsError(
+            "[NOTE] ❌ Données context KO",
+            code=ErrCode.CONTEXT,
+            ctx={"step": "handle_move_uncategorized_in_imports"},
+        )
+    regen = regen_hub(filepath=ctx.file_path, note_id=ctx.note_db.id, ctx=ctx)
+    if regen:
+        logger.info("[UPDATED] ✨ (id=%s) : Régénération", ctx.note_db.id)
+        return
+    update_note_context(ctx)
+
+
+# ========================================================
+# HELPERS
+# ========================================================
+
+
+def is_move_from_uncategorized_to_storage(base_folder: str, src_folder: str) -> bool:
+    return path_is_inside(Z_STORAGE_PATH, base_folder) and path_is_inside(UNCATEGORIZED_PATH, src_folder)
+
+
+def _handle_exception(ctx: NoteContext, exc: BrainOpsError, logger: LoggerProtocol) -> None:
+    """
+    Gestion centralisée des exceptions.
+    """
+    if not ctx.note_db.id:
+        raise BrainOpsError(
+            "[NOTE] ❌ Données context KO",
+            code=ErrCode.CONTEXT,
+            ctx={"step": "handle_move_uncategorized_in_imports"},
+        )
+    exc.with_context({"step": "process_single_note", "filepath": ctx.file_path, "note_id": ctx.note_db.id})
+    logger.exception("[%s] %s | ctx=%r", exc.code.name, str(exc), exc.ctx)
+    handle_errored_file(ctx.note_db.id, ctx.file_path, exc, logger=logger)

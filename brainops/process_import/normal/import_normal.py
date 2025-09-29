@@ -4,14 +4,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from brainops.header.headers import make_properties
-from brainops.io.note_reader import read_note_full
 from brainops.io.paths import exists, remove_file
-from brainops.io.utils import count_words
 from brainops.models.exceptions import BrainOpsError, ErrCode
 from brainops.models.metadata import NoteMetadata
+from brainops.models.note_context import NoteContext
 from brainops.ollama.check_ollama import check_ollama_health
 from brainops.process_folders.folders import ensure_folder_exists
 from brainops.process_import.get_type.by_ollama import get_type_by_ollama
@@ -21,7 +21,6 @@ from brainops.process_import.synthese.import_synthese import (
 )
 from brainops.process_import.utils.archive import build_archive_path, build_synthesis_path
 from brainops.process_import.utils.divers import rename_file
-from brainops.sql.get_linked.db_get_linked_folders_utils import get_category_context_from_folder
 from brainops.sql.notes.db_update_notes import update_obsidian_note, update_obsidian_tags
 from brainops.utils.config import SAV_PATH
 from brainops.utils.files import clean_content, copy_file_with_date
@@ -30,14 +29,19 @@ from brainops.utils.logger import get_logger
 logger = get_logger("Brainops Imports")
 
 
-def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False) -> bool:
+def import_normal(filepath: str | Path, note_id: int, ctx: NoteContext, force_categ: bool = False) -> bool:
     """
     Étapes : 1) Définir la catégorisation (chemin cible) via process_get_note_type() 2) Renommer/déplacer le fichier
     (rename_file) 3) Mettre à jour la DB (file_path) 4) Brancher sur import_normal()
 
     Retourne le chemin final (str) ou None en cas d’erreur.
     """
-
+    if not ctx:
+        raise BrainOpsError(
+            "[IMPORT] ❌ Contexte invalide",
+            code=ErrCode.CONTEXT,
+            ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+        )
     src = Path(filepath)
     name = src.stem
     suffix = src.suffix
@@ -55,9 +59,15 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
                 code=ErrCode.OLLAMA,
                 ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
             )
-        meta_yaml, body = read_note_full(src, logger=logger)
-        content = clean_content(body)
-        wc = count_words(content)
+        if not ctx.note_content or not ctx.note_metadata or not ctx.note_wc:
+            raise BrainOpsError(
+                "[IMPORT] ❌ données ctx innaccessibles",
+                code=ErrCode.CONTEXT,
+                ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+            )
+        meta_yaml = ctx.note_metadata
+        content = clean_content(ctx.note_content)
+        wc = ctx.note_wc
         if force_categ is False:
             # 1) classification → chemin cible (fonction existante)
             classification = get_type_by_ollama(content, note_id, logger=logger)
@@ -69,9 +79,15 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
                     ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
                 )
         else:
-            classification = get_category_context_from_folder(base_folder, logger=logger)
+            if not ctx.note_classification:
+                raise BrainOpsError(
+                    "[IMPORT] ❌ données ctx classification innaccessibles",
+                    code=ErrCode.CONTEXT,
+                    ctx={"step": "import_normal", "note_id": note_id, "filepath": filepath},
+                )
+            classification = ctx.note_classification
             if not classification:
-                logger.warning("[WARN] ❌ get_note_type n'a rien renvoyé pour (id=%s)", note_id)
+                logger.warning("[WARN] ❌ gclassification innaccessible (id=%s)", note_id)
                 raise BrainOpsError(
                     "[IMPORT] ❌ Echec de la classification forcée",
                     code=ErrCode.METADATA,
@@ -115,6 +131,7 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
         ensure_folder_exists(folder_path=archive_path.parent.as_posix(), logger=logger)
         ensure_folder_exists(folder_path=synthesis_path.parent.as_posix(), logger=logger)
 
+        modified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         updates = {
             "file_path": str(archive_path),
             "category_id": classification.category_id,
@@ -123,7 +140,16 @@ def import_normal(filepath: str | Path, note_id: int, force_categ: bool = False)
             "folder_id": classification.folder_id,
             "summary": meta_final.summary,
             "word_count": wc,
+            "title": meta_final.title,
+            "source": meta_final.source,
+            "author": meta_final.author,
+            "created_at": meta_final.created,
+            "modified_at": modified_at,
+            "content_hash": ctx.note_db.content_hash,
+            "source_hash": ctx.note_db.source_hash,
+            "lang": ctx.note_db.lang,
         }
+
         update_obsidian_note(note_id, updates)
         update_obsidian_tags(note_id, tags=meta_final.tags, logger=logger)
 

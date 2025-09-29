@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from brainops.models.note import Note
+
 EventAction = Literal["created", "deleted", "modified", "moved"]
 EventType = Literal["file", "directory"]
 
@@ -43,5 +45,5 @@ class Event(TypedDict, total=True):
     path: str
     # Clés optionnelles selon action/type
     src_path: NotRequired[str]
-    note_id: NotRequired[int | None]
+    Note: NotRequired[Note | None]
     new_path: NotRequired[str]  # legacy (si jamais encore utilisé)

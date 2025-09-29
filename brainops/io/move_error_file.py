@@ -31,20 +31,26 @@ def _unique_dest(dest: Path) -> Path:
     return dest.with_name(f"{dest.stem}__{ts}{dest.suffix}")
 
 
-def _exc_payload(exc: BrainOpsError | list[str]) -> dict[str, Any]:
-    return {
-        "type": exc.__class__.__name__,
-        "code": getattr(exc, "code", None),
-        "msg": str(exc),
-        "ctx": getattr(exc, "ctx", None),
-    }
+def _exc_payload(exc: BrainOpsError | str | list[str]) -> dict[str, Any]:
+    if isinstance(exc, BrainOpsError):
+        return {
+            "type": exc.__class__.__name__,
+            "code": getattr(exc, "code", None),
+            "msg": str(exc),
+            "ctx": getattr(exc, "ctx", None),
+        }
+    if isinstance(exc, list):
+        return {"error": "; ".join(exc)}
+    if isinstance(exc, str):
+        return {"error": exc}
+    return {"error": "Unknown error"}
 
 
 @with_child_logger
 def handle_errored_file(
     note_id: int,
     filepath: str | Path,
-    exc: BrainOpsError | list[str],
+    exc: BrainOpsError | list[str] | str,
     *,
     logger: LoggerProtocol | None = None,
 ) -> None:
@@ -55,17 +61,14 @@ def handle_errored_file(
     Si la synthèse est “solo”, on déplace la synthèse elle-même.
     """
     logger = ensure_logger(logger, __name__)
-    src_for_log: Path = Path(filepath)  # safe fallback pour le except
-
+    src_for_log: Path = Path(filepath)
     try:
         ensure_folder_exists(Path(ERRORED_PATH), logger=logger)
         always = wait_for_file(file_path=filepath, logger=logger)
         if not always:
             logger.warning("[WARNING] 🚨 Note déjà supprimée")
             return
-
         status, parent_id, _ = get_data_for_should_trigger(note_id=note_id, logger=logger)
-
         # Casser la réciprocité si elle existe (évite suppression en chaîne)
         if parent_id:
             parent_filepath = get_file_path(note_id=parent_id, logger=logger)
