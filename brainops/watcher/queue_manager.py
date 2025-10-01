@@ -17,6 +17,7 @@ from brainops.process_notes.check_duplicate import hub_check_duplicate
 from brainops.process_notes.new_note import new_note
 from brainops.process_notes.process_single_note import process_single_note
 from brainops.process_notes.update_note import update_note_context
+from brainops.scripts.run_auto_reconcile import run_reconcile_scripts
 from brainops.sql.notes.db_delete_note import delete_note_by_path
 from brainops.sql.notes.db_notes_utils import file_path_exists_in_db, get_note_by_id, get_note_by_path
 from brainops.utils.files import wait_for_file
@@ -168,6 +169,10 @@ def process_queue() -> None:
                     }
 
                 process_folder_event(dir_ev, logger=logger)
+
+            if etype == "script":
+                if action == "reconcile":
+                    run_reconcile_scripts()
 
             logger.debug("[DEBUG] Fini: %s - %s", etype, action)
             log_event_queue()

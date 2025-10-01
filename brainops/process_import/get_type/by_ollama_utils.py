@@ -26,6 +26,7 @@ from brainops.sql.categs.db_dictionary_categ import (
 )
 from brainops.sql.folders.db_folder_utils import (
     get_folder_path_by_id,
+    is_folder_exist,
 )
 from brainops.sql.get_linked.db_get_linked_folders_utils import (
     get_category_context_from_folder,
@@ -74,7 +75,7 @@ def clean_note_type(parse_category: str, logger: LoggerProtocol | None = None) -
 @with_child_logger
 def find_similar_levenshtein(
     name: str,
-    existing_names: list[str],
+    existing_names: str,
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
     logger: LoggerProtocol | None = None,
@@ -171,7 +172,7 @@ def prep_and_similarity_test(note_type: str, logger: LoggerProtocol | None = Non
 @with_child_logger
 def check_and_handle_similarity(
     name: str,
-    existing_names: list[str],
+    existing_names: str,
     threshold_low: float = 0.7,
     entity_type: str = "subcategory",
     logger: LoggerProtocol | None = None,
@@ -273,12 +274,16 @@ def _resolve_destination(note_type: str, note_id: int, *, logger: LoggerProtocol
 
         categ_path = Path(Z_STORAGE_PATH) / category_name
         logger.debug(f"categ_path: {categ_path}")
-        cat_folder_id = add_folder(folder_path=categ_path, logger=logger)
+        cat_folder_id = is_folder_exist(folderpath=str(categ_path), logger=logger)
+        if not cat_folder_id:
+            cat_folder_id = add_folder(folder_path=categ_path, logger=logger)
         logger.debug(f"cat_folder_id: {cat_folder_id}")
         if subcategory_name is not None:
             subcateg_path = Path(Z_STORAGE_PATH) / category_name / subcategory_name
             logger.debug(f"subcateg_path: {subcateg_path}")
-            sub_folder_id = add_folder(folder_path=subcateg_path, logger=logger)
+            sub_folder_id = is_folder_exist(folderpath=str(subcateg_path), logger=logger)
+            if not sub_folder_id:
+                sub_folder_id = add_folder(folder_path=subcateg_path, logger=logger)
             logger.debug(f"sub_folder_id: {sub_folder_id}")
             def_path = get_folder_path_by_id(sub_folder_id, logger=logger)
             logger.debug(f"def_path: {def_path}")

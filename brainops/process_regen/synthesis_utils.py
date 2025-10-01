@@ -101,7 +101,7 @@ def go_synthesis(
         )
 
     try:
-        if ctx.note_db.status == "synthesis":
+        if str(ctx.note_db.status) == "synthesis":
             note_db_parent = get_note_by_id(ctx.note_db.parent_id, logger=logger)
             if not note_db_parent:
                 raise BrainOpsError(
@@ -138,7 +138,7 @@ def go_synthesis(
             note_id=note_id if ctx.note_db.status == "synthesis" else ctx.note_db.parent_id,
             content=ctx_parent.note_content or ctx.note_content,
             archive_path=ctx_parent.file_path or filepath,
-            synthesis_path=filepath if ctx.note_db.status == "synthesis" else synthesis_path,
+            synthesis_path=filepath if str(ctx.note_db.status) == "synthesis" else synthesis_path,
             meta_final=ctx_parent.note_metadata or ctx.note_metadata,
             classification=ctx_parent.note_classification or ctx.note_classification,
             logger=logger,

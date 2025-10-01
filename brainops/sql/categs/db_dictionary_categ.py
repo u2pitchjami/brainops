@@ -22,10 +22,12 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
             safe_execute_dict(
                 cur,
                 """
-                SELECT c1.name AS category_name, c2.name AS subcategory_name
-                  FROM obsidian_categories c1
-                  JOIN obsidian_categories c2 ON c1.id=c2.parent_id
-                 ORDER BY c1.name, c2.name
+                SELECT DISTINCT c1.name AS category_name, c2.name AS subcategory_name
+                FROM obsidian_categories c1
+                JOIN obsidian_categories c2 ON c1.id = c2.parent_id
+                JOIN obsidian_folders f ON f.category_id = c1.id
+                WHERE f.path LIKE 'Z_Storage/%'
+                ORDER BY c1.name, c2.name
                 """,
             )
             results = cur.fetchall()
@@ -48,7 +50,7 @@ def generate_optional_subcategories(*, logger: LoggerProtocol | None = None) -> 
 
 
 @with_child_logger
-def generate_categ_dictionary(*, for_similar: bool = False, logger: LoggerProtocol | None = None) -> list[str]:
+def generate_categ_dictionary(*, for_similar: bool = False, logger: LoggerProtocol | None = None) -> str:
     """
     Génère la liste des catégories racines avec descriptions.
     """
@@ -57,7 +59,19 @@ def generate_categ_dictionary(*, for_similar: bool = False, logger: LoggerProtoc
     try:
         lines = []
         with get_dict_cursor(conn) as cur:
-            safe_execute_dict(cur, ("SELECT name, description FROM obsidian_categories WHERE parent_id IS NULL"))
+            safe_execute_dict(
+                cur,
+                (
+                    "SELECT c.name, c.description\
+                FROM obsidian_categories c\
+                WHERE c.id IN (\
+                    SELECT f.category_id\
+                    FROM obsidian_folders f\
+                    WHERE f.category_id IS NOT NULL\
+                    AND f.path LIKE 'Z_Storage/%'\
+                );"
+                ),
+            )
             categories = cur.fetchall()
             logger.debug(f"categories: {categories}")
         if not categories:
@@ -67,10 +81,10 @@ def generate_categ_dictionary(*, for_similar: bool = False, logger: LoggerProtoc
             for cat in categories:
                 expl = cat["description"] or "No description available."
                 lines.append(f'- "{cat["name"]}": {expl}'.lower())
-            return lines
+            return "\n".join(lines)
         for cat in categories:
             lines.append(f"{cat['name']}".lower())
-        return lines
+        return "\n".join(lines)
     finally:
         conn.close()
 
@@ -101,7 +115,7 @@ def get_categ_id_from_name(name: str, logger: LoggerProtocol | None = None) -> i
 
 
 @with_child_logger
-def get_subcateg_from_categ(categ_id: int, logger: LoggerProtocol | None = None) -> list[str] | None:
+def get_subcateg_from_categ(categ_id: int, logger: LoggerProtocol | None = None) -> str | None:
     """
     Génère la liste des subcatégories racines avec descriptions.
     """
@@ -121,6 +135,6 @@ def get_subcateg_from_categ(categ_id: int, logger: LoggerProtocol | None = None)
             return None
         for cat in rows:
             lines.append(f"{cat['name']}".lower())
-        return lines
+        return "\n".join(lines)
     finally:
         conn.close()

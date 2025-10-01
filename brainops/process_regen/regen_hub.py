@@ -95,7 +95,7 @@ def should_trigger_process(
                 code=ErrCode.CONTEXT,
                 ctx={"note_id": note_id, "step": "should_trigger_process"},
             )
-        db_status = ctx.note_db.status
+        db_status = str(ctx.note_db.status)
         metadata_status = ctx.note_metadata.status
 
         word_diff = abs((actual_wc or 0) - new_word_count)

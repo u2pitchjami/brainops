@@ -44,7 +44,7 @@ def go_header(
 
     meta_yaml = ctx.note_metadata
     classification = ctx.note_classification
-    db_status = ctx.note_db.status
+    db_status = str(ctx.note_db.status)
     content = ctx.note_content
 
     logger.info("[REGEN] ✨ (id=%s) : Lancement Regen Header", note_id)

@@ -27,7 +27,7 @@ def exist_vault_db(folderpath: str, logger: LoggerProtocol | None = None) -> boo
 
 
 @with_child_logger
-def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bool:
+def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> int | None:
     """
     is_folder_exist _summary_
 
@@ -47,14 +47,14 @@ def is_folder_exist(folderpath: str, logger: LoggerProtocol | None = None) -> bo
         with get_dict_cursor(conn) as cur:
             row = safe_execute_dict(
                 cur,
-                "SELECT id FROM obsidian_folders WHERE path=%s",
+                "SELECT id FROM obsidian_folders WHERE LOWER(path)=LOWER(%s)",
                 (folderpath,),
                 logger=logger,
             ).fetchone()
             if row:
-                return True
+                return int(row["id"])
             else:
-                return False
+                return None
     except Exception as exc:
         raise BrainOpsError("Erreur DB", code=ErrCode.DB, ctx={"folder": folderpath}) from exc
     finally:

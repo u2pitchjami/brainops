@@ -8,8 +8,8 @@ from typing import Literal, NotRequired, TypedDict
 
 from brainops.models.note import Note
 
-EventAction = Literal["created", "deleted", "modified", "moved"]
-EventType = Literal["file", "directory"]
+EventAction = Literal["created", "deleted", "modified", "moved", "reconcile"]
+EventType = Literal["file", "directory", "script"]
 
 
 class DirEvent(TypedDict, total=True):

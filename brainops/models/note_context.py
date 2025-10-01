@@ -32,17 +32,17 @@ class NoteContext:
         self.logger.debug("Création NoteContext pour %s", self.file_path)
         self.base_fp = str(Path(self.file_path).parent)
         if not self.note_metadata or not self.note_content:
-            metadata, content = read_note_full(self.file_path)
+            metadata, content = read_note_full(self.file_path, logger=self.logger)
             if not self.note_metadata:
                 self.note_metadata = metadata
             if not self.note_content:
                 self.note_content = content
 
         if self.note_content and self.note_wc == 0:
-            self.note_wc = count_words(self.note_content)
+            self.note_wc = count_words(self.note_content, logger=self.logger)
 
         if not self.note_classification:
-            self.note_classification = get_category_context_from_folder(folder_path=self.base_fp)
+            self.note_classification = get_category_context_from_folder(folder_path=self.base_fp, logger=self.logger)
 
     def sync_with_db(self) -> dict[str, Any]:
         """

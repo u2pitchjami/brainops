@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from brainops.header.headers import make_properties
@@ -31,6 +32,7 @@ def process_import_syntheses(
     classification: ClassificationResult,
     *,
     regen: bool = False,
+    remake_header: bool = False,
     logger: LoggerProtocol | None = None,
 ) -> bool:
     """
@@ -93,14 +95,27 @@ def process_import_syntheses(
             logger=logger,
         )
         logger.debug("[DEBUG] Maj propriétés (status='synthesis')…")
-        meta_synth_final = make_properties(
-            content=final_response,
-            meta_yaml=meta_final,
-            classification=classification,
-            note_id=note_id,
-            status="synthesis",
-            logger=logger,
-        )
+        if not remake_header:
+            meta_synth_final = NoteMetadata.merge(
+                NoteMetadata(  # priorité aux nouvelles infos
+                    tags=meta_final.tags,
+                    summary=meta_final.summary,
+                    status="synthesis",
+                    category=classification.category_name,
+                    subcategory=classification.subcategory_name or "",
+                    last_modified=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                ),
+                meta_final,  # puis l’existant
+            )
+        else:
+            meta_synth_final = make_properties(
+                content=final_response,
+                meta_yaml=meta_final,
+                classification=classification,
+                note_id=note_id,
+                status="synthesis",
+                logger=logger,
+            )
 
         if not regen:
             join_synthesis = new_synthesis(

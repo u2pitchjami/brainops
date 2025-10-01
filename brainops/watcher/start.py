@@ -16,9 +16,6 @@ from watchdog.observers.polling import PollingObserver
 
 from brainops.io.paths import to_rel
 from brainops.models.event import EventType
-from brainops.services.archives_check import check_archives_syntheses_from_hash_source
-from brainops.services.category_coherence_check import check_file_path_category_coherence
-from brainops.services.reconcile_service import reconcile
 from brainops.utils.config import (
     BASE_PATH,
     WATCHDOG_DEBOUNCE_WINDOW,
@@ -86,9 +83,8 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
     handler = NoteHandler(logger=logger, debounce_window=WATCHDOG_DEBOUNCE_WINDOW)
     observer.schedule(handler, BASE_PATH, recursive=True)
     observer.start()
-    reconcile(scope="all", apply=True, logger=logger)
-    check_archives_syntheses_from_hash_source(auto_fix=True, logger=logger)
     worker = _start_queue_thread()
+    enqueue_event({"type": "script", "action": "reconcile", "path": "path"})
 
     last_maintenance = time.monotonic()
     try:
@@ -106,9 +102,7 @@ def start_watcher(*, logger: LoggerProtocol | None = None) -> None:
                 logger.info("🧹 Purge des locks expirés (timeout=7200s)")
                 LOCK_MGR.purge_expired(timeout=7200)
                 last_maintenance = now
-                reconcile(scope="all", apply=True, logger=logger)
-                check_archives_syntheses_from_hash_source(auto_fix=True, logger=logger)
-                check_file_path_category_coherence(auto_fix=True, sample_size=10, logger=logger)
+                enqueue_event({"type": "script", "action": "reconcile", "path": "path"})
 
     except KeyboardInterrupt:
         logger.info("Arrêt demandé (CTRL+C).")
