@@ -3,13 +3,14 @@
 # 🧠 BrainOps
 
 ## 🚀 Objectif
-BrainOps est un projet Python (>3.1) qui automatise l’organisation et l’enrichissement d’un **second cerveau numérique** construit autour d’[Obsidian](https://obsidian.md).  
+BrainOps est un projet Python (>3.1) / Docker qui automatise l’organisation et l’enrichissement d’un **second cerveau numérique** construit autour d’[Obsidian](https://obsidian.md).  
 Le système s’appuie sur une base de données, un moteur IA local (Ollama) et des scripts Python pour transformer des notes brutes (articles web, idées, documents) en archives propres, catégorisées, enrichies de métadonnées et accompagnées de synthèses intelligentes.
 
 ---
 
 ## 🧰 Stack technique
 - **Python 3.11+**
+- **Docker 28.0.1**
 - **Obsidian** (PC Windows, vault partagé sur serveur Unraid)
 - **MariaDB** (Docker officiel, hébergé sur VM Ubuntu Server)
 - **Ollama** (Docker officiel, multi-GPU avec équilibrage via Nginx reverse proxy)
@@ -49,7 +50,7 @@ Obsidian Clipper
 Vault partagé (Unraid)
        │
        ▼
-Watcher (Python)
+Watcher (Python / Docker)
        │
        ▼
 MariaDB (Docker) <──> Ollama (Docker multi-GPU via Nginx)
